@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Pedidos — Manel's Pizzaria</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{ --dark-green:#2d4a3a; --terracotta:#c0622f; --beige:#f5e6d3; }
+  *{box-sizing:border-box;}
+  body{ font-family:'Courier New', monospace; background:var(--dark-green); color:var(--beige); margin:0; padding:20px; min-height:100vh; }
+  header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--terracotta); flex-wrap:wrap; gap:10px; }
+  h1{ margin:0; font-size:1.3rem; }
+  #status{ font-size:.8rem; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,.1); }
+  #status.ok{ color:#8fd19e; } #status.erro{ color:#e88; }
+
+  #resumo-dia{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .cartao-resumo{ background:rgba(255,255,255,.1); border-radius:8px; padding:10px 16px; min-width:120px; }
+  .cartao-resumo .num{ font-size:1.3rem; font-weight:bold; color:var(--beige); }
+  .cartao-resumo .lbl{ font-size:.7rem; opacity:.75; text-transform:uppercase; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab{ font-family:inherit; font-size:.85rem; padding:8px 16px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
+  .tab.active{ background:var(--terracotta); color:#fff; }
+
+  .barra-acoes{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+  .barra-acoes input[type=text]{ font-family:inherit; padding:8px 12px; border-radius:6px; border:none; font-size:.85rem; min-width:200px; }
+  .btn-topo{ font-family:inherit; font-size:.82rem; padding:8px 14px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.15); color:var(--beige); }
+  .btn-topo:hover{ background:rgba(255,255,255,.25); }
+
+  .grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+  .data-cabecalho{ grid-column:1/-1; font-size:.9rem; font-weight:bold; color:var(--beige); opacity:.85; margin:10px 0 -2px 4px; border-bottom:1px dashed rgba(255,255,255,.3); padding-bottom:4px; }
+
+  .pedido{ background:#fff; color:#222; border-radius:10px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,.25); border-left:6px solid var(--terracotta); animation:novo .5s ease; display:flex; flex-direction:column; }
+  .pedido.status-finalizado_pago{ border-left-color:#3a7d4a; }
+  .pedido.status-em_andamento{ border-left-color:#3a72c0; }
+  .pedido.status-pendencia{ border-left-color:#c03a3a; }
+  .pedido.atrasado{ box-shadow:0 0 0 3px #e05a3a; }
+  @keyframes novo{ 0%{ transform:scale(1.03); box-shadow:0 0 0 6px rgba(192,98,47,.4);} 100%{ transform:scale(1); box-shadow:0 3px 10px rgba(0,0,0,.25);} }
+  .pedido-topo{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+  .pedido-numero{ font-weight:bold; font-size:.85rem; color:#555; }
+  .pedido-hora{ font-size:.75rem; color:#888; }
+  .pedido-total{ font-weight:bold; color:var(--terracotta); font-size:1.05rem; }
+
+  select.status-select{ font-family:inherit; font-size:.78rem; padding:5px 8px; border-radius:12px; font-weight:bold; border:none; margin-bottom:8px; }
+  .status-select.novo{ background:#fdecdc; color:var(--terracotta); }
+  .status-select.em_andamento{ background:#dde9fb; color:#3a72c0; }
+  .status-select.finalizado_pago{ background:#e3f3e6; color:#3a7d4a; }
+  .status-select.pendencia{ background:#fbdada; color:#c03a3a; }
+  .status-select.impresso{ background:#eee; color:#666; }
+
+  textarea{ width:100%; font-family:'Courier New', monospace; font-size:.8rem; padding:8px; border-radius:6px; border:1px dashed #ccc; background:#fafafa; color:#222; min-height:160px; resize:vertical; margin-bottom:8px; flex:1; }
+  .acoes{ display:flex; gap:6px; flex-wrap:wrap; }
+  button.acao{ font-family:inherit; font-size:.78rem; padding:7px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
+  .btn-imprimir{ background:var(--dark-green); color:#fff; }
+  .btn-salvar{ background:#d9a441; color:#fff; }
+  .btn-ok{ background:#e9e9e9; color:#555; }
+  .btn-excluir{ background:#c03a3a; color:#fff; }
+
+  #vazio{ text-align:center; padding:60px 20px; opacity:.6; }
+  #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
+  #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
+  #tela-senha button{ font-family:inherit; font-size:.9rem; padding:10px 20px; border:none; border-radius:6px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
+  #tela-senha .erro-senha{ color:#f7b0a0; font-size:.85rem; min-height:1em; }
+</style>
+</head>
+<body>
+
+<div id="tela-senha">
+  <h2>🍕 Painel de Pedidos</h2>
+  <input type="password" id="input-senha" placeholder="Senha do painel" autofocus>
+  <button onclick="conferirSenha()">Entrar</button>
+  <div class="erro-senha" id="erro-senha"></div>
+</div>
+
+<div id="conteudo" style="display:none;">
+  <header>
+    <h1>🍕 Painel de Pedidos — Manel's</h1>
+    <span id="status">conectando...</span>
+  </header>
+
+  <div id="resumo-dia"></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-novos" onclick="mudarAba('novos')">📥 Pedidos Ativos</button>
+    <button class="tab" id="tab-historico" onclick="mudarAba('historico')">🕘 Histórico</button>
+  </div>
+
+  <div class="barra-acoes">
+    <input type="text" id="busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderizar()">
+    <button class="btn-topo" onclick="imprimirTodosPendentes()">🖨️ Imprimir todos os pendentes</button>
+    <button class="btn-topo" onclick="exportarExcel()">📊 Exportar Excel</button>
+  </div>
+
+  <div class="grade" id="lista"></div>
+  <div id="vazio">Nenhum pedido no momento.</div>
+</div>
+
+<audio id="som-aviso" preload="auto"><source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg"></audio>
+
+<script>
+const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Senha simples do painel — troque aqui quando quiser.
+// Isso é só uma trava básica contra curiosos, não é segurança de verdade.
+const SENHA_PAINEL = "manel2026";
+
+const STATUS_LABELS = {
+  novo: '🟠 Recebido',
+  em_andamento: '🔵 Em andamento',
+  finalizado_pago: '🟢 Finalizado e pago',
+  pendencia: '🔴 Pendência',
+  impresso: '⚪ Impresso',
+  feito_sem_impressao: '⚪ Feito (sem impressão)'
+};
+const STATUS_ATIVOS = ['novo','em_andamento','pendencia','impresso'];
+const MINUTOS_ATRASO = 15;
+
+const statusEl = document.getElementById('status');
+const listaEl = document.getElementById('lista');
+const vazioEl = document.getElementById('vazio');
+const somAviso = document.getElementById('som-aviso');
+
+let modoAtual = 'novos';
+let pedidosAtivos = [];
+let pedidosHistorico = [];
+
+function conferirSenha(){
+  const valor = document.getElementById('input-senha').value;
+  if(valor === SENHA_PAINEL){
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('conteudo').style.display = 'block';
+    iniciar();
+  } else {
+    document.getElementById('erro-senha').textContent = 'Senha incorreta.';
+  }
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+
+function tocarAviso(){
+  somAviso.currentTime = 0;
+  somAviso.play().catch(()=>{});
+  if(document.title.indexOf('🔔') === -1) document.title = '🔔 NOVO PEDIDO! — Manel\'s';
+}
+function pararAviso(){ document.title = "Painel de Pedidos — Manel's Pizzaria"; }
+
+function formatarHora(iso){ return new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); }
+function formatarDataLonga(iso){
+  const d = new Date(iso);
+  const hoje = new Date(); const ontem = new Date(); ontem.setDate(hoje.getDate()-1);
+  const mesmoDia = (a,b) => a.toDateString() === b.toDateString();
+  if(mesmoDia(d, hoje)) return 'Hoje, ' + d.toLocaleDateString('pt-BR');
+  if(mesmoDia(d, ontem)) return 'Ontem, ' + d.toLocaleDateString('pt-BR');
+  return d.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit'});
+}
+function chaveDia(iso){ return new Date(iso).toDateString(); }
+
+function capturarEdicoes(){
+  const edicoes = {};
+  document.querySelectorAll('textarea[data-id]').forEach(t => { edicoes[t.dataset.id] = t.value; });
+  return edicoes;
+}
+
+function mudarAba(aba){
+  modoAtual = aba;
+  document.getElementById('tab-novos').classList.toggle('active', aba === 'novos');
+  document.getElementById('tab-historico').classList.toggle('active', aba === 'historico');
+  if(aba === 'historico') carregarHistorico();
+  renderizar();
+}
+
+function pedidoNumero(p, listaOrdenada){
+  const idx = listaOrdenada.findIndex(x => x.id === p.id);
+  return idx + 1;
+}
+
+function renderizarResumoDia(){
+  const hojeStr = new Date().toDateString();
+  const doDia = [...pedidosAtivos, ...pedidosHistorico].filter(p => chaveDia(p.created_at) === hojeStr);
+  const unicos = Array.from(new Map(doDia.map(p => [p.id, p])).values());
+  const faturamento = unicos.reduce((soma, p) => soma + (p.total || 0), 0);
+  const qtd = unicos.length;
+  const ticket = qtd ? faturamento / qtd : 0;
+  document.getElementById('resumo-dia').innerHTML = `
+    <div class="cartao-resumo"><div class="num">${qtd}</div><div class="lbl">Pedidos hoje</div></div>
+    <div class="cartao-resumo"><div class="num">R$ ${faturamento.toFixed(2).replace('.',',')}</div><div class="lbl">Faturamento hoje</div></div>
+    <div class="cartao-resumo"><div class="num">R$ ${ticket.toFixed(2).replace('.',',')}</div><div class="lbl">Ticket médio</div></div>
+  `;
+}
+
+function filtrarBusca(lista){
+  const termo = document.getElementById('busca').value.trim().toLowerCase();
+  if(!termo) return lista;
+  return lista.filter(p => (p.texto_comanda || '').toLowerCase().includes(termo));
+}
+
+function renderizar(){
+  renderizarResumoDia();
+  const edicoesAtuais = capturarEdicoes();
+  let lista = modoAtual === 'novos' ? pedidosAtivos : pedidosHistorico;
+  lista = filtrarBusca(lista);
+  const listaOrdenadaAsc = [...lista].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+  vazioEl.style.display = lista.length ? 'none' : 'block';
+  vazioEl.textContent = modoAtual === 'novos' ? 'Nenhum pedido ativo no momento.' : 'Nenhum pedido encontrado.';
+
+  listaEl.innerHTML = '';
+  let ultimoDia = null;
+  const agora = new Date();
+
+  lista.forEach(p => {
+    const dia = chaveDia(p.created_at);
+    if(dia !== ultimoDia){
+      const cab = document.createElement('div');
+      cab.className = 'data-cabecalho';
+      cab.textContent = formatarDataLonga(p.created_at);
+      listaEl.appendChild(cab);
+      ultimoDia = dia;
+    }
+
+    const minutosParado = (agora - new Date(p.created_at)) / 60000;
+    const atrasado = p.status === 'novo' && minutosParado > MINUTOS_ATRASO;
+    const valorTextarea = edicoesAtuais[p.id] !== undefined ? edicoesAtuais[p.id] : p.texto_comanda;
+    const numero = pedidoNumero(p, listaOrdenadaAsc);
+
+    const div = document.createElement('div');
+    div.className = 'pedido status-' + p.status + (atrasado ? ' atrasado' : '');
+    div.innerHTML = `
+      <div class="pedido-topo">
+        <span class="pedido-numero">Pedido #${numero}${atrasado ? ' ⚠️ parado há ' + Math.round(minutosParado) + ' min' : ''}</span>
+        <span class="pedido-hora">${formatarHora(p.created_at)}</span>
+      </div>
+      <div class="pedido-topo">
+        <select class="status-select ${p.status}" onchange="mudarStatus(${p.id}, this.value)">
+          ${Object.entries(STATUS_LABELS).map(([v,l]) => `<option value="${v}" ${p.status===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+        <span class="pedido-total">R$ ${(p.total||0).toFixed(2).replace('.',',')}</span>
+      </div>
+      <textarea data-id="${p.id}">${valorTextarea}</textarea>
+      <div class="acoes">
+        <button class="acao btn-imprimir" onclick="imprimirPedido(${p.id})">🖨️ Imprimir</button>
+        <button class="acao btn-salvar" onclick="salvarEdicao(${p.id})">💾 Salvar</button>
+        <button class="acao btn-excluir" onclick="excluirPedido(${p.id})">🗑️ Excluir</button>
+      </div>
+    `;
+    listaEl.appendChild(div);
+  });
+}
+
+async function carregarPedidosAtivos(){
+  const { data, error } = await supabaseClient.from('pedidos').select('*').in('status', STATUS_ATIVOS).order('created_at', { ascending: true });
+  if(error){ statusEl.textContent = 'erro ao carregar pedidos'; statusEl.className = 'erro'; console.error(error); return; }
+  pedidosAtivos = data || [];
+  if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+}
+
+async function carregarHistorico(){
+  const { data, error } = await supabaseClient.from('pedidos').select('*').order('created_at', { ascending: false }).limit(200);
+  if(error){ console.error(error); return; }
+  pedidosHistorico = data || [];
+  if(modoAtual === 'historico') renderizar();
+}
+
+function encontrarPedido(id){ return pedidosAtivos.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id); }
+
+async function mudarStatus(id, novoStatus){
+  await supabaseClient.from('pedidos').update({ status: novoStatus }).eq('id', id);
+  const item = encontrarPedido(id);
+  if(item) item.status = novoStatus;
+  if(!STATUS_ATIVOS.includes(novoStatus)){
+    pedidosAtivos = pedidosAtivos.filter(p => p.id !== id);
+  }
+  renderizar();
+  if(pedidosAtivos.filter(p => p.status === 'novo').length === 0) pararAviso();
+}
+
+async function salvarEdicao(id){
+  const textarea = document.querySelector(`textarea[data-id="${id}"]`);
+  if(!textarea) return;
+  await supabaseClient.from('pedidos').update({ texto_comanda: textarea.value }).eq('id', id);
+  const item = encontrarPedido(id);
+  if(item) item.texto_comanda = textarea.value;
+}
+
+async function excluirPedido(id){
+  if(!confirm('Excluir esta comanda definitivamente? Não dá pra desfazer.')) return;
+  // Importante: pedimos .select() de volta para o Supabase. Sem isso, se a política
+  // de RLS da tabela "pedidos" não liberar DELETE para o usuário anônimo, o Supabase
+  // responde "sucesso" com 0 linhas afetadas (sem gerar "error"), e a comanda parece
+  // sumir da tela mas continua no banco — reaparecendo ao recarregar a página.
+  const { data, error } = await supabaseClient.from('pedidos').delete().eq('id', id).select();
+  if(error){
+    alert('Não foi possível excluir.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('A comanda não foi excluída (0 linhas afetadas).\n\nIsso quase sempre significa que falta uma política de DELETE liberada para o usuário anônimo na tabela "pedidos" no Supabase.\n\nVá em Supabase > Authentication > Policies (ou Database > Policies), na tabela "pedidos", e crie/habilite uma política de DELETE para o role "anon" (ex: USING (true), se não houver necessidade de restringir).');
+    console.warn('Delete retornou 0 linhas — provável bloqueio de RLS.', { id });
+    return;
+  }
+  pedidosAtivos = pedidosAtivos.filter(p => p.id !== id);
+  pedidosHistorico = pedidosHistorico.filter(p => p.id !== id);
+  renderizar();
+}
+
+function imprimirTextoBruto(texto){
+  const escapado = texto.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const janela = window.open('', '_blank', 'width=400,height=650');
+  janela.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda</title>
+    <style>@media print{@page{margin:6mm;}} body{margin:0;padding:14px;} pre{font-family:'Courier New',monospace;font-size:14px;font-weight:700;color:#000;white-space:pre-wrap;margin:0 0 14px 0;border-bottom:1px dashed #000;padding-bottom:10px;}</style>
+    </head><body><pre>${escapado}</pre>
+    <script>window.onload=function(){window.focus();window.print();}; window.onafterprint=function(){window.close();};<\/script>
+    </body></html>`);
+  janela.document.close();
+}
+
+function imprimirPedido(id){
+  const textarea = document.querySelector(`textarea[data-id="${id}"]`);
+  const texto = textarea ? textarea.value : (encontrarPedido(id)||{}).texto_comanda || '';
+  imprimirTextoBruto(texto);
+  const item = encontrarPedido(id);
+  if(item && item.status === 'novo'){ mudarStatus(id, 'impresso'); }
+}
+
+function imprimirTodosPendentes(){
+  const pendentes = pedidosAtivos.filter(p => p.status === 'novo');
+  if(pendentes.length === 0){ alert('Não há pedidos pendentes de impressão.'); return; }
+  pendentes.forEach((p, i) => { setTimeout(() => imprimirPedido(p.id), i * 700); });
+}
+
+function exportarExcel(){
+  const todos = [...pedidosHistorico];
+  // garante que os ativos também entrem, mesmo que o histórico não tenha sido aberto ainda
+  pedidosAtivos.forEach(p => { if(!todos.some(x => x.id === p.id)) todos.push(p); });
+  todos.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const linhas = todos.map(p => ({
+    'Data': new Date(p.created_at).toLocaleDateString('pt-BR'),
+    'Hora': formatarHora(p.created_at),
+    'Status': STATUS_LABELS[p.status] || p.status,
+    'Total (R$)': p.total || 0,
+    'Comanda': p.texto_comanda
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [{wch:12},{wch:8},{wch:20},{wch:12},{wch:60}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `pedidos_manels_${dataArquivo}.xlsx`);
+}
+
+function iniciar(){
+  carregarPedidosAtivos();
+  carregarHistorico();
+
+  setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); renderizarResumoDia(); }, 20000);
+  setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso
+
+  supabaseClient
+    .channel('pedidos-realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, payload => {
+      if(!pedidosAtivos.some(p => p.id === payload.new.id)) pedidosAtivos.push(payload.new);
+      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+      tocarAviso();
+    })
+    .subscribe(status => {
+      if(status === 'SUBSCRIBED'){ statusEl.textContent = '🟢 conectado — aguardando pedidos'; statusEl.className = 'ok'; }
+      else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT'){ statusEl.textContent = '🔴 conexão perdida — recarregue a página'; statusEl.className = 'erro'; }
+    });
+
+  document.addEventListener('click', () => { somAviso.play().then(()=>somAviso.pause()).catch(()=>{}); }, { once:true });
+}
+</script>
+</body>
+</html>
