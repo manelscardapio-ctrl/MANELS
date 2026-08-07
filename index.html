@@ -491,6 +491,11 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 
       <div class="error-msg" id="chk-error"></div>
       <button class="wa-btn" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
+      <div id="wa-fallback" style="display:none; margin-top:.6rem; text-align:center;">
+        <a id="wa-fallback-link" href="#" target="_blank" rel="noopener" style="display:inline-block; font-size:12.5px; font-weight:700; color:var(--forest-dark); text-decoration:underline; padding:.4rem;">
+          O WhatsApp não abriu? Toque aqui para enviar o pedido
+        </a>
+      </div>
     </div>
   </section>
 
@@ -611,6 +616,12 @@ const FREE_DELIVERY_THRESHOLD = 20.00;
 const STORE_PHONE_DISPLAY = "88 9 9218-2784";
 const WHATSAPP_NUMBER = "5588992182784";
 const PICKUP_ADDRESS = "Rua Joaquim Soares da Silva, 641, Centro";
+
+// Supabase do PAINEL DE PEDIDOS (o mesmo projeto que o comandas.html usa).
+// É um projeto DIFERENTE do Supabase de produtos/catálogo configurado mais abaixo —
+// por isso o pedido precisa ser enviado separadamente pra cá.
+const PEDIDOS_SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const PEDIDOS_SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
 
 let cart = [];
 let cartIdCounter = 1;
@@ -1472,6 +1483,64 @@ function clearError(){
   document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
 }
 
+// ===== ENVIO DO PEDIDO: painel (Supabase) + WhatsApp, de forma confiável em qualquer aparelho =====
+
+// Manda a comanda para o painel de pedidos (comandas.html).
+// Usa fetch "cru" (não o cliente supabase-js) com keepalive:true, para a requisição
+// não ser cancelada mesmo que a página comece a navegar para o WhatsApp logo em seguida
+// (isso é essencial no iPhone, onde abrimos o WhatsApp na MESMA aba — veja abrirWhatsApp()).
+function enviarComandaParaPainel(textoComanda, total){
+  try{
+    fetch(`${PEDIDOS_SUPABASE_URL}/rest/v1/pedidos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': PEDIDOS_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${PEDIDOS_SUPABASE_ANON_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'novo', total: total, texto_comanda: textoComanda }),
+      keepalive: true
+    }).catch(err => console.error('Não foi possível enviar o pedido para o painel:', err));
+  } catch(err){
+    console.error('Erro ao tentar enviar pedido para o painel:', err);
+  }
+}
+
+function isIOSDevice(){
+  const ua = navigator.userAgent || '';
+  const iOSClassico = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS13Mais = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return iOSClassico || iPadOS13Mais;
+}
+
+// Abre o WhatsApp da forma mais confiável possível conforme o aparelho.
+function abrirWhatsApp(url){
+  if(isIOSDevice()){
+    // No iPhone/iPad navegamos na MESMA aba. É o jeito mais confiável: o Safari do iOS
+    // costuma bloquear window.open() para nova aba mesmo dentro do toque do usuário —
+    // foi exatamente isso que causava o problema relatado em iPhones (ex.: iPhone XR).
+    window.location.href = url;
+    return;
+  }
+  let novaAba = null;
+  try{ novaAba = window.open(url, '_blank'); } catch(e){ novaAba = null; }
+  if(!novaAba){
+    // Bloqueado mesmo assim (ex: configuração do navegador) → navega na aba atual.
+    window.location.href = url;
+  }
+}
+
+// Mostra um link manual de apoio: garante que o cliente sempre tenha como enviar o
+// pedido pelo WhatsApp, mesmo se a abertura automática falhar silenciosamente.
+function mostrarLinkManualWhatsApp(url){
+  const wrap = document.getElementById('wa-fallback');
+  const link = document.getElementById('wa-fallback-link');
+  if(!wrap || !link) return;
+  link.href = url;
+  wrap.style.display = 'block';
+}
+
 function enviarPedido(){
   clearError();
   const nome = document.getElementById('chk-nome').value.trim();
@@ -1505,8 +1574,17 @@ function enviarPedido(){
   }
 
   const comanda = gerarComanda();
+  const totalPedido = getSubtotal() + getFee() + getExtras();
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(comanda)}`;
-  window.open(url, '_blank');
+
+  // 1) Envia para o painel de pedidos (não trava nem atrasa a abertura do WhatsApp).
+  enviarComandaParaPainel(comanda, totalPedido);
+
+  // 2) Sempre disponibiliza o link manual de apoio, como garantia extra.
+  mostrarLinkManualWhatsApp(url);
+
+  // 3) Abre o WhatsApp da forma mais confiável para o aparelho do cliente.
+  abrirWhatsApp(url);
 }
 </script>
 </body>
