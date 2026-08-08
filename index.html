@@ -173,10 +173,18 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 #pay-row.field-error{box-shadow:0 0 0 1.5px var(--rust-dark); border-radius:10px; padding:4px;}
 #troco-need-row.field-error{box-shadow:0 0 0 1.5px var(--rust-dark); border-radius:10px; padding:4px;}
 
-.floating-cart{position:fixed; bottom:0; left:0; right:0; z-index:70; background:var(--forest-dark); color:#fff; padding:.7rem 1.1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 -4px 14px rgba(0,0,0,.2);}
+.floating-cart{position:fixed; bottom:0; left:0; right:0; z-index:70; background:var(--forest-dark); color:#fff; padding:.7rem 1.1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 -4px 14px rgba(0,0,0,.2); transition:background .25s ease;}
+.floating-cart.empty{background:#6b6154;}
+@keyframes cartPulse{0%{transform:scale(1);} 30%{transform:scale(1.035); box-shadow:0 -4px 22px rgba(168,83,43,.55);} 100%{transform:scale(1);}}
+.floating-cart.pulse{animation:cartPulse .45s ease;}
 .floating-cart span.lbl{font-size:11px; opacity:.8; display:block;}
 .floating-cart span.val{font-family:'Fraunces',serif; font-weight:700; font-size:18px;}
 .floating-cart a{background:var(--rust); color:#fff; text-decoration:none; font-weight:700; font-size:13px; padding:.6rem 1rem; border-radius:8px;}
+
+.cart-empty-alert{display:none; align-items:flex-start; gap:.6rem; background:#FBEAD9; border:2px solid var(--rust); border-radius:10px; padding:.85rem 1rem; margin-bottom:.8rem;}
+.cart-empty-alert .ico{font-size:1.3rem; line-height:1;}
+.cart-empty-alert .txt b{display:block; color:var(--rust-dark); font-size:14px; margin-bottom:.15rem;}
+.cart-empty-alert .txt span{font-size:12.5px; color:var(--ink-soft); line-height:1.4;}
 
 .wa-btn{display:block; width:100%; padding:1rem; background:#25D366; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:15.5px; cursor:pointer; text-align:center; margin-top:1rem;}
 .wa-btn:disabled{background:#a9a294; cursor:not-allowed;}
@@ -400,7 +408,13 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
       <h2>Seu Carrinho</h2>
     </div>
     <div class="cart-box" id="cart-box">
-      <div class="cart-empty" id="cart-empty">Seu carrinho está vazio. Adicione itens acima!</div>
+      <div class="cart-empty-alert" id="cart-empty">
+        <span class="ico">⚠️</span>
+        <div class="txt">
+          <b>Seu carrinho está vazio</b>
+          <span>Escolher o sabor não adiciona o item — role a página pra cima e toque em <b>"Adicionar ao Carrinho"</b> no que você quer pedir.</span>
+        </div>
+      </div>
       <div id="cart-items"></div>
       <label class="complement-toggle" for="want-ketchup">
         <input type="checkbox" id="want-ketchup" onchange="toggleKetchup(this.checked)">
@@ -511,9 +525,9 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
   </footer>
 </div>
 
-<div class="floating-cart" id="floating-cart" style="display:none;">
-  <div><span class="lbl">Ver Pedido</span><span class="val" id="floating-total">R$ 0,00</span></div>
-  <a href="#finalizar">Finalizar →</a>
+<div class="floating-cart empty" id="floating-cart">
+  <div><span class="lbl" id="floating-lbl">🛒 Carrinho vazio</span><span class="val" id="floating-total" style="display:none;">R$ 0,00</span></div>
+  <a href="#finalizar" id="floating-link" style="display:none;">Finalizar →</a>
 </div>
 
 <script>
@@ -1218,16 +1232,27 @@ function renderCart(){
   const empty = document.getElementById('cart-empty');
   const summary = document.getElementById('cart-summary');
   const floating = document.getElementById('floating-cart');
+  const floatingLbl = document.getElementById('floating-lbl');
+  const floatingVal = document.getElementById('floating-total');
+  const floatingLink = document.getElementById('floating-link');
+
+  const qtdItens = cart.reduce((s,i) => s + i.qty, 0);
 
   if(cart.length === 0){
-    empty.style.display = 'block';
+    empty.style.display = 'flex';
     box.innerHTML = '';
     summary.style.display = 'none';
-    floating.style.display = 'none';
+    floating.classList.add('empty');
+    floatingLbl.textContent = '🛒 Carrinho vazio';
+    floatingVal.style.display = 'none';
+    floatingLink.style.display = 'none';
   } else {
     empty.style.display = 'none';
     summary.style.display = 'block';
-    floating.style.display = 'flex';
+    floating.classList.remove('empty');
+    floatingLbl.textContent = `🛒 ${qtdItens} ${qtdItens === 1 ? 'item' : 'itens'}`;
+    floatingVal.style.display = 'inline';
+    floatingLink.style.display = 'inline-block';
     box.innerHTML = cart.slice().reverse().map(item => `
       <div class="cart-item">
         <div class="desc"><b>${item.qty}x ${item.label}</b>${item.detail ? `<small>${item.detail}</small>` : ''}</div>
@@ -1247,7 +1272,7 @@ function renderCart(){
   document.getElementById('cart-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
   document.getElementById('cart-maionese').textContent = brl(extras);
   document.getElementById('cart-total').textContent = brl(total);
-  document.getElementById('floating-total').textContent = brl(total);
+  floatingVal.textContent = brl(total);
 
   document.getElementById('chk-subtotal').textContent = brl(subtotal);
   document.getElementById('chk-fee-line').style.display = fee > 0 ? 'flex' : 'none';
@@ -1260,7 +1285,10 @@ function renderCart(){
 }
 
 function flashAdded(){
-  document.getElementById('floating-cart').style.display = 'flex';
+  const floating = document.getElementById('floating-cart');
+  floating.classList.remove('pulse');
+  void floating.offsetWidth; // reinicia a animação mesmo em cliques seguidos
+  floating.classList.add('pulse');
 }
 
 /* ==================== CHECKOUT ==================== */
@@ -1338,6 +1366,9 @@ function gerarComanda(){
   const LARG = 32;
   const SEP = '='.repeat(LARG);
 
+  // Emoji por tipo de item principal, pra identificar rápido sem precisar de espaço extra.
+  const EMOJI_ITEM = { pizza:'🍕', calzone:'🥟', brotinho:'🍩', esfiha:'🥙', bebida:'🥤', combo:'🍽️' };
+
   let c = `${SEP}\n`;
   c += `     MANEL'S PIZZARIA\n`;
   c += `     📞 ${STORE_PHONE_DISPLAY}\n`;
@@ -1353,78 +1384,70 @@ function gerarComanda(){
   // ---------- PARA O PIZZAIOLO ----------
   c += `${SEP}\n`;
   c += `*🍕 PARA O PIZZAIOLO*\n`;
-  c += `${SEP}\n\n`;
+  c += `${SEP}\n`;
 
   const itensDoMaisRecente = cart.slice().reverse(); // último item adicionado aparece primeiro
   itensDoMaisRecente.forEach(item => {
-    c += `${item.qty}x ${item.label}\n`;
+    const emoji = EMOJI_ITEM[item.type] || '•';
+    c += `${emoji} ${item.qty}x ${item.label}\n`;
 
     if(item.type === 'pizza'){
       item.flavors.forEach((f,i) => {
-        c += quebrarTexto(`[${i+1}/${item.flavors.length}] ${f}`, LARG, '  ') + '\n';
+        c += quebrarTexto(`🔸[${i+1}/${item.flavors.length}] ${f}`, LARG, '  ') + '\n';
       });
       if(item.crust){
-        c += `  🧀 Borda Recheada: Doce\n`;
+        c += `🧀 Borda Recheada: Doce\n`;
       }
     } else if(item.type === 'esfiha'){
       Object.keys(item.counts).filter(f => item.counts[f] > 0).forEach(f => {
-        c += quebrarTexto(`• ${item.counts[f]}x ${f}`, LARG, '  ') + '\n';
+        c += quebrarTexto(`🔸${item.counts[f]}x ${f}`, LARG, '  ') + '\n';
       });
     } else if(item.detail){
-      c += quebrarTexto(item.detail, LARG, '  ') + '\n';
+      c += quebrarTexto(`🔸${item.detail}`, LARG, '  ') + '\n';
     }
-    c += '\n';
   });
 
   if(wantKetchup || wantMaionese){
-    c += `➕ Complementos:\n`;
-    if(wantKetchup){ c += `  • Ketchup\n`; }
-    if(wantMaionese){ c += `  • Maionese Temperada\n    (+${brl(MAIONESE_PRICE)})\n`; }
-    c += '\n';
+    if(wantKetchup){ c += `🔹 Ketchup\n`; }
+    if(wantMaionese){ c += `🔹 Maionese Temperada (+${brl(MAIONESE_PRICE)})\n`; }
   }
   if(obs){
-    c += `❗ *OBS:*\n`;
-    c += quebrarTexto(obs, LARG, '') + '\n\n';
+    c += quebrarTexto(`❗*OBS:* ${obs}`, LARG, '') + '\n';
   }
 
   // ---------- PARA O MOTOBOY ----------
   c += `${SEP}\n`;
   c += `*🛵 PARA O MOTOBOY*\n`;
-  c += `${SEP}\n\n`;
+  c += `${SEP}\n`;
   c += `👤 Cliente: ${nome}\n`;
-  c += `📞 Telefone: ${telefone}\n\n`;
+  c += `📞 Telefone: ${telefone}\n`;
 
   if(fulfillment === 'entrega'){
-    c += `📍 *Endereço:*\n`;
-    c += quebrarTexto(endereco, LARG, '') + '\n';
+    c += quebrarTexto(`📍 Endereço: ${endereco}`, LARG, '') + '\n';
     if(userGeoLat !== null && userGeoLng !== null){
-      c += `🗺️ Mapa:\nhttps://www.google.com/maps?q=${userGeoLat},${userGeoLng}\n`;
+      c += `🗺️ Mapa: https://www.google.com/maps?q=${userGeoLat},${userGeoLng}\n`;
     }
     if(fee > 0){ c += `🛵 Taxa de entrega: ${brl(fee)}\n`; }
   } else {
     c += `🏠 *RETIRADA NO BALCÃO*\n`;
   }
-  c += '\n';
 
   c += `💳 Pagamento: ${paymentMethod}\n`;
   if(paymentMethod === 'Dinheiro'){
     if(trocoNeed === false){
-      c += `💵 Troco: NÃO precisa\n    (valor exato)\n`;
+      c += `💵 Troco: NÃO precisa (valor exato)\n`;
     } else if(trocoNeed === true){
       const valorPago = parseMoneyBR(troco);
       if(valorPago !== null && valorPago >= total){
-        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')}\n`;
-        c += `💵 Troco: R$ ${(valorPago-total).toFixed(2).replace('.',',')}\n`;
+        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} → Troco: R$ ${(valorPago-total).toFixed(2).replace('.',',')}\n`;
       } else if(valorPago !== null){
-        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')}\n`;
-        c += `⚠️ menor que o total\n`;
+        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} ⚠️ menor que o total\n`;
       }
     }
   }
 
   c += `${SEP}\n`;
-  c += `💰 *TOTAL A COBRAR:*\n`;
-  c += `💰 *${brl(total)}*\n`;
+  c += `💰 *TOTAL A COBRAR: ${brl(total)}*\n`;
   c += `${SEP}\n`;
   c += `   Bom apetite! 🍕🔥\n`;
   c += SEP;
