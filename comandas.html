@@ -190,6 +190,17 @@ function renderizarResumoDia(){
 // Extrai o nome do cliente de dentro do texto da comanda (não existe um campo
 // separado no banco pra isso — o nome só existe na linha "Cliente:" do texto).
 // Se essa linha for apagada ou alterada manualmente na comanda, o nome some daqui também.
+// Extrai o valor total de dentro do texto da comanda (linha "TOTAL A COBRAR").
+// Usado para manter o campo "total" do banco sincronizado quando alguém edita
+// o texto da comanda manualmente no painel.
+function extrairTotalComanda(texto){
+  if(!texto) return null;
+  const m = texto.match(/TOTAL A COBRAR:\s*R\$\s*([\d.,]+)/i);
+  if(!m) return null;
+  const num = parseFloat(m[1].replace(/\./g,'').replace(',', '.'));
+  return isNaN(num) ? null : num;
+}
+
 function extrairNomeCliente(texto){
   if(!texto) return '';
   const m = texto.match(/Cliente:\s*([^\n]+)/i);
@@ -286,9 +297,25 @@ async function mudarStatus(id, novoStatus){
 async function salvarEdicao(id){
   const textarea = document.querySelector(`textarea[data-id="${id}"]`);
   if(!textarea) return;
-  await supabaseClient.from('pedidos').update({ texto_comanda: textarea.value }).eq('id', id);
+
+  const payload = { texto_comanda: textarea.value };
+  const novoTotal = extrairTotalComanda(textarea.value);
+  if(novoTotal !== null) payload.total = novoTotal;
+
+  const { error } = await supabaseClient.from('pedidos').update(payload).eq('id', id);
+  if(error){
+    alert('Não foi possível salvar a edição.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+
   const item = encontrarPedido(id);
-  if(item) item.texto_comanda = textarea.value;
+  if(item){
+    item.texto_comanda = textarea.value;
+    if(novoTotal !== null) item.total = novoTotal;
+  }
+  renderizar();
+  renderizarResumoDia();
 }
 
 async function excluirPedido(id){
