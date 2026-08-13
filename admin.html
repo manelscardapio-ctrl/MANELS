@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Produtos — Manel's Pizzaria</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --dark-green:#2d4a3a; --terracotta:#c0622f; --beige:#f5e6d3; --red:#c0392b; --green-ok:#3a7d4a; }
+  *{box-sizing:border-box;}
+  body{ font-family:'Courier New', monospace; background:var(--dark-green); color:var(--beige); margin:0; padding:20px; min-height:100vh; }
+
+  #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
+  #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
+  #tela-senha button{ font-family:inherit; font-size:.9rem; padding:10px 20px; border:none; border-radius:6px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
+  #tela-senha .erro-senha{ color:#f7b0a0; font-size:.85rem; min-height:1em; }
+
+  header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--terracotta); flex-wrap:wrap; gap:10px; }
+  h1{ margin:0; font-size:1.3rem; }
+  #status{ font-size:.8rem; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,.1); }
+  #status.ok{ color:#8fd19e; } #status.erro{ color:#e88; }
+
+  .aviso-config{ background:rgba(224,90,58,.18); border:1px solid #e05a3a; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:.82rem; line-height:1.5; display:none; }
+  .aviso-config.show{ display:block; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab{ font-family:inherit; font-size:.85rem; padding:8px 16px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
+  .tab.active{ background:var(--terracotta); color:#fff; }
+
+  .categoria{ display:none; }
+  .categoria.active{ display:block; }
+
+  .grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; margin-bottom:18px; }
+
+  .produto{ background:#fff; color:#222; border-radius:10px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,.25); display:flex; flex-direction:column; gap:8px; }
+  .produto.inativo{ opacity:.55; }
+  .produto .foto-wrap{ position:relative; width:100%; height:140px; border-radius:8px; overflow:hidden; background:#eee; cursor:pointer; }
+  .produto .foto-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .produto .foto-wrap .foto-vazia{ display:flex; align-items:center; justify-content:center; height:100%; color:#999; font-size:.75rem; text-align:center; padding:8px; }
+  .produto .foto-wrap .foto-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.75rem; opacity:0; transition:opacity .15s; }
+  .produto .foto-wrap:hover .foto-overlay{ opacity:1; }
+  .produto input[type=file]{ display:none; }
+
+  .campo{ display:flex; flex-direction:column; gap:3px; }
+  .campo label{ font-size:.68rem; text-transform:uppercase; opacity:.7; font-weight:bold; }
+  .campo input[type=text], .campo input[type=number], .campo textarea{ font-family:inherit; font-size:.85rem; padding:7px 9px; border-radius:6px; border:1px solid #ccc; width:100%; }
+  .campo textarea{ resize:vertical; min-height:50px; }
+
+  .linha-precos{ display:flex; gap:6px; }
+  .linha-precos .campo{ flex:1; }
+
+  .campo-toggle{ display:flex; align-items:center; gap:8px; font-size:.82rem; }
+  .campo-toggle input{ width:16px; height:16px; }
+
+  details.promo{ border:1px dashed #ccc; border-radius:6px; padding:8px; }
+  details.promo summary{ font-size:.78rem; font-weight:bold; cursor:pointer; color:var(--terracotta); }
+  details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+
+  .acoes-produto{ display:flex; gap:6px; margin-top:4px; }
+  .acoes-produto button{ flex:1; font-family:inherit; font-size:.78rem; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
+  .btn-salvar{ background:var(--green-ok); color:#fff; }
+  .btn-excluir{ background:var(--red); color:#fff; }
+  .salvo-ok{ font-size:.72rem; color:var(--green-ok); text-align:center; min-height:1em; }
+
+  .card-novo{ background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.35); border-radius:10px; padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:bold; text-align:center; }
+  .card-novo:hover{ background:rgba(255,255,255,.14); }
+</style>
+</head>
+<body>
+
+<div id="tela-senha">
+  <h1>🍕 Gestão de Produtos</h1>
+  <input type="password" id="input-senha" placeholder="Senha do painel" autofocus>
+  <button onclick="conferirSenha()">Entrar</button>
+  <div class="erro-senha" id="erro-senha"></div>
+</div>
+
+<div id="conteudo" style="display:none;">
+  <header>
+    <h1>🍕 Gestão de Produtos — Manel's</h1>
+    <div id="status">conectando…</div>
+  </header>
+
+  <div class="aviso-config" id="aviso-config"></div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div id="categorias"></div>
+</div>
+
+<script>
+const SENHA_PAINEL = "manel2026";
+
+function conferirSenha(){
+  const valor = document.getElementById('input-senha').value;
+  if(valor === SENHA_PAINEL){
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('conteudo').style.display = 'block';
+    iniciar();
+  } else {
+    document.getElementById('erro-senha').textContent = 'Senha incorreta.';
+  }
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+
+// Mesmo projeto Supabase que o cardápio (index.html) usa para carregar os produtos.
+// Mesmo projeto Supabase que o pedidos (comandas.html) usa — o projeto antigo
+// de produtos (qhdxiojewiveazfozpix) não está mais acessível, então unificamos tudo aqui.
+const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
+const STORAGE_BUCKET = "produtos"; // precisa existir como bucket PÚBLICO no Supabase
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CATEGORIAS = [
+  { key:'pizza',    label:'Pizzas' },
+  { key:'calzone',  label:'Calzones' },
+  { key:'brotinho', label:'Brotinho' },
+  { key:'esfiha',   label:'Esfihas' },
+  { key:'bebida',   label:'Bebidas' },
+  { key:'combo',    label:'Combos' },
+];
+
+let produtos = []; // todos os produtos, de todas as categorias
+let categoriaAtiva = 'pizza';
+
+function setStatus(texto, tipo){
+  const el = document.getElementById('status');
+  el.textContent = texto;
+  el.className = tipo || '';
+}
+
+function mostrarAvisoConfig(msg){
+  const el = document.getElementById('aviso-config');
+  el.innerHTML = msg;
+  el.classList.add('show');
+}
+
+async function iniciar(){
+  renderTabs();
+  await carregarProdutos();
+}
+
+function renderTabs(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = CATEGORIAS.map(c =>
+    `<button class="tab ${c.key===categoriaAtiva?'active':''}" onclick="mudarCategoria('${c.key}')">${c.label}</button>`
+  ).join('');
+}
+
+function mudarCategoria(key){
+  categoriaAtiva = key;
+  renderTabs();
+  document.querySelectorAll('.categoria').forEach(el => el.classList.toggle('active', el.dataset.categoria === key));
+}
+
+async function carregarProdutos(){
+  setStatus('carregando…');
+  try{
+    const { data, error } = await supabaseClient.from('products').select('*').order('category').order('sort_order');
+    if(error) throw error;
+    produtos = data || [];
+    setStatus(`${produtos.length} produtos · conectado`, 'ok');
+    renderCategorias();
+  } catch(err){
+    console.error(err);
+    setStatus('erro de conexão', 'erro');
+    mostrarAvisoConfig(`
+      <b>⚠️ Não consegui carregar os produtos.</b><br>
+      Isso normalmente acontece por falta de permissão no Supabase. Verifique:<br>
+      1. A tabela <b>products</b> existe no projeto <code>wzmiqubfzlmglimmtkoz</code>?<br>
+      2. Em <b>Authentication → Policies</b>, a tabela <b>products</b> tem uma política de <b>SELECT</b> liberada pro role <b>anon</b>?<br><br>
+      Erro técnico: <code>${(err && err.message) ? err.message : JSON.stringify(err)}</code>
+    `);
+  }
+}
+
+function renderCategorias(){
+  const box = document.getElementById('categorias');
+  box.innerHTML = CATEGORIAS.map(c => `
+    <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
+      <div class="grade" id="grade-${c.key}"></div>
+    </div>
+  `).join('');
+
+  CATEGORIAS.forEach(c => renderGrade(c.key));
+}
+
+function renderGrade(catKey){
+  const grade = document.getElementById(`grade-${catKey}`);
+  const itens = produtos.filter(p => p.category === catKey);
+  const isPizza = catKey === 'pizza';
+
+  grade.innerHTML = itens.map(p => cardProdutoHTML(p, isPizza)).join('')
+    + `<div class="card-novo" onclick="adicionarProduto('${catKey}')">➕<br>Adicionar ${CATEGORIAS.find(c=>c.key===catKey).label.replace(/s$/,'')}</div>`;
+}
+
+function precoUnico(p){
+  return (p.prices && p.prices.unico !== undefined) ? p.prices.unico : '';
+}
+function precoPizza(p, tam){
+  return (p.prices && p.prices[tam] !== undefined) ? p.prices[tam] : '';
+}
+function promoUnico(p){
+  return (p.promo_prices && p.promo_prices.unico !== undefined) ? p.promo_prices.unico : '';
+}
+function promoPizza(p, tam){
+  return (p.promo_prices && p.promo_prices[tam] !== undefined) ? p.promo_prices[tam] : '';
+}
+
+function cardProdutoHTML(p, isPizza){
+  const precosHTML = isPizza ? `
+    <div class="linha-precos">
+      <div class="campo"><label>M</label><input type="number" step="0.01" id="preco-M-${p.id}" value="${precoPizza(p,'M')}"></div>
+      <div class="campo"><label>G</label><input type="number" step="0.01" id="preco-G-${p.id}" value="${precoPizza(p,'G')}"></div>
+      <div class="campo"><label>GG</label><input type="number" step="0.01" id="preco-GG-${p.id}" value="${precoPizza(p,'GG')}"></div>
+    </div>
+  ` : `
+    <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco-unico-${p.id}" value="${precoUnico(p)}"></div>
+  `;
+
+  const promoPrecosHTML = isPizza ? `
+    <div class="linha-precos">
+      <div class="campo"><label>M</label><input type="number" step="0.01" id="promo-M-${p.id}" value="${promoPizza(p,'M')}"></div>
+      <div class="campo"><label>G</label><input type="number" step="0.01" id="promo-G-${p.id}" value="${promoPizza(p,'G')}"></div>
+      <div class="campo"><label>GG</label><input type="number" step="0.01" id="promo-GG-${p.id}" value="${promoPizza(p,'GG')}"></div>
+    </div>
+  ` : `
+    <div class="campo"><label>Preço promocional (R$)</label><input type="number" step="0.01" id="promo-unico-${p.id}" value="${promoUnico(p)}"></div>
+  `;
+
+  return `
+    <div class="produto ${p.active===false?'inativo':''}" id="card-${p.id}">
+      <input type="file" id="arquivo-foto-${p.id}" accept="image/*" onchange="uploadFoto(${p.id}, this)">
+      <div class="foto-wrap" onclick="document.getElementById('arquivo-foto-${p.id}').click()">
+        ${p.image_url ? `<img src="${p.image_url}" id="img-${p.id}">` : `<div class="foto-vazia" id="img-${p.id}">Sem foto —<br>toque pra enviar</div>`}
+        <div class="foto-overlay">📷 Trocar foto</div>
+      </div>
+
+      <div class="campo"><label>Nome</label><input type="text" id="nome-${p.id}" value="${(p.name||'').replace(/"/g,'&quot;')}"></div>
+
+      ${precosHTML}
+
+      <div class="campo"><label>Descrição / Características</label><textarea id="desc-${p.id}">${p.description||''}</textarea></div>
+
+      <div class="campo-toggle">
+        <input type="checkbox" id="ativo-${p.id}" ${p.active!==false?'checked':''}>
+        <label for="ativo-${p.id}" style="text-transform:none; font-weight:normal;">Em estoque / visível pro cliente</label>
+      </div>
+
+      <div class="campo"><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
+
+      <details class="promo">
+        <summary>🏷️ Promoção (opcional)</summary>
+        <div class="conteudo-promo">
+          <div class="campo-toggle">
+            <input type="checkbox" id="promo-ativa-${p.id}" ${p.promo_active?'checked':''}>
+            <label for="promo-ativa-${p.id}" style="text-transform:none; font-weight:normal;">Promoção ativa</label>
+          </div>
+          ${promoPrecosHTML}
+          <div class="campo"><label>Selo da promoção</label><input type="text" id="promo-label-${p.id}" value="${(p.promo_label||'').replace(/"/g,'&quot;')}" placeholder="Ex: PROMOÇÃO"></div>
+        </div>
+      </details>
+
+      <div class="acoes-produto">
+        <button class="btn-salvar" onclick="salvarProduto(${p.id})">💾 Salvar</button>
+        <button class="btn-excluir" onclick="excluirProduto(${p.id})">🗑️ Excluir</button>
+      </div>
+      <div class="salvo-ok" id="salvo-${p.id}"></div>
+    </div>
+  `;
+}
+
+function montarPrecos(id, isPizza){
+  if(isPizza){
+    const m = parseFloat(document.getElementById(`preco-M-${id}`).value);
+    const g = parseFloat(document.getElementById(`preco-G-${id}`).value);
+    const gg = parseFloat(document.getElementById(`preco-GG-${id}`).value);
+    const obj = {};
+    if(!isNaN(m)) obj.M = m;
+    if(!isNaN(g)) obj.G = g;
+    if(!isNaN(gg)) obj.GG = gg;
+    return obj;
+  } else {
+    const v = parseFloat(document.getElementById(`preco-unico-${id}`).value);
+    return isNaN(v) ? {} : { unico: v };
+  }
+}
+
+function montarPromoPrecos(id, isPizza){
+  if(isPizza){
+    const m = parseFloat(document.getElementById(`promo-M-${id}`).value);
+    const g = parseFloat(document.getElementById(`promo-G-${id}`).value);
+    const gg = parseFloat(document.getElementById(`promo-GG-${id}`).value);
+    const obj = {};
+    if(!isNaN(m)) obj.M = m;
+    if(!isNaN(g)) obj.G = g;
+    if(!isNaN(gg)) obj.GG = gg;
+    return obj;
+  } else {
+    const v = parseFloat(document.getElementById(`promo-unico-${id}`).value);
+    return isNaN(v) ? {} : { unico: v };
+  }
+}
+
+async function salvarProduto(id){
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+  const isPizza = p.category === 'pizza';
+
+  const ordemVal = document.getElementById(`ordem-${id}`).value;
+  const payload = {
+    name: document.getElementById(`nome-${id}`).value.trim(),
+    prices: montarPrecos(id, isPizza),
+    description: document.getElementById(`desc-${id}`).value.trim(),
+    active: document.getElementById(`ativo-${id}`).checked,
+    sort_order: ordemVal === '' ? null : parseInt(ordemVal, 10),
+    promo_active: document.getElementById(`promo-ativa-${id}`).checked,
+    promo_prices: montarPromoPrecos(id, isPizza),
+    promo_label: document.getElementById(`promo-label-${id}`).value.trim(),
+  };
+
+  const { error } = await supabaseClient.from('products').update(payload).eq('id', id);
+  const aviso = document.getElementById(`salvo-${id}`);
+  if(error){
+    alert('Não foi possível salvar.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "products" tem uma política de UPDATE liberada pro role anon no Supabase.');
+    console.error(error);
+    return;
+  }
+  Object.assign(p, payload);
+  aviso.textContent = '✅ Salvo!';
+  document.getElementById(`card-${id}`).classList.toggle('inativo', !payload.active);
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
+
+async function excluirProduto(id){
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+  if(!confirm(`Excluir "${p.name}" definitivamente? Não dá pra desfazer.`)) return;
+
+  const { data, error } = await supabaseClient.from('products').delete().eq('id', id).select();
+  if(error){
+    alert('Não foi possível excluir.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('A exclusão não teve efeito (0 linhas afetadas).\n\nIsso normalmente indica que falta uma política de DELETE liberada pro role anon na tabela "products" no Supabase.');
+    return;
+  }
+  produtos = produtos.filter(x => x.id !== id);
+  renderGrade(p.category);
+}
+
+async function adicionarProduto(catKey){
+  const nome = prompt('Nome do novo item:');
+  if(!nome || !nome.trim()) return;
+
+  const payload = {
+    category: catKey,
+    name: nome.trim(),
+    prices: catKey === 'pizza' ? { M:0, G:0, GG:0 } : { unico:0 },
+    description: '',
+    active: true,
+    sort_order: 999,
+    promo_active: false,
+    promo_prices: {},
+    promo_label: '',
+  };
+
+  const { data, error } = await supabaseClient.from('products').insert(payload).select();
+  if(error){
+    alert('Não foi possível criar o produto.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "products" tem uma política de INSERT liberada pro role anon no Supabase.');
+    console.error(error);
+    return;
+  }
+  produtos.push(data[0]);
+  renderGrade(catKey);
+}
+
+async function uploadFoto(id, inputEl){
+  const arquivo = inputEl.files[0];
+  if(!arquivo) return;
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+
+  const imgEl = document.getElementById(`img-${id}`);
+  const textoOriginal = imgEl.outerHTML;
+  imgEl.outerHTML = `<div class="foto-vazia" id="img-${id}">Enviando…</div>`;
+
+  const caminho = `${p.category}/${Date.now()}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const { error: erroUpload } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(caminho, arquivo, { upsert:true });
+  if(erroUpload){
+    alert('Não foi possível enviar a foto.\n\nErro do Supabase: ' + (erroUpload.message || JSON.stringify(erroUpload)) +
+      `\n\nVerifique se existe um bucket PÚBLICO chamado "${STORAGE_BUCKET}" no Storage do Supabase.`);
+    console.error(erroUpload);
+    document.getElementById(`img-${id}`).outerHTML = textoOriginal;
+    return;
+  }
+
+  const { data: publicData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(caminho);
+  const url = publicData.publicUrl;
+
+  const { error: erroUpdate } = await supabaseClient.from('products').update({ image_url: url }).eq('id', id);
+  if(erroUpdate){
+    alert('A foto foi enviada, mas não consegui salvar o link no produto.\n\nErro: ' + (erroUpdate.message || JSON.stringify(erroUpdate)));
+    console.error(erroUpdate);
+    return;
+  }
+
+  p.image_url = url;
+  document.getElementById(`img-${id}`).outerHTML = `<img src="${url}" id="img-${id}">`;
+}
+</script>
+</body>
+</html>
