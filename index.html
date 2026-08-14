@@ -1288,7 +1288,7 @@ let bebidaQty = 1;
 let bebidaItem = Object.keys(MENU.bebidas)[0];
 function renderBebidaFlavorGrid(){
   renderFlavorGrid('bebida-flavor-grid', MENU.bebidas, bebidaItem, 'selectBebidaFlavor', {
-    images: PRODUCT_IMAGES.bebidas, original: MENU_ORIGINAL.bebidas, promoLabels: PROMO_LABELS.bebidas
+    images: PRODUCT_IMAGES.bebidas, original: MENU_ORIGINAL.bebidas, promoLabels: PROMO_LABELS.bebidas, compact: true
   });
 }
 function selectBebidaFlavor(f){ bebidaItem = f; renderBebidaFlavorGrid(); updateBebidaPreview(); }
