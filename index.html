@@ -216,12 +216,12 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 
 <nav class="trailnav">
   <div class="trailnav-inner" id="trailnav-inner">
+    <a href="#combos" class="trail-pill" id="nav-combos">Promoções</a>
     <a href="#pizzas" class="trail-pill">Pizzas</a>
     <a href="#calzones" class="trail-pill">Calzones</a>
     <a href="#brotinho" class="trail-pill">Brotinho</a>
     <a href="#esfihas" class="trail-pill">Esfihas</a>
     <a href="#bebidas" class="trail-pill">Bebidas</a>
-    <a href="#combos" class="trail-pill" id="nav-combos">Combos</a>
     <a href="#finalizar" class="trail-pill">Finalizar</a>
   </div>
 </nav>
@@ -246,6 +246,28 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
     </div>
     <a href="#pizzas" class="hero-cta">Pedir Agora</a>
   </header>
+
+  <!-- PROMOÇÕES (antigo "Combos") -->
+  <section class="section" id="combos">
+    <div class="section-head">
+      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 11h18"/><path d="M12 7V3M8 3h8"/></svg></div>
+      <h2>Promoções</h2>
+    </div>
+    <p class="section-desc">Combinações especiais com o melhor custo-benefício.</p>
+    <div class="panel">
+      <span class="field-label">Escolha a promoção</span>
+      <div id="combo-flavor-grid" class="flavor-grid"></div>
+      <div id="combo-note-box" style="display:none; margin-bottom:.8rem;"></div>
+      <span class="field-label">Quantidade</span>
+      <div class="stepper" style="margin-bottom:.8rem;">
+        <button class="step-btn" onclick="changeComboQty(-1)">-</button>
+        <span class="step-val" id="combo-qty">1</span>
+        <button class="step-btn" onclick="changeComboQty(1)">+</button>
+      </div>
+      <div class="price-preview" id="combo-price-preview">R$ 0,00</div>
+      <button class="add-btn" id="combo-add-btn" onclick="addComboToCart()">Adicionar ao Carrinho</button>
+    </div>
+  </section>
 
   <!-- PIZZAS -->
   <section class="section" id="pizzas">
@@ -377,27 +399,6 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
     </div>
   </section>
 
-  <!-- COMBOS -->
-  <section class="section" id="combos">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 11h18"/><path d="M12 7V3M8 3h8"/></svg></div>
-      <h2>Combos</h2>
-    </div>
-    <p class="section-desc">Combinações especiais com o melhor custo-benefício.</p>
-    <div class="panel">
-      <span class="field-label">Escolha o combo</span>
-      <div id="combo-flavor-grid" class="flavor-grid"></div>
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changeComboQty(-1)">-</button>
-        <span class="step-val" id="combo-qty">1</span>
-        <button class="step-btn" onclick="changeComboQty(1)">+</button>
-      </div>
-      <div class="price-preview" id="combo-price-preview">R$ 0,00</div>
-      <button class="add-btn" onclick="addComboToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
   <!-- CARRINHO -->
   <section class="section" id="carrinho">
     <div class="section-head">
@@ -417,14 +418,18 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
         <input type="checkbox" id="want-ketchup" onchange="toggleKetchup(this.checked)">
         <span>Quer <b>Ketchup</b>? <br><small>Grátis</small></span>
       </label>
-      <label class="complement-toggle" for="want-maionese">
-        <input type="checkbox" id="want-maionese" onchange="toggleMaionese(this.checked)">
-        <span>Quer <b>Maionese Temperada</b>? <br><small>+ R$ 1,00</small></span>
-      </label>
+      <div class="complement-toggle" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
+        <span>Quer <b>Maionese Temperada</b>? <br><small>A 1ª é grátis · a partir da 2ª, + R$ 1,00 cada</small></span>
+        <div class="stepper">
+          <button class="step-btn" onclick="changeMaioneseQty(-1)">-</button>
+          <span class="step-val" id="maionese-qty">0</span>
+          <button class="step-btn" onclick="changeMaioneseQty(1)">+</button>
+        </div>
+      </div>
       <div id="cart-summary" style="display:none;">
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
-        <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada:</span><span id="cart-maionese">R$ 0,00</span></div>
+        <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
         <div class="summary-total"><span>TOTAL:</span><span id="cart-total">R$ 0,00</span></div>
       </div>
     </div>
@@ -503,7 +508,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
-      <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada:</span><span id="chk-maionese">R$ 0,00</span></div>
+      <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
 
       <div class="error-msg" id="chk-error"></div>
@@ -550,13 +555,16 @@ let PRODUCT_DESCRIPTIONS = {
   pizzas: {}, calzones: {}, brotinho: {}, esfihas: {}, bebidas: {}, combos: {}, bordas: {}
 };
 let PROMO_LABELS = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+// Config de observação por item de Promoção (categoria "combo" no banco): quais promoções
+// pedem que o cliente escreva um sabor/observação antes de adicionar ao carrinho.
+let COMBO_NOTE_CONFIG = {}; // { "2 Brotinhos por R$30": { needsNote:true, noteHint:"Escolha 2 sabores de brotinho" } }
 
 // CRUST_PRICE removido: as bordas recheadas agora são cadastradas como produtos
 // (categoria "borda") e o preço de cada uma vem do Supabase, editável no admin.html.
 const DISQUETES_PRICE = 1.00;
 const MAIONESE_PRICE = 1.00;
 const DELIVERY_FEE = 3.00;
-const FREE_DELIVERY_THRESHOLD = 20.00;
+const FREE_DELIVERY_THRESHOLD = 15.00;
 const STORE_PHONE_DISPLAY = "88 9 9218-2784";
 const WHATSAPP_NUMBER = "5588992182784";
 const PICKUP_ADDRESS = "Rua Joaquim Soares da Silva, 641, Centro";
@@ -576,7 +584,7 @@ let userGeoLat = null;
 let userGeoLng = null;
 let paymentMethod = '';
 let wantKetchup = false;
-let wantMaionese = false;
+let maioneseQty = 0;
 
 function brl(v){ return 'R$ ' + (v||0).toFixed(2).replace('.', ','); }
 
@@ -768,6 +776,7 @@ async function loadMenuFromDatabase(){
   const newImages = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
   const newDescriptions = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
   const newPromoLabels = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+  const newComboNotes = {};
 
   data.forEach(p => {
     const key = CATEGORY_DB_TO_MENU[p.category];
@@ -790,6 +799,9 @@ async function loadMenuFromDatabase(){
     if(p.image_url) newImages[key][p.name] = p.image_url;
     if(p.description) newDescriptions[key][p.name] = p.description;
     if(hasPromo) newPromoLabels[key][p.name] = p.promo_label || 'PROMOÇÃO';
+    if(key === 'combos'){
+      newComboNotes[p.name] = { needsNote: !!p.needs_note, noteHint: (p.note_hint || '').trim() };
+    }
   });
 
   // Nunca aceita silenciosamente dados incompletos: se o formato vier errado
@@ -804,12 +816,13 @@ async function loadMenuFromDatabase(){
   PRODUCT_IMAGES = newImages;
   PRODUCT_DESCRIPTIONS = newDescriptions;
   PROMO_LABELS = newPromoLabels;
+  COMBO_NOTE_CONFIG = newComboNotes;
 
   // O banco passa a ser a fonte oficial. Guarda uma cópia local válida para
   // usar como rede de segurança se o Supabase falhar numa próxima visita.
   salvarCardapioCache({
     menu: newMenu, menuOriginal: newOriginal, images: newImages,
-    descriptions: newDescriptions, promoLabels: newPromoLabels
+    descriptions: newDescriptions, promoLabels: newPromoLabels, comboNotes: newComboNotes
   });
 
   return data;
@@ -939,6 +952,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       PRODUCT_IMAGES = cache.images;
       PRODUCT_DESCRIPTIONS = cache.descriptions;
       PROMO_LABELS = cache.promoLabels;
+      COMBO_NOTE_CONFIG = cache.comboNotes || {};
       mostrarAvisoCardapio(
         `⚠️ Não foi possível atualizar o cardápio agora. Mostrando a última versão salva (${formatarDataHoraCache(cache.savedAt)}).`
       );
@@ -948,6 +962,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       PRODUCT_IMAGES = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
       PRODUCT_DESCRIPTIONS = EMERGENCY_DESCRIPTIONS;
       PROMO_LABELS = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+      COMBO_NOTE_CONFIG = {};
       mostrarAvisoCardapio(
         '⚠️ Não foi possível conectar ao cardápio online e não há uma versão salva neste aparelho. Mostrando o cardápio de emergência — confira os preços antes de fechar o pedido.'
       );
@@ -1308,24 +1323,57 @@ function addBebidaToCart(){
 /* ==================== COMBOS ==================== */
 let comboQty = 1;
 let comboItem = null;
+let comboNote = '';
 function renderComboFlavorGrid(){
   if(!comboItem) comboItem = Object.keys(MENU.combos)[0];
   renderFlavorGrid('combo-flavor-grid', MENU.combos, comboItem, 'selectComboFlavor', {
     images: PRODUCT_IMAGES.combos, original: MENU_ORIGINAL.combos, promoLabels: PROMO_LABELS.combos,
     descriptions: PRODUCT_DESCRIPTIONS.combos
   });
+  renderComboNoteField();
 }
-function selectComboFlavor(f){ comboItem = f; renderComboFlavorGrid(); updateComboPreview(); }
+function selectComboFlavor(f){ comboItem = f; comboNote = ''; renderComboFlavorGrid(); updateComboPreview(); }
 function changeComboQty(d){ comboQty = Math.max(1, comboQty+d); document.getElementById('combo-qty').textContent = comboQty; updateComboPreview(); }
+
+function renderComboNoteField(){
+  const box = document.getElementById('combo-note-box');
+  const cfg = COMBO_NOTE_CONFIG[comboItem];
+  if(!cfg || !cfg.needsNote){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = '';
+  box.innerHTML = `
+    <span class="field-label">Observação — ${cfg.noteHint ? cfg.noteHint.replace(/</g,'&lt;') : 'conte pra gente o que precisa'} <span style="color:var(--rust-dark);">*</span></span>
+    <textarea id="combo-note-input" placeholder="${cfg.noteHint ? cfg.noteHint.replace(/"/g,'&quot;') : 'Escreva aqui...'}" oninput="onComboNoteInput(this.value)">${comboNote}</textarea>
+  `;
+}
+function onComboNoteInput(v){ comboNote = v; updateComboPreview(); }
+
 function updateComboPreview(){
   const price = MENU.combos[comboItem] || 0;
   document.getElementById('combo-price-preview').textContent = brl(price * comboQty);
+  const cfg = COMBO_NOTE_CONFIG[comboItem];
+  const precisaNota = cfg && cfg.needsNote;
+  const notaOk = !precisaNota || (comboNote && comboNote.trim().length > 0);
+  document.getElementById('combo-add-btn').disabled = !notaOk;
 }
 function addComboToCart(){
   const item = comboItem;
   const price = MENU.combos[item];
-  cart.push({ id:cartIdCounter++, type:'combo', qty:comboQty, item, unitPrice:price, lineTotal:price*comboQty, label:`Combo - ${item}`, detail: PRODUCT_DESCRIPTIONS.combos[item] || '' });
+  const cfg = COMBO_NOTE_CONFIG[item];
+  const precisaNota = cfg && cfg.needsNote;
+  if(precisaNota && (!comboNote || !comboNote.trim())) return;
+  const nota = precisaNota ? comboNote.trim() : '';
+  cart.push({
+    id:cartIdCounter++, type:'combo', qty:comboQty, item, unitPrice:price, lineTotal:price*comboQty,
+    label:`Combo - ${item}`,
+    detail: PRODUCT_DESCRIPTIONS.combos[item] || '',
+    note: nota
+  });
   comboQty = 1; document.getElementById('combo-qty').textContent = 1;
+  comboNote = ''; renderComboNoteField();
   renderCart(); flashAdded();
 }
 
@@ -1338,7 +1386,7 @@ function getFee(){
   const sub = getSubtotal();
   return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
 }
-function getExtras(){ return wantMaionese ? MAIONESE_PRICE : 0; }
+function getExtras(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
 
 // ===== CÁLCULO AUTOMÁTICO DE TROCO =====
 function parseMoneyBR(str){
@@ -1415,7 +1463,11 @@ function atualizarTrocoCalculado(){
 }
 
 function toggleKetchup(checked){ wantKetchup = checked; renderCart(); }
-function toggleMaionese(checked){ wantMaionese = checked; renderCart(); }
+function changeMaioneseQty(delta){
+  maioneseQty = Math.max(0, maioneseQty + delta);
+  document.getElementById('maionese-qty').textContent = maioneseQty;
+  renderCart();
+}
 
 function renderCart(){
   const box = document.getElementById('cart-items');
@@ -1445,7 +1497,7 @@ function renderCart(){
     floatingLink.style.display = 'inline-block';
     box.innerHTML = cart.slice().reverse().map(item => `
       <div class="cart-item">
-        <div class="desc"><b>${item.qty}x ${item.label}</b>${item.detail ? `<small>${item.detail}</small>` : ''}</div>
+        <div class="desc"><b>${item.qty}x ${item.label}</b>${item.detail ? `<small>${item.detail}</small>` : ''}${item.note ? `<small>📝 ${item.note.replace(/</g,'&lt;')}</small>` : ''}</div>
         <div class="right"><span class="p">${brl(item.lineTotal)}</span><br><button class="remove" onclick="removeFromCart(${item.id})">remover</button></div>
       </div>
     `).join('');
@@ -1595,11 +1647,17 @@ function gerarComanda(){
     } else if(item.detail){
       c += quebrarTexto(`🔸${item.detail}`, LARG, '  ') + '\n';
     }
+    if(item.note){
+      c += quebrarTexto(`📝 Observação: ${item.note}`, LARG, '  ') + '\n';
+    }
   });
 
-  if(wantKetchup || wantMaionese){
+  if(wantKetchup || maioneseQty > 0){
     if(wantKetchup){ c += `🔹 Ketchup\n`; }
-    if(wantMaionese){ c += `🔹 Maionese Temperada (+${brl(MAIONESE_PRICE)})\n`; }
+    if(maioneseQty > 0){
+      const custoMaionese = Math.max(0, maioneseQty - 1) * MAIONESE_PRICE;
+      c += `🔹 Maionese Temperada: ${maioneseQty}x (1ª grátis${custoMaionese > 0 ? `, + ${brl(custoMaionese)}` : ''})\n`;
+    }
   }
   if(obs){
     c += quebrarTexto(`❗*OBS:* ${obs}`, LARG, '') + '\n';
@@ -1824,6 +1882,13 @@ function enviarPedido(){
     if(item.type === 'esfiha'){
       const total = Object.values(item.counts).reduce((a,b)=>a+b,0);
       if(total !== item.comboSize || total < ESFIHA_MIN_QTY){ showError('Um dos combos de esfiha está com a distribuição incompleta ou abaixo do mínimo de 5 unidades. Remova e adicione novamente.'); return; }
+    }
+    if(item.type === 'combo'){
+      const cfg = COMBO_NOTE_CONFIG[item.item];
+      if(cfg && cfg.needsNote && (!item.note || !item.note.trim())){
+        showError(`A promoção "${item.item}" precisa de uma observação (${cfg.noteHint || 'sabor/detalhe'}). Remova e adicione novamente preenchendo o campo.`);
+        return;
+      }
     }
   }
 
