@@ -113,17 +113,17 @@ const STORAGE_BUCKET = "produtos"; // precisa existir como bucket PÚBLICO no Su
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CATEGORIAS = [
+  { key:'combo',    label:'Promoções' },
   { key:'pizza',    label:'Pizzas' },
   { key:'calzone',  label:'Calzones' },
   { key:'brotinho', label:'Brotinho' },
   { key:'esfiha',   label:'Esfihas' },
   { key:'bebida',   label:'Bebidas' },
-  { key:'combo',    label:'Combos' },
   { key:'borda',    label:'Bordas Recheadas' },
 ];
 
 let produtos = []; // todos os produtos, de todas as categorias
-let categoriaAtiva = 'pizza';
+let categoriaAtiva = 'combo';
 
 function setStatus(texto, tipo){
   const el = document.getElementById('status');
@@ -191,8 +191,9 @@ function renderGrade(catKey){
   const grade = document.getElementById(`grade-${catKey}`);
   const itens = produtos.filter(p => p.category === catKey);
   const isPizza = catKey === 'pizza';
+  const isCombo = catKey === 'combo';
 
-  grade.innerHTML = itens.map(p => cardProdutoHTML(p, isPizza)).join('')
+  grade.innerHTML = itens.map(p => cardProdutoHTML(p, isPizza, isCombo)).join('')
     + `<div class="card-novo" onclick="adicionarProduto('${catKey}')">➕<br>Adicionar ${CATEGORIAS.find(c=>c.key===catKey).label.replace(/s$/,'')}</div>`;
 }
 
@@ -209,7 +210,7 @@ function promoPizza(p, tam){
   return (p.promo_prices && p.promo_prices[tam] !== undefined) ? p.promo_prices[tam] : '';
 }
 
-function cardProdutoHTML(p, isPizza){
+function cardProdutoHTML(p, isPizza, isCombo){
   const precosHTML = isPizza ? `
     <div class="linha-precos">
       <div class="campo"><label>M</label><input type="number" step="0.01" id="preco-M-${p.id}" value="${precoPizza(p,'M')}"></div>
@@ -230,6 +231,14 @@ function cardProdutoHTML(p, isPizza){
     <div class="campo"><label>Preço promocional (R$)</label><input type="number" step="0.01" id="promo-unico-${p.id}" value="${promoUnico(p)}"></div>
   `;
 
+  const observacaoHTML = isCombo ? `
+    <div class="campo-toggle">
+      <input type="checkbox" id="precisa-nota-${p.id}" ${p.needs_note?'checked':''}>
+      <label for="precisa-nota-${p.id}" style="text-transform:none; font-weight:normal;">Pedir observação do cliente (ex: sabor da pizza, sabor do refrigerante)</label>
+    </div>
+    <div class="campo"><label>Dica mostrada pro cliente</label><input type="text" id="nota-dica-${p.id}" value="${(p.note_hint||'').replace(/"/g,'&quot;')}" placeholder="Ex: Escolha 2 sabores de brotinho"></div>
+  ` : '';
+
   return `
     <div class="produto ${p.active===false?'inativo':''}" id="card-${p.id}">
       <input type="file" id="arquivo-foto-${p.id}" accept="image/*" onchange="uploadFoto(${p.id}, this)">
@@ -244,6 +253,8 @@ function cardProdutoHTML(p, isPizza){
 
       <div class="campo"><label>Descrição / Características</label><textarea id="desc-${p.id}">${p.description||''}</textarea></div>
 
+      ${observacaoHTML}
+
       <div class="campo-toggle">
         <input type="checkbox" id="ativo-${p.id}" ${p.active!==false?'checked':''}>
         <label for="ativo-${p.id}" style="text-transform:none; font-weight:normal;">Em estoque / visível pro cliente</label>
@@ -252,11 +263,11 @@ function cardProdutoHTML(p, isPizza){
       <div class="campo"><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
 
       <details class="promo">
-        <summary>🏷️ Promoção (opcional)</summary>
+        <summary>🏷️ Preço promocional (opcional)</summary>
         <div class="conteudo-promo">
           <div class="campo-toggle">
             <input type="checkbox" id="promo-ativa-${p.id}" ${p.promo_active?'checked':''}>
-            <label for="promo-ativa-${p.id}" style="text-transform:none; font-weight:normal;">Promoção ativa</label>
+            <label for="promo-ativa-${p.id}" style="text-transform:none; font-weight:normal;">Preço promocional ativo</label>
           </div>
           ${promoPrecosHTML}
           <div class="campo"><label>Selo da promoção</label><input type="text" id="promo-label-${p.id}" value="${(p.promo_label||'').replace(/"/g,'&quot;')}" placeholder="Ex: PROMOÇÃO"></div>
@@ -308,6 +319,7 @@ async function salvarProduto(id){
   const p = produtos.find(x => x.id === id);
   if(!p) return;
   const isPizza = p.category === 'pizza';
+  const isCombo = p.category === 'combo';
 
   const ordemVal = document.getElementById(`ordem-${id}`).value;
   const payload = {
@@ -320,12 +332,17 @@ async function salvarProduto(id){
     promo_prices: montarPromoPrecos(id, isPizza),
     promo_label: document.getElementById(`promo-label-${id}`).value.trim(),
   };
+  if(isCombo){
+    payload.needs_note = document.getElementById(`precisa-nota-${id}`).checked;
+    payload.note_hint = document.getElementById(`nota-dica-${id}`).value.trim();
+  }
 
   const { error } = await supabaseClient.from('products').update(payload).eq('id', id);
   const aviso = document.getElementById(`salvo-${id}`);
   if(error){
     alert('Não foi possível salvar.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
-      '\n\nVerifique se a tabela "products" tem uma política de UPDATE liberada pro role anon no Supabase.');
+      '\n\nVerifique se a tabela "products" tem uma política de UPDATE liberada pro role anon no Supabase.' +
+      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : ''));
     console.error(error);
     return;
   }
@@ -369,11 +386,16 @@ async function adicionarProduto(catKey){
     promo_prices: {},
     promo_label: '',
   };
+  if(catKey === 'combo'){
+    payload.needs_note = false;
+    payload.note_hint = '';
+  }
 
   const { data, error } = await supabaseClient.from('products').insert(payload).select();
   if(error){
     alert('Não foi possível criar o produto.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
-      '\n\nVerifique se a tabela "products" tem uma política de INSERT liberada pro role anon no Supabase.');
+      '\n\nVerifique se a tabela "products" tem uma política de INSERT liberada pro role anon no Supabase.' +
+      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : ''));
     console.error(error);
     return;
   }
