@@ -208,6 +208,12 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
   .section-desc{margin-left:0;}
   .section-head{gap:.55rem;}
 }
+.enviando-overlay{position:fixed; inset:0; background:rgba(30,20,10,.6); z-index:10050; display:flex; align-items:center; justify-content:center; padding:1rem;}
+.enviando-box{background:#fff; border-radius:16px; padding:1.9rem 2.1rem; text-align:center; box-shadow:0 14px 34px rgba(0,0,0,.32); max-width:280px;}
+.enviando-box p{font-weight:800; font-size:15px; color:var(--ink); margin:1rem 0 .3rem;}
+.enviando-box small{color:var(--ink-soft); font-size:12px; line-height:1.4; display:block;}
+.enviando-spinner{width:40px; height:40px; border:4px solid rgba(31,110,72,.18); border-top-color:var(--forest); border-radius:50%; margin:0 auto; animation:enviando-spin .8s linear infinite;}
+@keyframes enviando-spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -512,7 +518,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
 
       <div class="error-msg" id="chk-error"></div>
-      <button class="wa-btn" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
+      <button class="wa-btn" id="enviar-pedido-btn" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
       <div id="wa-fallback" style="display:none; margin-top:.6rem; text-align:center;">
         <a id="wa-fallback-link" href="#" target="_blank" rel="noopener" style="display:inline-block; font-size:12.5px; font-weight:700; color:var(--forest-dark); text-decoration:underline; padding:.4rem;">
           O WhatsApp não abriu? Toque aqui para enviar o pedido
@@ -530,6 +536,14 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 <div class="floating-cart empty" id="floating-cart">
   <div><span class="lbl" id="floating-lbl">🛒 Carrinho vazio</span><span class="val" id="floating-total" style="display:none;">R$ 0,00</span></div>
   <a href="#finalizar" id="floating-link" style="display:none;">Finalizar →</a>
+</div>
+
+<div class="enviando-overlay" id="enviando-overlay" style="display:none;">
+  <div class="enviando-box">
+    <div class="enviando-spinner"></div>
+    <p>Enviando seu pedido…</p>
+    <small>Só um instante, não feche o app nem toque em Finalizar de novo.</small>
+  </div>
 </div>
 
 <script>
@@ -1564,11 +1578,26 @@ function setupScrollSpy(){
   const pills = document.querySelectorAll('.trail-pill');
   const map = {};
   pills.forEach(p => map[p.getAttribute('href').slice(1)] = p);
+  const floatingLink = document.getElementById('floating-link');
   const obs = new IntersectionObserver((entries)=>{
     entries.forEach(entry => {
       if(entry.isIntersecting){
         pills.forEach(p=>p.classList.remove('active'));
         map[entry.target.id]?.classList.add('active');
+
+        // Quando o cliente CHEGA na seção de finalizar pedido, o botão flutuante
+        // deixa de "rolar até lá" (ele já está lá) e passa a enviar o pedido direto
+        // pelo WhatsApp — evita o cliente clicar em "Finalizar" de novo achando
+        // que é isso que envia o pedido, quando na verdade não faz nada.
+        if(entry.target.id === 'finalizar'){
+          floatingLink.textContent = '📲 Enviar Pedido';
+          floatingLink.removeAttribute('href');
+          floatingLink.onclick = (e) => { e.preventDefault(); enviarPedido(); };
+        } else {
+          floatingLink.textContent = 'Finalizar →';
+          floatingLink.setAttribute('href', '#finalizar');
+          floatingLink.onclick = null;
+        }
       }
     });
   }, { rootMargin:'-40% 0px -50% 0px' });
@@ -1797,12 +1826,15 @@ function clearError(){
 
 // ===== ENVIO DO PEDIDO: painel (Supabase) + WhatsApp, de forma confiável em qualquer aparelho =====
 
-// Manda a comanda para o painel de pedidos (comandas.html).
-// Usa fetch "cru" (não o cliente supabase-js) com keepalive:true, para a requisição
-// não ser cancelada mesmo que a página comece a navegar para o WhatsApp logo em seguida
-// (isso é essencial no iPhone, onde abrimos o WhatsApp na MESMA aba — veja abrirWhatsApp()).
-function enviarComandaParaPainel(textoComanda, total){
-  try{
+// Manda a comanda para o painel de pedidos (comandas.html) e ESPERA a confirmação
+// (com um prazo máximo) antes de deixar o fluxo seguir pro WhatsApp. Isso evita que a
+// troca de página pro WhatsApp corte o envio no meio do caminho — o problema que fazia
+// pedidos chegarem no WhatsApp mas sumirem do painel em horários de pico.
+// Retorna true (sucesso), ou false (falhou/estourou o tempo).
+function enviarComandaParaPainelUmaVez(textoComanda, total, timeoutMs){
+  return new Promise(resolve => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     fetch(`${PEDIDOS_SUPABASE_URL}/rest/v1/pedidos`, {
       method: 'POST',
       headers: {
@@ -1812,11 +1844,35 @@ function enviarComandaParaPainel(textoComanda, total){
         'Prefer': 'return=minimal'
       },
       body: JSON.stringify({ status: 'novo', total: total, texto_comanda: textoComanda }),
-      keepalive: true
-    }).catch(err => console.error('Não foi possível enviar o pedido para o painel:', err));
-  } catch(err){
-    console.error('Erro ao tentar enviar pedido para o painel:', err);
-  }
+      keepalive: true,
+      signal: controller.signal
+    }).then(res => {
+      clearTimeout(timer);
+      resolve(res.ok);
+    }).catch(err => {
+      clearTimeout(timer);
+      console.error('Não foi possível enviar o pedido para o painel:', err);
+      resolve(false);
+    });
+  });
+}
+
+// Tenta enviar pro painel; se falhar ou estourar o prazo, tenta mais uma vez automaticamente.
+async function enviarComandaParaPainelComRetry(textoComanda, total){
+  const TIMEOUT_MS = 3500;
+  const ok1 = await enviarComandaParaPainelUmaVez(textoComanda, total, TIMEOUT_MS);
+  if(ok1) return true;
+  await new Promise(r => setTimeout(r, 500));
+  return await enviarComandaParaPainelUmaVez(textoComanda, total, TIMEOUT_MS);
+}
+
+function mostrarEnviandoOverlay(){
+  const overlay = document.getElementById('enviando-overlay');
+  if(overlay) overlay.style.display = 'flex';
+}
+function esconderEnviandoOverlay(){
+  const overlay = document.getElementById('enviando-overlay');
+  if(overlay) overlay.style.display = 'none';
 }
 
 function isIOSDevice(){
@@ -1853,7 +1909,10 @@ function mostrarLinkManualWhatsApp(url){
   wrap.style.display = 'block';
 }
 
-function enviarPedido(){
+async function enviarPedido(){
+  const btn = document.getElementById('enviar-pedido-btn');
+  if(btn && btn.disabled) return; // evita clique duplo enquanto já está enviando
+
   clearError();
   const nome = document.getElementById('chk-nome').value.trim();
   const telefone = document.getElementById('chk-telefone').value.trim();
@@ -1892,17 +1951,37 @@ function enviarPedido(){
     }
   }
 
-  const comanda = gerarComanda();
+  let comanda = gerarComanda();
   const totalPedido = getSubtotal() + getFee() + getExtras();
+
+  // 1) Mostra o aviso de envio e trava o botão pra não deixar o cliente achando
+  //    que travou (e pra evitar clique duplo enviando o pedido 2x).
+  if(btn) btn.disabled = true;
+  mostrarEnviandoOverlay();
+
+  let chegouNoPainel = false;
+  try{
+    // 2) ESPERA a confirmação de que o pedido chegou no painel (com até 2 tentativas)
+    //    antes de seguir pro WhatsApp — é isso que evita perder pedido em pico de rede.
+    chegouNoPainel = await enviarComandaParaPainelComRetry(comanda, totalPedido);
+  } finally {
+    esconderEnviandoOverlay();
+    if(btn) btn.disabled = false;
+  }
+
+  // 3) Se mesmo com as duas tentativas não deu pra confirmar o envio ao painel,
+  //    a venda não pode travar por causa disso — o pedido segue pro WhatsApp mesmo
+  //    assim, mas com um aviso bem visível no topo da mensagem, pra vocês notarem
+  //    na hora e lançarem esse pedido manualmente no painel.
+  if(!chegouNoPainel){
+    comanda = `⚠️ *ATENÇÃO: este pedido pode não ter chegado no painel — adicionar manualmente!*\n\n${comanda}`;
+  }
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(comanda)}`;
 
-  // 1) Envia para o painel de pedidos (não trava nem atrasa a abertura do WhatsApp).
-  enviarComandaParaPainel(comanda, totalPedido);
-
-  // 2) Sempre disponibiliza o link manual de apoio, como garantia extra.
+  // 4) Sempre disponibiliza o link manual de apoio, como garantia extra.
   mostrarLinkManualWhatsApp(url);
 
-  // 3) Abre o WhatsApp da forma mais confiável para o aparelho do cliente.
+  // 5) Abre o WhatsApp da forma mais confiável para o aparelho do cliente.
   abrirWhatsApp(url);
 }
 </script>
