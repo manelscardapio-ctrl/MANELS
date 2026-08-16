@@ -97,8 +97,6 @@
   <div id="vazio">Nenhum pedido no momento.</div>
 </div>
 
-<audio id="som-aviso" preload="auto"><source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg"></audio>
-
 <script>
 const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
@@ -122,7 +120,6 @@ const MINUTOS_ATRASO = 15;
 const statusEl = document.getElementById('status');
 const listaEl = document.getElementById('lista');
 const vazioEl = document.getElementById('vazio');
-const somAviso = document.getElementById('som-aviso');
 
 let modoAtual = 'novos';
 let pedidosAtivos = [];
@@ -140,9 +137,58 @@ function conferirSenha(){
 }
 document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
 
+// ===== SOM DE AVISO DE NOVO PEDIDO =====
+// Gerado direto no navegador (Web Audio API) em vez de usar um arquivo de som externo:
+// não depende de nenhum site de terceiro pra funcionar (não quebra se o link cair) e
+// não tem restrição de licença nenhuma, já que não é um arquivo de áudio baixado — é só código.
+let audioCtxAviso = null;
+function getAudioCtxAviso(){
+  if(!audioCtxAviso){
+    audioCtxAviso = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(audioCtxAviso.state === 'suspended') audioCtxAviso.resume();
+  return audioCtxAviso;
+}
+// Toca uma "badalada" de sino: soma a nota principal com dois harmônicos mais agudos
+// em volume menor, o que dá o timbre metálico característico de campainha/sino — uma
+// nota "pura" sozinha soa mais como apito do que como sino.
+function tocarBadalada(ctx, freqBase, inicio, volume){
+  const parciais = [
+    { mult: 1.0, vol: 1.00, decaimento: 0.75 },
+    { mult: 2.4, vol: 0.45, decaimento: 0.55 },
+    { mult: 3.8, vol: 0.22, decaimento: 0.40 },
+  ];
+  parciais.forEach(p => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freqBase * p.mult;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t0 = ctx.currentTime + inicio;
+    const vol = volume * p.vol;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + p.decaimento);
+    osc.start(t0);
+    osc.stop(t0 + p.decaimento + 0.05);
+  });
+}
+function tocarSomAviso(){
+  try{
+    const ctx = getAudioCtxAviso();
+    const FREQ = 1046.50; // Dó6 — agudo e brilhante, tipo campainha de balcão/forno
+    // 3 badaladas rápidas e firmes — bem chamativo, tipo alguém batendo na campainha com força
+    tocarBadalada(ctx, FREQ, 0.00, 0.40);
+    tocarBadalada(ctx, FREQ, 0.30, 0.40);
+    tocarBadalada(ctx, FREQ, 0.60, 0.40);
+  } catch(e){
+    console.error('Não foi possível tocar o som de aviso:', e);
+  }
+}
+
 function tocarAviso(){
-  somAviso.currentTime = 0;
-  somAviso.play().catch(()=>{});
+  tocarSomAviso();
   if(document.title.indexOf('🔔') === -1) document.title = '🔔 NOVO PEDIDO! — Manel\'s';
 }
 function pararAviso(){ document.title = "Painel de Pedidos — Manel's Pizzaria"; }
@@ -412,7 +458,9 @@ function iniciar(){
       else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT'){ statusEl.textContent = '🔴 conexão perdida — recarregue a página'; statusEl.className = 'erro'; }
     });
 
-  document.addEventListener('click', () => { somAviso.play().then(()=>somAviso.pause()).catch(()=>{}); }, { once:true });
+  // "Libera" o som assim que a pessoa tocar em qualquer lugar da tela pela primeira vez —
+  // navegadores bloqueiam áudio automático até haver uma interação do usuário.
+  document.addEventListener('click', () => { try{ getAudioCtxAviso(); }catch(e){} }, { once:true });
 }
 </script>
 </body>
