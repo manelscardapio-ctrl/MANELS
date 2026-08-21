@@ -120,10 +120,14 @@ const CATEGORIAS = [
   { key:'esfiha',   label:'Esfihas' },
   { key:'bebida',   label:'Bebidas' },
   { key:'borda',    label:'Bordas Recheadas' },
+  { key:'config',   label:'⚙️ Configurações' },
 ];
 
 let produtos = []; // todos os produtos, de todas as categorias
 let categoriaAtiva = 'combo';
+let horarios = []; // linhas da tabela horario_funcionamento
+let configGeral = { tempo_espera_ativo:false, tempo_espera_texto:'' };
+const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
 function setStatus(texto, tipo){
   const el = document.getElementById('status');
@@ -139,7 +143,22 @@ function mostrarAvisoConfig(msg){
 
 async function iniciar(){
   renderTabs();
-  await carregarProdutos();
+  await Promise.all([carregarProdutos(), carregarConfiguracoes()]);
+}
+
+async function carregarConfiguracoes(){
+  try{
+    const [{ data: h, error: eh }, { data: c, error: ec }] = await Promise.all([
+      supabaseClient.from('horario_funcionamento').select('*').order('dia_semana'),
+      supabaseClient.from('config_geral').select('*').eq('id', 1).maybeSingle()
+    ]);
+    if(eh) throw eh;
+    horarios = h || [];
+    if(!ec && c) configGeral = c;
+  } catch(err){
+    console.error('Erro ao carregar configurações:', err);
+  }
+  renderConfiguracoes();
 }
 
 function renderTabs(){
@@ -180,11 +199,12 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      <div class="grade" id="grade-${c.key}"></div>
+      ${c.key === 'config' ? '<div id="config-config"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  CATEGORIAS.forEach(c => renderGrade(c.key));
+  CATEGORIAS.forEach(c => { if(c.key !== 'config') renderGrade(c.key); });
+  renderConfiguracoes();
 }
 
 function renderGrade(catKey){
@@ -260,6 +280,24 @@ function cardProdutoHTML(p, isPizza, isCombo){
         <label for="ativo-${p.id}" style="text-transform:none; font-weight:normal;">Em estoque / visível pro cliente</label>
       </div>
 
+      <div class="campo" style="border:1px dashed #ccc; border-radius:6px; padding:8px;">
+        <label>Controle de quantidade</label>
+        <select id="estoque-tipo-${p.id}" onchange="alternarCampoEstoque(${p.id})">
+          <option value="infinito" ${(p.stock_type||'infinito')==='infinito'?'selected':''}>Estoque infinito</option>
+          <option value="limitado" ${p.stock_type==='limitado'?'selected':''}>Estoque limitado</option>
+        </select>
+        <div id="estoque-detalhe-${p.id}" style="display:${p.stock_type==='limitado'?'flex':'none'}; flex-direction:column; gap:6px; margin-top:6px;">
+          <div class="campo"><label>Quantidade em estoque</label><input type="number" min="0" id="estoque-qtd-${p.id}" value="${p.stock_qty!==null && p.stock_qty!==undefined ? p.stock_qty : 0}"></div>
+          <div class="campo">
+            <label>Quando chegar a zero</label>
+            <select id="estoque-zero-${p.id}">
+              <option value="esgotado" ${(p.stock_zero_behavior||'esgotado')==='esgotado'?'selected':''}>Mostrar como Esgotado no cardápio</option>
+              <option value="esconder" ${p.stock_zero_behavior==='esconder'?'selected':''}>Esconder do cardápio</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="campo"><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
 
       <details class="promo">
@@ -281,6 +319,11 @@ function cardProdutoHTML(p, isPizza, isCombo){
       <div class="salvo-ok" id="salvo-${p.id}"></div>
     </div>
   `;
+}
+
+function alternarCampoEstoque(id){
+  const tipo = document.getElementById(`estoque-tipo-${id}`).value;
+  document.getElementById(`estoque-detalhe-${id}`).style.display = tipo === 'limitado' ? 'flex' : 'none';
 }
 
 function montarPrecos(id, isPizza){
@@ -331,6 +374,11 @@ async function salvarProduto(id){
     promo_active: document.getElementById(`promo-ativa-${id}`).checked,
     promo_prices: montarPromoPrecos(id, isPizza),
     promo_label: document.getElementById(`promo-label-${id}`).value.trim(),
+    stock_type: document.getElementById(`estoque-tipo-${id}`).value,
+    stock_qty: document.getElementById(`estoque-tipo-${id}`).value === 'limitado'
+      ? (parseInt(document.getElementById(`estoque-qtd-${id}`).value, 10) || 0)
+      : null,
+    stock_zero_behavior: document.getElementById(`estoque-zero-${id}`) ? document.getElementById(`estoque-zero-${id}`).value : 'esgotado',
   };
   if(isCombo){
     payload.needs_note = document.getElementById(`precisa-nota-${id}`).checked;
@@ -342,7 +390,8 @@ async function salvarProduto(id){
   if(error){
     alert('Não foi possível salvar.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
       '\n\nVerifique se a tabela "products" tem uma política de UPDATE liberada pro role anon no Supabase.' +
-      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : ''));
+      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : '') +
+      (error.message && error.message.includes('stock_') ? '\n\nParece que faltam as colunas de estoque (stock_type, stock_qty, stock_zero_behavior) na tabela products — rode o SQL de estoque que te passei.' : ''));
     console.error(error);
     return;
   }
@@ -435,6 +484,102 @@ async function uploadFoto(id, inputEl){
 
   p.image_url = url;
   document.getElementById(`img-${id}`).outerHTML = `<img src="${url}" id="img-${id}">`;
+}
+
+/* ==================== CONFIGURAÇÕES (horário + aviso de espera) ==================== */
+function horarioDoDia(dia){
+  return horarios.find(h => h.dia_semana === dia) || { dia_semana: dia, hora_abertura:null, hora_fechamento:null, fechado:true };
+}
+
+function renderConfiguracoes(){
+  const el = document.getElementById('config-config');
+  if(!el) return;
+  const linhasHorario = DIAS_SEMANA.map((nome, dia) => {
+    const h = horarioDoDia(dia);
+    const abertura = (h.hora_abertura || '').slice(0,5);
+    const fechamento = (h.hora_fechamento || '').slice(0,5);
+    return `
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(255,255,255,.06); padding:8px 10px; border-radius:6px; margin-bottom:6px; font-size:.85rem;">
+        <span style="min-width:110px;">${nome}</span>
+        <label style="display:flex; align-items:center; gap:5px; font-weight:normal; text-transform:none;">
+          <input type="checkbox" id="hor-fechado-${dia}" ${h.fechado?'checked':''} onchange="alternarDiaFechado(${dia})">
+          Fechado o dia todo
+        </label>
+        <input type="time" id="hor-abre-${dia}" value="${abertura}" ${h.fechado?'disabled':''} style="width:110px;">
+        <span>até</span>
+        <input type="time" id="hor-fecha-${dia}" value="${fechamento}" ${h.fechado?'disabled':''} style="width:110px;">
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="max-width:640px;">
+      <h3 style="margin-top:0;">🕒 Horário de Funcionamento</h3>
+      <p style="font-size:.8rem; opacity:.8;">Fora desse horário, o cardápio continua acessível pro cliente, mas o pedido é marcado como "encomenda antecipada" (aviso de pagamento adiantado/sinal de 50%).</p>
+      ${linhasHorario}
+      <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarHorarios()">💾 Salvar Horários</button>
+      <div class="salvo-ok" id="salvo-horarios"></div>
+
+      <h3 style="margin-top:28px;">⏱️ Aviso de Tempo de Espera</h3>
+      <div class="campo-toggle">
+        <input type="checkbox" id="espera-ativo" ${configGeral.tempo_espera_ativo?'checked':''}>
+        <label for="espera-ativo" style="text-transform:none; font-weight:normal;">Mostrar aviso no topo do cardápio</label>
+      </div>
+      <div class="campo" style="margin-top:6px;"><label>Texto do aviso</label><input type="text" id="espera-texto" value="${(configGeral.tempo_espera_texto||'').replace(/"/g,'&quot;')}" placeholder="Ex: Tempo estimado hoje: 40-60 min"></div>
+      <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarAvisoEspera()">💾 Salvar Aviso</button>
+      <div class="salvo-ok" id="salvo-espera"></div>
+    </div>
+  `;
+}
+
+function alternarDiaFechado(dia){
+  const fechado = document.getElementById(`hor-fechado-${dia}`).checked;
+  document.getElementById(`hor-abre-${dia}`).disabled = fechado;
+  document.getElementById(`hor-fecha-${dia}`).disabled = fechado;
+}
+
+async function salvarHorarios(){
+  const linhas = DIAS_SEMANA.map((_, dia) => {
+    const fechado = document.getElementById(`hor-fechado-${dia}`).checked;
+    const abre = document.getElementById(`hor-abre-${dia}`).value;
+    const fecha = document.getElementById(`hor-fecha-${dia}`).value;
+    return {
+      dia_semana: dia,
+      fechado,
+      hora_abertura: fechado ? null : (abre || null),
+      hora_fechamento: fechado ? null : (fecha || null),
+    };
+  });
+  const { error } = await supabaseClient.from('horario_funcionamento').upsert(linhas, { onConflict: 'dia_semana' });
+  const aviso = document.getElementById('salvo-horarios');
+  if(error){
+    alert('Não foi possível salvar os horários.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "horario_funcionamento" existe e tem política de INSERT/UPDATE liberada pro role anon no Supabase — veja as instruções que te passei.');
+    console.error(error);
+    return;
+  }
+  horarios = linhas;
+  aviso.textContent = '✅ Salvo!';
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
+
+async function salvarAvisoEspera(){
+  const payload = {
+    id: 1,
+    tempo_espera_ativo: document.getElementById('espera-ativo').checked,
+    tempo_espera_texto: document.getElementById('espera-texto').value.trim(),
+  };
+  const { error } = await supabaseClient.from('config_geral').upsert(payload, { onConflict: 'id' });
+  const aviso = document.getElementById('salvo-espera');
+  if(error){
+    alert('Não foi possível salvar o aviso.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "config_geral" existe e tem política de INSERT/UPDATE liberada pro role anon no Supabase — veja as instruções que te passei.');
+    console.error(error);
+    return;
+  }
+  configGeral = payload;
+  aviso.textContent = '✅ Salvo!';
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
 }
 </script>
 </body>
