@@ -217,7 +217,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
 </style>
 </head>
 <body>
-<div class="bg-photo" style="background-image:url(&#39;images/bg-hero.jpg&#39;);"></div>
+<div class="bg-photo" style="background-image:url(&#39;bg-hero.jpg&#39;);"></div>
 <div class="bg-tint"></div>
 
 <nav class="trailnav">
@@ -243,7 +243,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
   </section>
 
   <header class="hero">
-    <img src="images/logo-manels.jpg" alt="Manel's Pizzaria" />
+    <img src="logo-manels.jpg" alt="Manel's Pizzaria" />
     <span class="hero-eyebrow">bem-vindo à trilha do sabor</span>
     <h1>Manel's Pizzaria</h1>
     <p class="sub">Sabores nordestinos feitos na hora. Escolha os itens abaixo — no final, seu pedido é enviado prontinho pro nosso WhatsApp.</p>
@@ -328,7 +328,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
     </div>
     <p class="section-desc">Tamanho único.</p>
     <div class="panel">
-      <img class="section-top-img" src="images/topo-calzones.jpg" alt="Calzones">
+      <img class="section-top-img" src="topo-calzones.jpg" alt="Calzones">
       <span class="field-label">Escolha o sabor</span>
       <div id="calzone-flavor-grid" class="flavor-grid"></div>
       <span class="field-label">Quantidade</span>
@@ -353,7 +353,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
       <span class="field-label">Escolha o sabor</span>
       <div id="brotinho-flavor-grid" class="flavor-grid"></div>
       <label class="complement-toggle">
-        <img class="thumb" src="images/complemento-disquetes.jpg" alt="Complemento Disquetes">
+        <img class="thumb" src="complemento-disquetes.jpg" alt="Complemento Disquetes">
         <input type="checkbox" id="brotinho-disquetes" onchange="updateBrotinhoPreview()">
         <span>Adicionar <b>Complemento Disquetes (+R$ 1,00)</b></span>
       </label>
@@ -376,7 +376,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--fores
     </div>
     <p class="section-desc">Monte seu combo misturando os sabores que quiser.</p>
     <div class="panel">
-      <img class="section-top-img" src="images/topo-esfihas.jpg" alt="Esfihas">
+      <img class="section-top-img" src="topo-esfihas.jpg" alt="Esfihas">
       <span class="field-label">Monte seu combo — mínimo de 5 esfihas, na quantidade e nos sabores que quiser</span>
       <div id="esfiha-flavors"></div>
       <div class="esf-progress" id="esfiha-progress">0 esfihas selecionadas (mínimo 5)</div>
@@ -825,7 +825,7 @@ async function loadMenuFromDatabase(){
       ? p.prices
       : (p.prices.unico ?? 0);
 
-    if(p.image_url) newImages[key][p.name] = p.image_url;
+    if(p.image_url) newImages[key][p.name] = normalizeImageUrl(p.image_url);
     if(p.description) newDescriptions[key][p.name] = p.description;
     if(hasPromo) newPromoLabels[key][p.name] = p.promo_label || 'PROMOÇÃO';
     if(key === 'combos'){
@@ -951,6 +951,26 @@ function avisoEstoqueInsuficiente(name){
   alert(`Ih, "${name}" não tem estoque suficiente pra essa quantidade agora. Ajuste a quantidade ou escolha outro sabor.`);
 }
 
+// Normaliza imagens para funcionar tanto no GitHub Pages/domínio próprio
+// quanto com URLs salvas no Supabase. As imagens fixas deste repositório ficam
+// na raiz (não dentro de uma pasta "images").
+function normalizeImageUrl(value){
+  if(!value || typeof value !== 'string') return '';
+  const raw = value.trim();
+  if(!raw) return '';
+
+  // URLs absolutas (https://, http://, data:, blob:) já estão prontas.
+  if(/^(https?:|data:|blob:)/i.test(raw)) return raw;
+
+  // Remove "./" e o antigo prefixo "images/" que apontava para uma pasta
+  // que não existe no repositório atual.
+  let path = raw.replace(/^\.\/+/, '').replace(/^\/+/, '');
+  path = path.replace(/^images\/+/i, '');
+
+  // No GitHub Pages/domínio raiz, a imagem fica junto do index.html.
+  return path;
+}
+
 function renderFlavorGrid(containerId, obj, selectedValue, onSelect, opts){
   opts = opts || {};
   const images = opts.images || {};
@@ -968,7 +988,7 @@ function renderFlavorGrid(containerId, obj, selectedValue, onSelect, opts){
       : `<span class="fprice">${priceLabel(obj[k])}</span>`;
     const active = k === selectedValue;
     const esgotado = soldOut.has(k);
-    const img = images[k];
+    const img = normalizeImageUrl(images[k]);
     const media = img ? `
       <div class="fmedia">
         <img class="fimg" src="${img}" alt="${k}" loading="lazy">
@@ -1429,7 +1449,7 @@ function renderEsfihaFlavors(){
   Object.keys(MENU.esfihas).forEach(f => esfihaCounts[f] = 0);
   const esfihasEsgotadas = nomesEsgotados('esfihas');
   container.innerHTML = `<div class="flavor-grid compact">` + Object.keys(MENU.esfihas).map(f => {
-    const img = PRODUCT_IMAGES.esfihas[f];
+    const img = normalizeImageUrl(PRODUCT_IMAGES.esfihas[f]);
     const esgotado = esfihasEsgotadas.has(f);
     const media = img ? `
       <div class="fmedia">
