@@ -62,6 +62,12 @@
   .btn-excluir{ background:var(--red); color:#fff; }
   .salvo-ok{ font-size:.72rem; color:var(--green-ok); text-align:center; min-height:1em; }
 
+  .stat-filtro-btn{ font-family:inherit; font-size:.8rem; padding:7px 12px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:transparent; color:#fff; cursor:pointer; }
+  .stat-filtro-btn.active{ background:var(--terracotta); border-color:var(--terracotta); font-weight:bold; }
+  .stat-card{ background:rgba(255,255,255,.08); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:4px; }
+  .stat-card .stat-label{ font-size:.72rem; opacity:.8; }
+  .stat-card .stat-value{ font-size:1.3rem; font-weight:bold; }
+
   .card-novo{ background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.35); border-radius:10px; padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:bold; text-align:center; }
   .card-novo:hover{ background:rgba(255,255,255,.14); }
 </style>
@@ -121,6 +127,7 @@ const CATEGORIAS = [
   { key:'bebida',   label:'Bebidas' },
   { key:'borda',    label:'Bordas Recheadas' },
   { key:'config',   label:'⚙️ Configurações' },
+  { key:'stats',    label:'📊 Estatísticas' },
 ];
 
 let produtos = []; // todos os produtos, de todas as categorias
@@ -199,12 +206,13 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  CATEGORIAS.forEach(c => { if(c.key !== 'config') renderGrade(c.key); });
+  CATEGORIAS.forEach(c => { if(c.key !== 'config' && c.key !== 'stats') renderGrade(c.key); });
   renderConfiguracoes();
+  renderEstatisticas();
 }
 
 function renderGrade(catKey){
@@ -580,6 +588,259 @@ async function salvarAvisoEspera(){
   configGeral = payload;
   aviso.textContent = '✅ Salvo!';
   setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
+
+/* ==================== ESTATÍSTICAS ==================== */
+let statsPedidosCache = null; // guarda os pedidos já buscados, pra não reconsultar toda hora que troca o filtro
+let statsPeriodo = 'hoje';    // hoje | semana | mes | tudo | custom
+let statsDataIni = null;
+let statsDataFim = null;
+
+function brlAdmin(v){ return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
+
+async function carregarPedidosParaStats(forcar){
+  if(statsPedidosCache && !forcar) return statsPedidosCache;
+  const { data, error } = await supabaseClient
+    .from('pedidos')
+    .select('id, created_at, total, texto_comanda, itens')
+    .order('created_at', { ascending: true })
+    .limit(5000);
+  if(error){
+    console.error('Erro ao carregar pedidos para estatísticas:', error);
+    statsPedidosCache = [];
+    return statsPedidosCache;
+  }
+  statsPedidosCache = data || [];
+  return statsPedidosCache;
+}
+
+function parseMoneyBRAdmin(s){
+  if(!s) return null;
+  const limpo = String(s).trim().replace(/\./g,'').replace(',', '.');
+  const v = parseFloat(limpo);
+  return isNaN(v) ? null : v;
+}
+
+// A regra de faturamento é sempre extrair "💰 TOTAL A COBRAR: R$ X" do texto da
+// comanda — tem prioridade sobre a coluna "total", que pode ficar desatualizada
+// em pedidos editados manualmente.
+function extrairTotalCobrar(texto){
+  if(!texto) return null;
+  const m = texto.match(/TOTAL A COBRAR:\s*R\$\s*([\d.,]+)/i);
+  if(!m) return null;
+  return parseMoneyBRAdmin(m[1]);
+}
+
+// Usa o campo estruturado "itens" quando existir (pedidos novos, salvos a partir
+// da Etapa 2). Pedidos antigos não têm esse campo — nesse caso, interpreta o
+// texto da comanda (aproximado, mas cobre a maioria dos casos).
+function extrairItensPedido(pedido){
+  if(pedido.itens && Array.isArray(pedido.itens) && pedido.itens.length > 0) return pedido.itens;
+  return interpretarTextoComanda(pedido.texto_comanda || '');
+}
+
+function interpretarTextoComanda(texto){
+  const linhas = texto.split('\n');
+  const itens = [];
+  for(let i=0; i<linhas.length; i++){
+    const linha = linhas[i].trim();
+    let m;
+    if((m = linha.match(/^🍕\s*(\d+)x\s*Pizza\s*(\w+)/))){
+      const qty = parseInt(m[1],10);
+      const sabores = [];
+      let borda = null;
+      let j = i+1;
+      while(j < linhas.length && /^🔸/.test(linhas[j].trim())){
+        const fm = linhas[j].trim().match(/^🔸(?:\[\d+\/\d+\]\s*)?(.+)/);
+        if(fm) sabores.push(fm[1].trim());
+        j++;
+      }
+      if(j < linhas.length && /^🧀 Borda Recheada:/.test(linhas[j].trim())){
+        borda = linhas[j].trim().replace(/^🧀 Borda Recheada:\s*/,'').trim();
+      }
+      itens.push({ categoria:'pizza', nome:'Pizza', sabores, tamanho:m[2], borda, quantidade:qty });
+      i = j - 1;
+      continue;
+    }
+    if((m = linha.match(/^🥙\s*(\d+)x/))){
+      const sabores = {};
+      let j = i+1;
+      while(j < linhas.length && /^🔸/.test(linhas[j].trim())){
+        const fm = linhas[j].trim().match(/^🔸(\d+)x\s*(.+)/);
+        if(fm) sabores[fm[2].trim()] = (sabores[fm[2].trim()] || 0) + parseInt(fm[1],10);
+        j++;
+      }
+      const totalUnidades = Object.values(sabores).reduce((a,b)=>a+b,0);
+      itens.push({ categoria:'esfiha', nome:'Combo de Esfihas', sabores, quantidade: totalUnidades || parseInt(m[1],10) });
+      i = j - 1;
+      continue;
+    }
+    if((m = linha.match(/^🥟\s*(\d+)x\s*Calzone\s*(.+)/))){
+      itens.push({ categoria:'calzone', nome:'Calzone', sabor:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🍩\s*(\d+)x\s*Brotinho Doce\s*-\s*(.+)/))){
+      itens.push({ categoria:'brotinho', nome:'Brotinho Doce', sabor:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🥤\s*(\d+)x\s*(.+)/))){
+      itens.push({ categoria:'bebida', nome:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🍽️\s*(\d+)x\s*(.+)/))){
+      itens.push({ categoria:'combo', nome:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+  }
+  return itens;
+}
+
+function dataDoPedidoNoPeriodo(createdAt, periodo){
+  const d = new Date(createdAt);
+  const agora = new Date();
+  if(periodo === 'hoje') return d.toDateString() === agora.toDateString();
+  if(periodo === 'semana'){
+    const inicioSemana = new Date(agora);
+    inicioSemana.setDate(agora.getDate() - agora.getDay());
+    inicioSemana.setHours(0,0,0,0);
+    return d >= inicioSemana;
+  }
+  if(periodo === 'mes') return d.getFullYear() === agora.getFullYear() && d.getMonth() === agora.getMonth();
+  if(periodo === 'custom'){
+    if(!statsDataIni || !statsDataFim) return true;
+    const ini = new Date(statsDataIni + 'T00:00:00');
+    const fim = new Date(statsDataFim + 'T23:59:59');
+    return d >= ini && d <= fim;
+  }
+  return true; // 'tudo'
+}
+
+function calcularEstatisticas(pedidosFiltrados){
+  let faturamento = 0;
+  let unidadesVendidas = 0;
+  const produtosRanking = {};
+  const pizzaSabores = {};
+  const pizzaTamanhos = {};
+  const esfihaSabores = {};
+  const bebidaRanking = {};
+  const calzoneRanking = {};
+
+  pedidosFiltrados.forEach(p => {
+    const totalExtraido = extrairTotalCobrar(p.texto_comanda);
+    faturamento += (totalExtraido !== null ? totalExtraido : (p.total || 0));
+
+    extrairItensPedido(p).forEach(item => {
+      const qty = item.quantidade || 1;
+      if(item.categoria === 'pizza'){
+        unidadesVendidas += qty;
+        (item.sabores || []).forEach(s => {
+          pizzaSabores[s] = (pizzaSabores[s]||0) + qty;
+          produtosRanking[s] = (produtosRanking[s]||0) + qty;
+        });
+        if(item.tamanho) pizzaTamanhos[item.tamanho] = (pizzaTamanhos[item.tamanho]||0) + qty;
+      } else if(item.categoria === 'esfiha'){
+        const sabores = item.sabores || {};
+        Object.keys(sabores).forEach(s => {
+          const q = sabores[s];
+          esfihaSabores[s] = (esfihaSabores[s]||0) + q;
+          produtosRanking[s] = (produtosRanking[s]||0) + q;
+          unidadesVendidas += q;
+        });
+      } else if(item.categoria === 'bebida'){
+        bebidaRanking[item.nome] = (bebidaRanking[item.nome]||0) + qty;
+        produtosRanking[item.nome] = (produtosRanking[item.nome]||0) + qty;
+        unidadesVendidas += qty;
+      } else if(item.categoria === 'calzone'){
+        calzoneRanking[item.sabor] = (calzoneRanking[item.sabor]||0) + qty;
+        produtosRanking[`Calzone ${item.sabor}`] = (produtosRanking[`Calzone ${item.sabor}`]||0) + qty;
+        unidadesVendidas += qty;
+      } else {
+        const nome = item.nome || 'Item';
+        produtosRanking[nome] = (produtosRanking[nome]||0) + qty;
+        unidadesVendidas += qty;
+      }
+    });
+  });
+
+  return {
+    faturamento,
+    numPedidos: pedidosFiltrados.length,
+    ticketMedio: pedidosFiltrados.length ? faturamento / pedidosFiltrados.length : 0,
+    unidadesVendidas,
+    produtosRanking, pizzaSabores, pizzaTamanhos, esfihaSabores, bebidaRanking, calzoneRanking
+  };
+}
+
+function rankingHTML(obj, limite){
+  limite = limite || 8;
+  const entradas = Object.entries(obj).sort((a,b) => b[1]-a[1]).slice(0, limite);
+  if(entradas.length === 0) return '<p style="opacity:.7; font-size:.85rem;">Sem dados nesse período.</p>';
+  return '<ol style="padding-left:1.2rem; font-size:.9rem;">' + entradas.map(([nome,qty]) => `<li>${nome} — <b>${qty}</b> un.</li>`).join('') + '</ol>';
+}
+
+async function renderEstatisticas(){
+  const el = document.getElementById('config-stats');
+  if(!el) return;
+  el.innerHTML = '<p style="opacity:.7;">Carregando pedidos...</p>';
+
+  const pedidos = await carregarPedidosParaStats();
+  const filtrados = pedidos.filter(p => dataDoPedidoNoPeriodo(p.created_at, statsPeriodo));
+  const s = calcularEstatisticas(filtrados);
+
+  const opcoesFiltro = [
+    ['hoje','Hoje'], ['semana','Esta semana'], ['mes','Este mês'], ['tudo','Todo o período'], ['custom','Personalizado']
+  ];
+  const botoes = opcoesFiltro.map(([key,label]) =>
+    `<button class="stat-filtro-btn${statsPeriodo===key?' active':''}" onclick="mudarPeriodoStats('${key}')">${label}</button>`
+  ).join('');
+
+  const customRow = statsPeriodo === 'custom' ? `
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+      <input type="date" id="stats-data-ini" value="${statsDataIni||''}">
+      <span>até</span>
+      <input type="date" id="stats-data-fim" value="${statsDataFim||''}">
+      <button class="btn-salvar" style="max-width:140px;" onclick="aplicarPeriodoCustom()">Aplicar</button>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div style="max-width:900px;">
+      <h3 style="margin-top:0;">📊 Estatísticas de Vendas</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">${botoes}</div>
+      ${customRow}
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px;">
+        <div class="stat-card"><span class="stat-label">💰 Faturamento</span><span class="stat-value">${brlAdmin(s.faturamento)}</span></div>
+        <div class="stat-card"><span class="stat-label">📦 Pedidos</span><span class="stat-value">${s.numPedidos}</span></div>
+        <div class="stat-card"><span class="stat-label">🎯 Ticket médio</span><span class="stat-value">${brlAdmin(s.ticketMedio)}</span></div>
+        <div class="stat-card"><span class="stat-label">🛒 Unidades vendidas</span><span class="stat-value">${s.unidadesVendidas}</span></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:24px;">
+        <div><h4>🏆 Produtos mais vendidos</h4>${rankingHTML(s.produtosRanking)}</div>
+        <div><h4>🍕 Sabores de pizza</h4>${rankingHTML(s.pizzaSabores)}</div>
+        <div><h4>📏 Pizzas por tamanho</h4>${rankingHTML(s.pizzaTamanhos)}</div>
+        <div><h4>🥙 Esfihas mais vendidas</h4>${rankingHTML(s.esfihaSabores)}</div>
+        <div><h4>🥤 Bebidas mais vendidas</h4>${rankingHTML(s.bebidaRanking)}</div>
+        <div><h4>🥟 Calzones mais vendidos</h4>${rankingHTML(s.calzoneRanking)}</div>
+      </div>
+
+      <button class="btn-salvar" style="margin-top:20px; max-width:200px;" onclick="atualizarStats()">🔄 Atualizar dados</button>
+    </div>
+  `;
+}
+
+function mudarPeriodoStats(periodo){
+  statsPeriodo = periodo;
+  renderEstatisticas();
+}
+function aplicarPeriodoCustom(){
+  statsDataIni = document.getElementById('stats-data-ini').value;
+  statsDataFim = document.getElementById('stats-data-fim').value;
+  renderEstatisticas();
+}
+async function atualizarStats(){
+  await carregarPedidosParaStats(true);
+  renderEstatisticas();
 }
 </script>
 </body>
