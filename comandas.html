@@ -330,9 +330,19 @@ async function carregarHistorico(){
 function encontrarPedido(id){ return pedidosAtivos.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id); }
 
 async function mudarStatus(id, novoStatus){
-  await supabaseClient.from('pedidos').update({ status: novoStatus }).eq('id', id);
   const item = encontrarPedido(id);
-  if(item) item.status = novoStatus;
+  const payload = { status: novoStatus };
+  // Marca a hora exata em que o pedido foi impresso e em que foi finalizado —
+  // usado no admin pra calcular o tempo médio de preparo. Só marca na primeira
+  // vez (não sobrescreve se o status for alternado de um lado pro outro depois).
+  if(novoStatus === 'impresso' && item && !item.impresso_em){
+    payload.impresso_em = new Date().toISOString();
+  }
+  if(novoStatus === 'finalizado_pago' && item && !item.finalizado_em){
+    payload.finalizado_em = new Date().toISOString();
+  }
+  await supabaseClient.from('pedidos').update(payload).eq('id', id);
+  if(item) Object.assign(item, payload);
   if(!STATUS_ATIVOS.includes(novoStatus)){
     pedidosAtivos = pedidosAtivos.filter(p => p.id !== id);
   }
