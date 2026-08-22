@@ -64,9 +64,27 @@
 
   .stat-filtro-btn{ font-family:inherit; font-size:.8rem; padding:7px 12px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:transparent; color:#fff; cursor:pointer; }
   .stat-filtro-btn.active{ background:var(--terracotta); border-color:var(--terracotta); font-weight:bold; }
-  .stat-card{ background:rgba(255,255,255,.08); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:4px; }
+  .stat-card{ background:rgba(255,255,255,.08); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:3px; }
   .stat-card .stat-label{ font-size:.72rem; opacity:.8; }
   .stat-card .stat-value{ font-size:1.3rem; font-weight:bold; }
+  .stat-card .stat-sub{ font-size:.68rem; opacity:.65; }
+  .stat-secao{ margin-top:24px; padding-top:18px; border-top:1px solid rgba(255,255,255,.12); }
+  .stat-secao h4{ margin:0 0 10px; font-size:.95rem; }
+  .stat-secao h5{ margin:0 0 4px; font-size:.8rem; opacity:.85; }
+  .stat-empty{ opacity:.65; font-size:.85rem; }
+  .stat-ranking-list{ list-style:none; padding:0; margin:0; font-size:.88rem; display:flex; flex-direction:column; gap:4px; }
+  .stat-ranking-list li{ display:flex; justify-content:space-between; background:rgba(255,255,255,.05); padding:5px 9px; border-radius:6px; }
+  .stat-legenda{ font-size:.75rem; opacity:.85; background:rgba(255,255,255,.05); padding:8px 10px; border-radius:8px; line-height:1.7; }
+  .stat-badge{ font-size:.7rem; font-weight:bold; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .stat-badge.exato{ background:rgba(46,160,67,.25); color:#7ee08a; }
+  .stat-badge.aproximado{ background:rgba(210,153,34,.25); color:#e0b84a; }
+  .stat-bar-chart{ display:flex; align-items:flex-end; gap:6px; height:140px; overflow-x:auto; padding-bottom:4px; }
+  .stat-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:28px; }
+  .stat-bar{ width:18px; background:var(--terracotta); border-radius:4px 4px 0 0; min-height:4px; }
+  .stat-bar-label{ font-size:.6rem; opacity:.7; margin-top:4px; writing-mode:vertical-rl; transform:rotate(180deg); }
+  .stat-tabela{ width:100%; border-collapse:collapse; font-size:.8rem; }
+  .stat-tabela th{ text-align:left; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.2); opacity:.8; font-size:.72rem; }
+  .stat-tabela td{ padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.07); }
 
   .card-novo{ background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.35); border-radius:10px; padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:bold; text-align:center; }
   .card-novo:hover{ background:rgba(255,255,255,.14); }
@@ -715,19 +733,56 @@ function dataDoPedidoNoPeriodo(createdAt, periodo){
   return true; // 'tudo'
 }
 
+// Extrai informações extras do pedido a partir do texto da comanda: se é
+// entrega ou retirada, qual foi a forma de pagamento, e se os itens vieram
+// estruturados (exato) ou foram interpretados do texto (aproximado).
+function extrairMetaPedido(pedido){
+  const texto = pedido.texto_comanda || '';
+  const exato = !!(pedido.itens && Array.isArray(pedido.itens) && pedido.itens.length > 0);
+  let entrega = null;
+  if(/RETIRADA NO BALC[ÃA]O/i.test(texto)) entrega = 'retirada';
+  else if(/📍\s*Endereço:/.test(texto)) entrega = 'entrega';
+  let pagamento = null;
+  const mPag = texto.match(/💳\s*Pagamento:\s*(.+)/);
+  if(mPag) pagamento = mPag[1].trim();
+  const totalExtraido = extrairTotalCobrar(texto);
+  return { exato, entrega, pagamento, total: totalExtraido !== null ? totalExtraido : (pedido.total || 0) };
+}
+
 function calcularEstatisticas(pedidosFiltrados){
   let faturamento = 0;
   let unidadesVendidas = 0;
+  let pedidosExatos = 0;
+  let pedidosAproximados = 0;
   const produtosRanking = {};
   const pizzaSabores = {};
   const pizzaTamanhos = {};
   const esfihaSabores = {};
   const bebidaRanking = {};
   const calzoneRanking = {};
+  const entregaRanking = { entrega:0, retirada:0, 'não identificado':0 };
+  const pagamentoRanking = {};
+  const faturamentoPorDia = {}; // 'YYYY-MM-DD' -> valor
+  const listaPedidos = []; // usada na tabela de pedidos do período
 
   pedidosFiltrados.forEach(p => {
-    const totalExtraido = extrairTotalCobrar(p.texto_comanda);
-    faturamento += (totalExtraido !== null ? totalExtraido : (p.total || 0));
+    const meta = extrairMetaPedido(p);
+    faturamento += meta.total;
+    meta.exato ? pedidosExatos++ : pedidosAproximados++;
+
+    entregaRanking[meta.entrega || 'não identificado']++;
+    if(meta.pagamento) pagamentoRanking[meta.pagamento] = (pagamentoRanking[meta.pagamento]||0) + 1;
+
+    const diaKey = new Date(p.created_at).toISOString().slice(0,10);
+    faturamentoPorDia[diaKey] = (faturamentoPorDia[diaKey]||0) + meta.total;
+
+    listaPedidos.push({
+      created_at: p.created_at,
+      total: meta.total,
+      entrega: meta.entrega,
+      pagamento: meta.pagamento,
+      exato: meta.exato
+    });
 
     extrairItensPedido(p).forEach(item => {
       const qty = item.quantidade || 1;
@@ -762,26 +817,82 @@ function calcularEstatisticas(pedidosFiltrados){
     });
   });
 
+  listaPedidos.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
   return {
     faturamento,
     numPedidos: pedidosFiltrados.length,
+    pedidosExatos, pedidosAproximados,
     ticketMedio: pedidosFiltrados.length ? faturamento / pedidosFiltrados.length : 0,
     unidadesVendidas,
-    produtosRanking, pizzaSabores, pizzaTamanhos, esfihaSabores, bebidaRanking, calzoneRanking
+    produtosRanking, pizzaSabores, pizzaTamanhos, esfihaSabores, bebidaRanking, calzoneRanking,
+    entregaRanking, pagamentoRanking, faturamentoPorDia, listaPedidos
   };
 }
 
 function rankingHTML(obj, limite){
   limite = limite || 8;
-  const entradas = Object.entries(obj).sort((a,b) => b[1]-a[1]).slice(0, limite);
-  if(entradas.length === 0) return '<p style="opacity:.7; font-size:.85rem;">Sem dados nesse período.</p>';
-  return '<ol style="padding-left:1.2rem; font-size:.9rem;">' + entradas.map(([nome,qty]) => `<li>${nome} — <b>${qty}</b> un.</li>`).join('') + '</ol>';
+  const entradas = Object.entries(obj).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]).slice(0, limite);
+  if(entradas.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  return '<ol class="stat-ranking-list">' + entradas.map(([nome,qty]) => `<li><span>${nome}</span><b>${qty}</b></li>`).join('') + '</ol>';
+}
+
+// Gráfico de barras simples (sem lib externa) do faturamento por dia, dentro do período filtrado.
+function graficoFaturamentoPorDiaHTML(porDia){
+  const dias = Object.keys(porDia).sort();
+  if(dias.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  const max = Math.max(...dias.map(d => porDia[d]), 1);
+  const barras = dias.map(d => {
+    const valor = porDia[d];
+    const alturaPct = Math.max(4, Math.round((valor / max) * 100));
+    const [ano,mes,dia] = d.split('-');
+    return `
+      <div class="stat-bar-col" title="${dia}/${mes}: ${brlAdmin(valor)}">
+        <div class="stat-bar" style="height:${alturaPct}%"></div>
+        <span class="stat-bar-label">${dia}/${mes}</span>
+      </div>`;
+  }).join('');
+  return `<div class="stat-bar-chart">${barras}</div>`;
+}
+
+function tabelaPedidosHTML(lista){
+  if(lista.length === 0) return '<p class="stat-empty">Sem pedidos nesse período.</p>';
+  const LIMITE_LINHAS = 100;
+  const mostrar = lista.slice(0, LIMITE_LINHAS);
+  const linhas = mostrar.map(p => {
+    const data = new Date(p.created_at);
+    const dataStr = data.toLocaleDateString('pt-BR');
+    const horaStr = data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const tipo = p.entrega === 'retirada' ? '🏠 Retirada' : p.entrega === 'entrega' ? '🛵 Entrega' : '—';
+    const precisao = p.exato
+      ? '<span class="stat-badge exato">🟢 Exato</span>'
+      : '<span class="stat-badge aproximado">🟡 Aproximado</span>';
+    return `<tr>
+      <td>${dataStr} ${horaStr}</td>
+      <td>${tipo}</td>
+      <td>${p.pagamento || '—'}</td>
+      <td style="text-align:right;">${brlAdmin(p.total)}</td>
+      <td>${precisao}</td>
+    </tr>`;
+  }).join('');
+  const aviso = lista.length > LIMITE_LINHAS
+    ? `<p class="stat-empty" style="margin-top:6px;">Mostrando os ${LIMITE_LINHAS} pedidos mais recentes de ${lista.length} no período.</p>`
+    : '';
+  return `
+    <div style="overflow-x:auto;">
+      <table class="stat-tabela">
+        <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Pagamento</th><th style="text-align:right;">Total</th><th>Dado</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+    ${aviso}
+  `;
 }
 
 async function renderEstatisticas(){
   const el = document.getElementById('config-stats');
   if(!el) return;
-  el.innerHTML = '<p style="opacity:.7;">Carregando pedidos...</p>';
+  el.innerHTML = '<p class="stat-empty">Carregando pedidos...</p>';
 
   const pedidos = await carregarPedidosParaStats();
   const filtrados = pedidos.filter(p => dataDoPedidoNoPeriodo(p.created_at, statsPeriodo));
@@ -803,25 +914,57 @@ async function renderEstatisticas(){
     </div>` : '';
 
   el.innerHTML = `
-    <div style="max-width:900px;">
+    <div style="max-width:960px;">
       <h3 style="margin-top:0;">📊 Estatísticas de Vendas</h3>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">${botoes}</div>
-      ${customRow}
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px;">
-        <div class="stat-card"><span class="stat-label">💰 Faturamento</span><span class="stat-value">${brlAdmin(s.faturamento)}</span></div>
-        <div class="stat-card"><span class="stat-label">📦 Pedidos</span><span class="stat-value">${s.numPedidos}</span></div>
-        <div class="stat-card"><span class="stat-label">🎯 Ticket médio</span><span class="stat-value">${brlAdmin(s.ticketMedio)}</span></div>
-        <div class="stat-card"><span class="stat-label">🛒 Unidades vendidas</span><span class="stat-value">${s.unidadesVendidas}</span></div>
+      <div class="stat-legenda">
+        <span class="stat-badge exato">🟢 Exato</span> = pedido feito depois da atualização, com itens salvos certinho.
+        <span class="stat-badge aproximado">🟡 Aproximado</span> = pedido antigo, lido a partir do texto da comanda — pode não pegar 100% dos sabores, mas o valor em R$ está sempre correto.
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:24px;">
-        <div><h4>🏆 Produtos mais vendidos</h4>${rankingHTML(s.produtosRanking)}</div>
-        <div><h4>🍕 Sabores de pizza</h4>${rankingHTML(s.pizzaSabores)}</div>
-        <div><h4>📏 Pizzas por tamanho</h4>${rankingHTML(s.pizzaTamanhos)}</div>
-        <div><h4>🥙 Esfihas mais vendidas</h4>${rankingHTML(s.esfihaSabores)}</div>
-        <div><h4>🥤 Bebidas mais vendidas</h4>${rankingHTML(s.bebidaRanking)}</div>
-        <div><h4>🥟 Calzones mais vendidos</h4>${rankingHTML(s.calzoneRanking)}</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">${botoes}</div>
+      ${customRow}
+
+      <div class="stat-secao">
+        <h4>Resumo do período</h4>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;">
+          <div class="stat-card"><span class="stat-label">💰 Faturamento</span><span class="stat-value">${brlAdmin(s.faturamento)}</span><span class="stat-sub">soma do TOTAL A COBRAR de cada comanda</span></div>
+          <div class="stat-card"><span class="stat-label">📦 Pedidos</span><span class="stat-value">${s.numPedidos}</span><span class="stat-sub">${s.pedidosExatos} exatos · ${s.pedidosAproximados} aproximados</span></div>
+          <div class="stat-card"><span class="stat-label">🎯 Ticket médio</span><span class="stat-value">${brlAdmin(s.ticketMedio)}</span><span class="stat-sub">faturamento ÷ pedidos</span></div>
+          <div class="stat-card"><span class="stat-label">🛒 Unidades vendidas</span><span class="stat-value">${s.unidadesVendidas}</span><span class="stat-sub">soma de todos os itens</span></div>
+        </div>
+      </div>
+
+      <div class="stat-secao">
+        <h4>📈 Faturamento por dia</h4>
+        ${graficoFaturamentoPorDiaHTML(s.faturamentoPorDia)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>🛵 Entrega x Retirada</h4>
+        ${rankingHTML(s.entregaRanking, 3)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>💳 Forma de pagamento</h4>
+        ${rankingHTML(s.pagamentoRanking, 10)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>🏆 Produtos mais vendidos</h4>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px;">
+          <div><h5>Geral</h5>${rankingHTML(s.produtosRanking)}</div>
+          <div><h5>🍕 Sabores de pizza</h5>${rankingHTML(s.pizzaSabores)}</div>
+          <div><h5>📏 Pizzas por tamanho</h5>${rankingHTML(s.pizzaTamanhos)}</div>
+          <div><h5>🥙 Esfihas</h5>${rankingHTML(s.esfihaSabores)}</div>
+          <div><h5>🥤 Bebidas</h5>${rankingHTML(s.bebidaRanking)}</div>
+          <div><h5>🥟 Calzones</h5>${rankingHTML(s.calzoneRanking)}</div>
+        </div>
+      </div>
+
+      <div class="stat-secao">
+        <h4>🧾 Pedidos do período</h4>
+        ${tabelaPedidosHTML(s.listaPedidos)}
       </div>
 
       <button class="btn-salvar" style="margin-top:20px; max-width:200px;" onclick="atualizarStats()">🔄 Atualizar dados</button>
