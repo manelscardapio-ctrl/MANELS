@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avalie a Manel's Pizzaria</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --cream:#F2E5D3; --cream-soft:#EAD9BF; --paper:#EFE0C6;
+    --forest:#1F6E48; --forest-dark:#123F29;
+    --rust:#A8532B; --rust-dark:#7C3B1D;
+    --ink:#2B2118; --ink-soft:#5B4C3D; --gold:#C99A4A;
+    --line: rgba(43,33,24,0.22);
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--cream); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    padding:20px;
+  }
+  .card{
+    background:var(--paper); border-radius:16px; padding:28px 24px; max-width:420px; width:100%;
+    box-shadow:0 10px 30px rgba(0,0,0,.15); text-align:center;
+  }
+  h1{ font-size:1.3rem; color:var(--forest-dark); margin:0 0 4px; }
+  p{ color:var(--ink-soft); font-size:.9rem; line-height:1.5; }
+  .logo{ font-size:2.2rem; margin-bottom:6px; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--forest); color:#fff; border:none; border-radius:10px;
+    padding:12px 20px; font-size:.95rem; font-weight:bold; cursor:pointer; margin-top:14px; width:100%;
+  }
+  .btn:hover{ background:var(--forest-dark); }
+  .btn-google{ background:#fff; color:#3c4043; border:1px solid #dadce0; }
+  .btn-google:hover{ background:#f7f7f7; }
+  .btn:disabled{ opacity:.6; cursor:not-allowed; }
+  .estrelas{ font-size:2.2rem; display:flex; justify-content:center; gap:6px; margin:16px 0 6px; }
+  .estrela{ cursor:pointer; color:#d9c9a8; transition:color .15s; }
+  .estrela.ativa{ color:var(--gold); }
+  textarea{
+    width:100%; margin-top:10px; padding:10px; border-radius:10px; border:1px solid var(--line);
+    font-family:inherit; font-size:.9rem; min-height:90px; resize:vertical; background:#fff;
+  }
+  .aviso{ background:#fdecea; color:#7d2b20; border-radius:10px; padding:12px; font-size:.85rem; margin-top:10px; }
+  .sucesso{ background:#e6f3ea; color:var(--forest-dark); border-radius:10px; padding:16px; font-size:.9rem; }
+  .oculto{ display:none; }
+  .rodape{ margin-top:18px; font-size:.72rem; color:var(--ink-soft); opacity:.7; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">🍕</div>
+  <h1>Manel's Pizzaria</h1>
+
+  <div id="estado-carregando">
+    <p>Verificando seu link...</p>
+  </div>
+
+  <div id="estado-invalido" class="oculto">
+    <div class="aviso" id="msg-invalido"></div>
+    <p>Se você acabou de fazer um pedido, chame a gente no WhatsApp pra receber um novo link.</p>
+  </div>
+
+  <div id="estado-login" class="oculto">
+    <p>Sua opinião ajuda muito a gente a melhorar! Entre com sua conta Google pra avaliar e ganhar pontos de fidelidade.</p>
+    <button class="btn btn-google" onclick="entrarComGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.08-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V4.95H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+      Entrar com Google
+    </button>
+  </div>
+
+  <div id="estado-avaliar" class="oculto">
+    <p>Olá, <b id="nome-usuario"></b>! O que achou do seu pedido #<span id="numero-pedido"></span>?</p>
+    <div class="estrelas" id="estrelas">
+      <span class="estrela" data-valor="1">★</span>
+      <span class="estrela" data-valor="2">★</span>
+      <span class="estrela" data-valor="3">★</span>
+      <span class="estrela" data-valor="4">★</span>
+      <span class="estrela" data-valor="5">★</span>
+    </div>
+    <textarea id="comentario" placeholder="Quer contar mais alguma coisa? (opcional)"></textarea>
+    <button class="btn" id="btn-enviar" onclick="enviarAvaliacao()" disabled>Enviar avaliação</button>
+  </div>
+
+  <div id="estado-sucesso" class="oculto">
+    <div class="sucesso">
+      <div style="font-size:2rem;">🎉</div>
+      <p style="color:var(--forest-dark); font-weight:bold; margin-bottom:4px;">Obrigado pela avaliação!</p>
+      <p id="msg-pontos"></p>
+    </div>
+  </div>
+
+  <div class="rodape">Manel's Pizzaria · manelspizzaria.com.br</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+
+let linkAtual = null;
+let pedidoAtual = null;
+let notaSelecionada = 0;
+
+function mostrarEstado(id){
+  ['estado-carregando','estado-invalido','estado-login','estado-avaliar','estado-sucesso'].forEach(e => {
+    document.getElementById(e).classList.toggle('oculto', e !== id);
+  });
+}
+
+async function iniciar(){
+  if(!token){
+    document.getElementById('msg-invalido').textContent = 'Link inválido — falta o código de avaliação.';
+    mostrarEstado('estado-invalido');
+    return;
+  }
+
+  const { data: link, error } = await supabaseClient.from('links_avaliacao').select('*').eq('token', token).maybeSingle();
+  if(error || !link){
+    document.getElementById('msg-invalido').textContent = 'Não encontramos esse link de avaliação.';
+    mostrarEstado('estado-invalido');
+    return;
+  }
+  if(link.usado){
+    document.getElementById('msg-invalido').textContent = 'Esse link já foi usado. Cada avaliação vale um link novo — obrigado por já ter avaliado!';
+    mostrarEstado('estado-invalido');
+    return;
+  }
+  if(new Date(link.expira_em) < new Date()){
+    document.getElementById('msg-invalido').textContent = 'Esse link expirou (ele vale por 3 horas). Peça um novo link no WhatsApp da pizzaria.';
+    mostrarEstado('estado-invalido');
+    return;
+  }
+  linkAtual = link;
+
+  const { data: pedido } = await supabaseClient.from('pedidos').select('*').eq('id', link.pedido_id).maybeSingle();
+  pedidoAtual = pedido;
+  const numMatch = (pedido?.texto_comanda || '').match(/Pedido #(\d+)/);
+  document.getElementById('numero-pedido').textContent = numMatch ? numMatch[1] : '';
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if(user){
+    mostrarTelaAvaliar(user);
+  } else {
+    mostrarEstado('estado-login');
+  }
+}
+
+async function entrarComGoogle(){
+  await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+}
+
+function mostrarTelaAvaliar(user){
+  const nome = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Cliente';
+  document.getElementById('nome-usuario').textContent = nome.split(' ')[0];
+  mostrarEstado('estado-avaliar');
+}
+
+document.getElementById('estrelas').addEventListener('click', (e) => {
+  const estrela = e.target.closest('.estrela');
+  if(!estrela) return;
+  notaSelecionada = parseInt(estrela.dataset.valor, 10);
+  document.querySelectorAll('.estrela').forEach(el => {
+    el.classList.toggle('ativa', parseInt(el.dataset.valor,10) <= notaSelecionada);
+  });
+  document.getElementById('btn-enviar').disabled = false;
+});
+
+async function enviarAvaliacao(){
+  if(notaSelecionada === 0) return;
+  const botao = document.getElementById('btn-enviar');
+  botao.disabled = true;
+  botao.textContent = 'Enviando...';
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if(!user){ mostrarEstado('estado-login'); return; }
+
+  const comentario = document.getElementById('comentario').value.trim();
+  const nome = user.user_metadata?.full_name || user.user_metadata?.name || '';
+  const email = user.email || '';
+
+  try{
+    const { error: erroAvaliacao } = await supabaseClient.from('avaliacoes').insert({
+      pedido_id: linkAtual.pedido_id,
+      cliente_uid: user.id,
+      cliente_nome: nome,
+      cliente_email: email,
+      nota: notaSelecionada,
+      comentario: comentario || null
+    });
+    if(erroAvaliacao) throw erroAvaliacao;
+
+    await supabaseClient.from('links_avaliacao').update({ usado: true }).eq('token', token);
+
+    const { data: pontosAtual } = await supabaseClient.from('pontos_clientes').select('*').eq('cliente_uid', user.id).maybeSingle();
+    const novoTotal = (pontosAtual?.pontos || 0) + 1;
+    await supabaseClient.from('pontos_clientes').upsert({
+      cliente_uid: user.id, cliente_nome: nome, cliente_email: email, pontos: novoTotal, atualizado_em: new Date().toISOString()
+    });
+
+    document.getElementById('msg-pontos').textContent = `Você ganhou 1 ponto de fidelidade. Total: ${novoTotal} ponto${novoTotal===1?'':'s'}.`;
+    mostrarEstado('estado-sucesso');
+  } catch(e){
+    alert('Não foi possível enviar sua avaliação. Tente novamente em instantes.');
+    console.error(e);
+    botao.disabled = false;
+    botao.textContent = 'Enviar avaliação';
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
