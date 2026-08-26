@@ -616,6 +616,7 @@ let statsPedidosCache = null; // guarda os pedidos já buscados, pra não recons
 let statsPeriodo = 'hoje';    // hoje | semana | mes | tudo | custom
 let statsDataIni = null;
 let statsDataFim = null;
+let ultimoStatsCalculado = null; // último objeto de estatísticas calculado, usado pela exportação
 
 function brlAdmin(v){ return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
 
@@ -831,10 +832,13 @@ function calcularEstatisticas(pedidosFiltrados){
     }
 
     if(meta.telefone){
-      if(!clientesRanking[meta.telefone]) clientesRanking[meta.telefone] = { nome: meta.cliente || meta.telefone, pedidos: 0, total: 0 };
+      if(!clientesRanking[meta.telefone]) clientesRanking[meta.telefone] = { nome: meta.cliente || meta.telefone, pedidos: 0, total: 0, nomesDistintos: new Set() };
       clientesRanking[meta.telefone].pedidos++;
       clientesRanking[meta.telefone].total += meta.total;
-      if(meta.cliente) clientesRanking[meta.telefone].nome = meta.cliente; // usa o nome mais recente
+      if(meta.cliente){
+        clientesRanking[meta.telefone].nome = meta.cliente; // usa o nome mais recente pra exibir
+        clientesRanking[meta.telefone].nomesDistintos.add(meta.cliente);
+      }
     }
 
     extrairItensPedido(p).forEach(item => {
@@ -1012,17 +1016,44 @@ function formatarMinutos(min){
   return h > 0 ? `${h}h${String(m).padStart(2,'0')}` : `${m} min`;
 }
 
+// Um telefone que aparece em MUITOS pedidos com nomes de cliente diferentes entre si
+// não é "um cliente fiel" — é provavelmente o celular/computador do atendente sendo
+// reutilizado pra digitar pedidos manuais de vários clientes diferentes (presenciais,
+// por telefone, etc). Sinaliza isso separadamente pra não confundir fidelização de
+// verdade com esse uso operacional do número.
+const LIMITE_PEDIDOS_SUSPEITO = 8;
+const LIMITE_NOMES_DISTINTOS_SUSPEITO = 3;
+
+function ehTelefoneDeAtendente(c){
+  return c.pedidos > LIMITE_PEDIDOS_SUSPEITO && c.nomesDistintos.size >= LIMITE_NOMES_DISTINTOS_SUSPEITO;
+}
+
 function clientesRankingHTML(clientes){
-  const entradas = Object.values(clientes).sort((a,b) => b.total - a.total).slice(0, 10);
-  if(entradas.length === 0) return '<p class="stat-empty">Nenhum telefone identificado no texto das comandas desse período.</p>';
-  return `
-    <div style="overflow-x:auto;">
-      <table class="stat-tabela">
-        <thead><tr><th>Cliente</th><th style="text-align:center;">Pedidos</th><th style="text-align:right;">Total gasto</th></tr></thead>
-        <tbody>${entradas.map(c => `<tr><td>${c.nome}</td><td style="text-align:center;">${c.pedidos}</td><td style="text-align:right;">${brlAdmin(c.total)}</td></tr>`).join('')}</tbody>
-      </table>
-    </div>
-  `;
+  const todos = Object.values(clientes);
+  const fieis = todos.filter(c => !ehTelefoneDeAtendente(c)).sort((a,b) => b.total - a.total).slice(0, 10);
+  const atendente = todos.filter(ehTelefoneDeAtendente).sort((a,b) => b.pedidos - a.pedidos);
+
+  const tabelaFieis = fieis.length === 0
+    ? '<p class="stat-empty">Nenhum telefone identificado no texto das comandas desse período.</p>'
+    : `<div style="overflow-x:auto;">
+        <table class="stat-tabela">
+          <thead><tr><th>Cliente</th><th style="text-align:center;">Pedidos</th><th style="text-align:right;">Total gasto</th></tr></thead>
+          <tbody>${fieis.map(c => `<tr><td>${c.nome}</td><td style="text-align:center;">${c.pedidos}</td><td style="text-align:right;">${brlAdmin(c.total)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+
+  const tabelaAtendente = atendente.length === 0 ? '' : `
+    <div style="margin-top:16px;">
+      <p class="stat-sub" style="display:block; margin-bottom:6px;">📱 Esses telefones apareceram em mais de ${LIMITE_PEDIDOS_SUSPEITO} pedidos com ${LIMITE_NOMES_DISTINTOS_SUSPEITO}+ nomes de cliente diferentes — provavelmente é o celular/computador de quem atende, usado pra digitar pedido manual de vários clientes distintos (não é fidelização de verdade). Foram excluídos do ranking de clientes fiéis acima.</p>
+      <div style="overflow-x:auto;">
+        <table class="stat-tabela">
+          <thead><tr><th>Telefone</th><th style="text-align:center;">Pedidos</th><th style="text-align:center;">Nomes diferentes usados</th><th style="text-align:right;">Total</th></tr></thead>
+          <tbody>${atendente.map(c => `<tr><td>📱 ${Object.keys(clientes).find(k=>clientes[k]===c) || ''}</td><td style="text-align:center;">${c.pedidos}</td><td style="text-align:center;">${c.nomesDistintos.size}</td><td style="text-align:right;">${brlAdmin(c.total)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  return tabelaFieis + tabelaAtendente;
 }
 
 function tabelaPedidosHTML(lista){
@@ -1069,6 +1100,7 @@ async function renderEstatisticas(){
   const pedidos = await carregarPedidosParaStats();
   const filtrados = pedidos.filter(p => dataDoPedidoNoPeriodo(p.created_at, statsPeriodo));
   const s = calcularEstatisticas(filtrados);
+  ultimoStatsCalculado = s; // guardado pra exportação não precisar recalcular tudo de novo
   const comparativo = comparativoFaturamentoHTML(pedidos, s.faturamento, statsPeriodo);
 
   const opcoesFiltro = [
@@ -1168,6 +1200,7 @@ async function renderEstatisticas(){
       </div>
 
       <button class="btn-salvar" style="margin-top:20px; max-width:200px;" onclick="atualizarStats()">🔄 Atualizar dados</button>
+      <button class="btn-salvar" style="margin-top:20px; margin-left:8px; max-width:220px; background:var(--terracotta);" onclick="exportarEstatisticasCSV()">📥 Exportar tudo (CSV)</button>
     </div>
   `;
 }
@@ -1184,6 +1217,116 @@ function aplicarPeriodoCustom(){
 async function atualizarStats(){
   await carregarPedidosParaStats(true);
   renderEstatisticas();
+}
+
+/* ==================== EXPORTAR ESTATÍSTICAS (CSV) ==================== */
+function csvEscape(v){
+  const s = String(v ?? '');
+  if(/[;"\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function csvLinha(campos){ return campos.map(csvEscape).join(';'); }
+
+function baixarArquivo(nome, conteudo){
+  const blob = new Blob(['\uFEFF' + conteudo], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function labelPeriodoAtual(){
+  const nomes = { hoje:'Hoje', semana:'Esta semana', mes:'Este mês', tudo:'Todo o período', custom:'Personalizado' };
+  let label = nomes[statsPeriodo] || statsPeriodo;
+  if(statsPeriodo === 'custom' && statsDataIni && statsDataFim) label += ` (${statsDataIni} a ${statsDataFim})`;
+  return label;
+}
+
+// Exporta TODAS as seções das Estatísticas (resumo, rankings, pagamento, entrega,
+// dia da semana, horário de pico, clientes fiéis e a lista detalhada de pedidos)
+// num único CSV, respeitando o filtro de período selecionado na tela.
+function exportarEstatisticasCSV(){
+  if(!ultimoStatsCalculado){ alert('Aguarde os dados carregarem antes de exportar.'); return; }
+  const s = ultimoStatsCalculado;
+  const linhas = [];
+
+  linhas.push(csvLinha(["MANEL'S PIZZARIA — EXPORTAÇÃO DE ESTATÍSTICAS"]));
+  linhas.push(csvLinha(['Período', labelPeriodoAtual()]));
+  linhas.push(csvLinha(['Gerado em', new Date().toLocaleString('pt-BR')]));
+  linhas.push('');
+
+  linhas.push(csvLinha(['RESUMO']));
+  linhas.push(csvLinha(['Faturamento','Pedidos','Pedidos exatos','Pedidos aproximados','Ticket médio','Ticket médio entrega','Ticket médio retirada','Unidades vendidas','Tempo médio de preparo (min)']));
+  linhas.push(csvLinha([
+    brlAdmin(s.faturamento), s.numPedidos, s.pedidosExatos, s.pedidosAproximados,
+    brlAdmin(s.ticketMedio), brlAdmin(s.ticketMedioEntrega), brlAdmin(s.ticketMedioRetirada),
+    s.unidadesVendidas, s.tempoMedioPreparo !== null ? s.tempoMedioPreparo.toFixed(1) : ''
+  ]));
+  linhas.push('');
+
+  const secaoRanking = (titulo, obj, colNome) => {
+    linhas.push(csvLinha([titulo]));
+    linhas.push(csvLinha([colNome, 'Quantidade']));
+    const entradas = Object.entries(obj).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+    if(entradas.length === 0) linhas.push(csvLinha(['(sem dados nesse período)','']));
+    entradas.forEach(([k,v]) => linhas.push(csvLinha([k,v])));
+    linhas.push('');
+  };
+  secaoRanking('PRODUTOS MAIS VENDIDOS (GERAL)', s.produtosRanking, 'Produto');
+  secaoRanking('SABORES DE PIZZA', s.pizzaSabores, 'Sabor');
+  secaoRanking('PIZZAS POR TAMANHO', s.pizzaTamanhos, 'Tamanho');
+  secaoRanking('ESFIHAS', s.esfihaSabores, 'Sabor');
+  secaoRanking('BEBIDAS', s.bebidaRanking, 'Bebida');
+  secaoRanking('CALZONES', s.calzoneRanking, 'Sabor');
+
+  linhas.push(csvLinha(['FORMA DE PAGAMENTO']));
+  linhas.push(csvLinha(['Forma','Pedidos','Valor total']));
+  Object.keys(s.pagamentoContagem).filter(k => s.pagamentoContagem[k] > 0)
+    .sort((a,b) => (s.pagamentoValor[b]||0) - (s.pagamentoValor[a]||0))
+    .forEach(k => linhas.push(csvLinha([k, s.pagamentoContagem[k], brlAdmin(s.pagamentoValor[k]||0)])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['ENTREGA X RETIRADA']));
+  linhas.push(csvLinha(['Tipo','Pedidos']));
+  Object.entries(s.entregaRanking).filter(([,v]) => v > 0).forEach(([k,v]) => linhas.push(csvLinha([k,v])));
+  linhas.push('');
+
+  const NOMES_DIA_ORDEM = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  linhas.push(csvLinha(['DIA DA SEMANA']));
+  linhas.push(csvLinha(['Dia','Faturamento','Pedidos']));
+  NOMES_DIA_ORDEM.filter(n => (s.pedidosPorDiaSemana[n]||0) > 0)
+    .forEach(n => linhas.push(csvLinha([n, brlAdmin(s.faturamentoPorDiaSemana[n]||0), s.pedidosPorDiaSemana[n]||0])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['HORÁRIO DE PICO']));
+  linhas.push(csvLinha(['Hora','Pedidos']));
+  for(let h = 0; h < 24; h++){ if(s.pedidosPorHora[h]) linhas.push(csvLinha([`${h}h`, s.pedidosPorHora[h]])); }
+  linhas.push('');
+
+  linhas.push(csvLinha(['CLIENTES FIÉIS']));
+  linhas.push(csvLinha(['Cliente','Telefone','Pedidos','Total gasto']));
+  Object.entries(s.clientesRanking).filter(([,c]) => !ehTelefoneDeAtendente(c))
+    .sort((a,b) => b[1].total - a[1].total)
+    .forEach(([tel,c]) => linhas.push(csvLinha([c.nome, tel, c.pedidos, brlAdmin(c.total)])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['PEDIDOS DETALHADOS']));
+  linhas.push(csvLinha(['Data/Hora','Cliente','Tipo','Pagamento','Total','Preparo (min)','Dado']));
+  s.listaPedidos.forEach(p => {
+    linhas.push(csvLinha([
+      new Date(p.created_at).toLocaleString('pt-BR'),
+      p.cliente || '',
+      p.entrega === 'retirada' ? 'Retirada' : p.entrega === 'entrega' ? 'Entrega' : '',
+      p.pagamento || '',
+      brlAdmin(p.total),
+      p.minutosPreparo !== null && p.minutosPreparo !== undefined ? p.minutosPreparo.toFixed(1) : '',
+      p.exato ? 'Exato' : 'Aproximado'
+    ]));
+  });
+
+  const nomeArquivo = `estatisticas_manels_${statsPeriodo}_${new Date().toISOString().slice(0,10)}.csv`;
+  baixarArquivo(nomeArquivo, linhas.join('\n'));
 }
 </script>
 </body>
