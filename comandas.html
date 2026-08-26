@@ -51,6 +51,8 @@
   .status-select.impresso{ background:#eee; color:#666; }
 
   textarea{ width:100%; font-family:'Courier New', monospace; font-size:.8rem; padding:8px; border-radius:6px; border:1px dashed #ccc; background:#fafafa; color:#222; min-height:160px; resize:vertical; margin-bottom:8px; flex:1; }
+  .campo-lbl{ display:block; font-size:.68rem; opacity:.65; margin-bottom:2px; font-weight:bold; text-transform:uppercase; letter-spacing:.02em; }
+  .campo-grupo{ display:inline-flex; flex-direction:column; margin:0 8px 8px 0; }
   .acoes{ display:flex; gap:6px; flex-wrap:wrap; }
   button.acao{ font-family:inherit; font-size:.78rem; padding:7px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
   .btn-imprimir{ background:var(--dark-green); color:#fff; }
@@ -89,12 +91,79 @@
 
   <div class="barra-acoes">
     <input type="text" id="busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderizar()">
+    <button class="btn-topo" onclick="abrirNovoPedido()">➕ Novo Pedido</button>
     <button class="btn-topo" onclick="imprimirTodosPendentes()">🖨️ Imprimir todos os pendentes</button>
     <button class="btn-topo" onclick="exportarExcel()">📊 Exportar Excel</button>
   </div>
 
   <div class="grade" id="lista"></div>
   <div id="vazio">Nenhum pedido no momento.</div>
+</div>
+
+<div id="builder-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:900; overflow:auto; padding:20px;">
+  <div id="builder-modal" style="background:#fff; color:#222; max-width:720px; margin:0 auto; border-radius:12px; padding:20px; font-family:'Courier New', monospace;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:2px solid #eee; padding-bottom:10px;">
+      <h2 id="builder-titulo" style="margin:0; font-size:1.1rem;">➕ Novo Pedido</h2>
+      <button onclick="fecharBuilder()" style="border:none; background:none; font-size:1.5rem; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <h4 style="margin:0 0 8px;">👤 Cliente</h4>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="campo-grupo" style="flex:1; min-width:140px;"><label class="campo-lbl">Nome do cliente</label><input type="text" id="builder-nome" placeholder="Ex: Maria Silva" style="width:100%; padding:6px 8px;"></div>
+        <div class="campo-grupo" style="flex:1; min-width:140px;"><label class="campo-lbl">Telefone (WhatsApp)</label><input type="text" id="builder-telefone" placeholder="Ex: (88) 99999-9999" style="width:100%; padding:6px 8px;"></div>
+      </div>
+      <div style="margin-top:8px; font-size:.85rem;">
+        <label><input type="radio" name="builder-fulfillment" value="entrega" checked onchange="atualizarBuilderFulfillment()"> 🛵 Entrega</label>
+        <label style="margin-left:14px;"><input type="radio" name="builder-fulfillment" value="retirada" onchange="atualizarBuilderFulfillment()"> 🏠 Retirada no balcão</label>
+      </div>
+      <div class="campo-grupo" style="width:100%; margin-top:8px;"><label class="campo-lbl">Endereço de entrega</label><input type="text" id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="width:100%; padding:6px 8px;"></div>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; font-size:.85rem;">
+        <div class="campo-grupo">
+          <label class="campo-lbl">Forma de pagamento</label>
+          <select id="builder-pagamento" onchange="atualizarBuilderTroco()" style="padding:6px;">
+            <option>Pix</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option>
+          </select>
+        </div>
+        <span id="builder-troco-wrap" style="display:none;">
+          Troco pra: <input type="text" id="builder-troco" placeholder="R$" style="width:90px; padding:6px;">
+        </span>
+      </div>
+      <input type="text" id="builder-obs" placeholder="Observação geral do pedido (opcional)" style="width:100%; margin-top:8px; padding:6px 8px;">
+      <div style="margin-top:8px; font-size:.85rem;">
+        <label><input type="checkbox" id="builder-ketchup"> Ketchup grátis</label>
+        <label style="margin-left:14px;">Maionese temperada (unidades, a 1ª é grátis): <input type="number" id="builder-maionese" value="0" min="0" style="width:55px;" oninput="renderBuilderCart()"></label>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px; border-top:1px dashed #ccc; padding-top:12px;">
+      <h4 style="margin:0 0 8px;">🛒 Itens do pedido</h4>
+      <div id="builder-cart-lista"></div>
+      <p id="builder-cart-vazio" style="opacity:.6; font-size:.85rem;">Nenhum item ainda.</p>
+    </div>
+
+    <div style="margin-bottom:16px; border-top:1px dashed #ccc; padding-top:12px;">
+      <h4 style="margin:0 0 8px;">➕ Adicionar item</h4>
+      <label class="campo-lbl">Tipo de item</label>
+      <select id="builder-tipo-item" onchange="renderBuilderFormItem()" style="padding:6px;">
+        <option value="pizza">🍕 Pizza</option>
+        <option value="calzone">🥟 Calzone</option>
+        <option value="brotinho">🍩 Brotinho Doce</option>
+        <option value="esfiha">🥙 Combo de Esfihas</option>
+        <option value="bebida">🥤 Bebida</option>
+        <option value="combo">🍽️ Combo/Promoção</option>
+      </select>
+      <div id="builder-form-item" style="margin-top:10px; font-size:.85rem;"></div>
+    </div>
+
+    <div style="border-top:2px solid #333; padding-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <b style="font-size:1.05rem;">Total: <span id="builder-total">R$ 0,00</span></b>
+      <div class="acoes">
+        <button class="acao btn-ok" onclick="fecharBuilder()">Cancelar</button>
+        <button class="acao btn-salvar" onclick="salvarBuilder()">💾 Salvar Pedido</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -305,7 +374,9 @@ function renderizar(){
       <textarea data-id="${p.id}">${valorTextarea}</textarea>
       <div class="acoes">
         <button class="acao btn-imprimir" onclick="imprimirPedido(${p.id})">🖨️ Imprimir</button>
-        <button class="acao btn-salvar" onclick="salvarEdicao(${p.id})">💾 Salvar</button>
+        <button class="acao btn-salvar" onclick="salvarEdicao(${p.id})">💾 Salvar texto</button>
+        <button class="acao btn-ok" onclick="abrirEditarPedido(${p.id})">✏️ Editar itens</button>
+        ${p.status === 'finalizado_pago' ? `<button class="acao btn-ok" onclick="gerarLinkAvaliacao(${p.id})">⭐ Link de avaliação</button>` : ''}
         <button class="acao btn-excluir" onclick="excluirPedido(${p.id})">🗑️ Excluir</button>
       </div>
     `;
@@ -452,6 +523,7 @@ function exportarExcel(){
 function iniciar(){
   carregarPedidosAtivos();
   carregarHistorico();
+  carregarMenuBuilder();
 
   setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); renderizarResumoDia(); }, 20000);
   setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso
@@ -471,6 +543,613 @@ function iniciar(){
   // "Libera" o som assim que a pessoa tocar em qualquer lugar da tela pela primeira vez —
   // navegadores bloqueiam áudio automático até haver uma interação do usuário.
   document.addEventListener('click', () => { try{ getAudioCtxAviso(); }catch(e){} }, { once:true });
+}
+
+/* ==================== MONTAR / EDITAR PEDIDO MANUALMENTE ==================== */
+let MENU = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+let PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+const CATEGORY_DB_TO_MENU = { pizza:'pizzas', calzone:'calzones', brotinho:'brotinho', esfiha:'esfihas', bebida:'bebidas', combo:'combos', borda:'bordas' };
+const DISQUETES_PRICE = 1.00;
+const MAIONESE_PRICE = 1.00;
+const DELIVERY_FEE = 3.00;
+const FREE_DELIVERY_THRESHOLD = 15.00;
+const ESFIHA_MIN_QTY = 5;
+const TAMANHO_LABEL = { M:'Média', G:'Grande', GG:'Família' };
+
+let builderCart = [];
+let builderEditingId = null;      // null = pedido novo
+let builderOriginalItens = [];    // itens estruturados do pedido antes da edição (pra devolver estoque certo)
+let builderNumPedidoOriginal = null;
+let builderCreatedAtOriginal = null;
+
+function brlB(v){ return 'R$ ' + (v||0).toFixed(2).replace('.', ','); }
+
+async function carregarMenuBuilder(){
+  const { data, error } = await supabaseClient.from('products').select('*').eq('active', true);
+  if(error){ console.error('Erro ao carregar produtos para montar pedido:', error); return; }
+  const novoMenu = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+  const novoStock = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+  (data || []).forEach(p => {
+    const key = CATEGORY_DB_TO_MENU[p.category];
+    if(!key || !p.name || !p.prices) return;
+    const hasPromo = p.promo_active === true && p.promo_prices && Object.keys(p.promo_prices).length > 0;
+    const effective = hasPromo ? p.promo_prices : p.prices;
+    novoMenu[key][p.name] = (key === 'pizzas') ? effective : (effective.unico ?? 0);
+    const stockType = p.stock_type || 'infinito';
+    const stockQty = p.stock_qty;
+    const zeroBehavior = p.stock_zero_behavior || 'esgotado';
+    const esgotado = stockType === 'limitado' && (stockQty === null || stockQty === undefined || stockQty <= 0);
+    novoStock[key][p.name] = { id: p.id, infinito: stockType !== 'limitado', qty: stockType === 'limitado' ? (stockQty || 0) : null, esgotado };
+  });
+  MENU = novoMenu;
+  PRODUCT_STOCK = novoStock;
+}
+
+function opcoesSelect(obj, stockKey){
+  return Object.keys(obj).map(k => {
+    const info = stockKey ? PRODUCT_STOCK[stockKey]?.[k] : null;
+    const esgotado = info && !info.infinito && info.qty <= 0;
+    return `<option value="${k.replace(/"/g,'&quot;')}">${k}${esgotado ? ' — ⚠️ ESGOTADO' : ''}</option>`;
+  }).join('');
+}
+
+// ---------- abrir / fechar ----------
+function abrirNovoPedido(){
+  builderEditingId = null;
+  builderOriginalItens = [];
+  builderCart = [];
+  builderNumPedidoOriginal = null;
+  builderCreatedAtOriginal = null;
+
+  document.getElementById('builder-titulo').textContent = '➕ Novo Pedido';
+  document.getElementById('builder-nome').value = '';
+  document.getElementById('builder-telefone').value = '';
+  document.getElementById('builder-endereco').value = '';
+  document.getElementById('builder-obs').value = '';
+  document.getElementById('builder-troco').value = '';
+  document.getElementById('builder-pagamento').value = 'Pix';
+  document.getElementById('builder-ketchup').checked = false;
+  document.getElementById('builder-maionese').value = 0;
+  document.querySelector('input[name="builder-fulfillment"][value="entrega"]').checked = true;
+  atualizarBuilderFulfillment();
+  atualizarBuilderTroco();
+  renderBuilderFormItem();
+  renderBuilderCart();
+  document.getElementById('builder-overlay').style.display = 'block';
+}
+
+function extrairMetaPedidoComandas(p){
+  const texto = p.texto_comanda || '';
+  const mCliente = texto.match(/👤 Cliente: (.+)/);
+  const mTelefone = texto.match(/📞 Telefone: (.+)/);
+  const mEndereco = texto.match(/📍 Endereço: (.+)/);
+  const mPagamento = texto.match(/💳 Pagamento: (.+)/);
+  const entrega = /RETIRADA NO BALC[ÃA]O/i.test(texto) ? 'retirada' : (/📍 Endereço:/.test(texto) ? 'entrega' : null);
+  return {
+    cliente: mCliente ? mCliente[1].trim() : '',
+    telefone: mTelefone ? mTelefone[1].trim() : '',
+    endereco: mEndereco ? mEndereco[1].trim() : '',
+    pagamento: mPagamento ? mPagamento[1].trim() : 'Pix',
+    entrega
+  };
+}
+
+function reconstruirCartDeItens(itens){
+  return itens.map(item => {
+    if(item.categoria === 'pizza'){
+      const sabores = item.sabores || [];
+      let unit = 0;
+      sabores.forEach(f => unit += (MENU.pizzas[f]?.[item.tamanho] || 0));
+      unit = sabores.length ? unit / sabores.length : 0;
+      if(item.borda) unit += (MENU.bordas[item.borda] || 0);
+      const tamanhoLabel = TAMANHO_LABEL[item.tamanho] || item.tamanho || '';
+      return { type:'pizza', qty:item.quantidade, size:item.tamanho, flavors:sabores, crust:item.borda||null, unitPrice:unit, lineTotal:item.preco ?? unit*item.quantidade, label:`Pizza ${tamanhoLabel} (${sabores.length} sabor${sabores.length>1?'es':''})`, detail:'' };
+    }
+    if(item.categoria === 'esfiha'){
+      const counts = item.sabores || {};
+      return { type:'esfiha', qty:1, comboSize:item.quantidade, counts, unitPrice:item.preco, lineTotal:item.preco, label:`Combo ${item.quantidade} Esfihas`, detail:Object.keys(counts).map(f=>`${counts[f]}x ${f}`).join(', ') };
+    }
+    if(item.categoria === 'calzone'){
+      return { type:'calzone', qty:item.quantidade, flavor:item.sabor, unitPrice:(item.preco||0)/(item.quantidade||1), lineTotal:item.preco, label:`Calzone ${item.sabor}`, detail:'' };
+    }
+    if(item.categoria === 'brotinho'){
+      return { type:'brotinho', qty:item.quantidade, flavor:item.sabor, unitPrice:(item.preco||0)/(item.quantidade||1), lineTotal:item.preco, label:`Brotinho Doce - ${item.sabor}`, detail:'' };
+    }
+    if(item.categoria === 'bebida'){
+      return { type:'bebida', qty:item.quantidade, item:item.nome, unitPrice:(item.preco||0)/(item.quantidade||1), lineTotal:item.preco, label:item.nome, detail:'' };
+    }
+    if(item.categoria === 'combo'){
+      return { type:'combo', qty:item.quantidade, item:item.nome, unitPrice:(item.preco||0)/(item.quantidade||1), lineTotal:item.preco, label:item.nome, detail:'', note:item.observacao||undefined };
+    }
+    return { type:item.categoria||'outro', qty:item.quantidade||1, label:item.nome||'Item', unitPrice:item.preco||0, lineTotal:item.preco||0, detail:'' };
+  });
+}
+
+function abrirEditarPedido(id){
+  const p = encontrarPedido(id);
+  if(!p) return;
+  const temItensEstruturados = p.itens && Array.isArray(p.itens) && p.itens.length > 0;
+  if(!temItensEstruturados){
+    if(!confirm('Esse pedido é antigo e não tem os itens salvos de forma estruturada — não dá pra recarregar o carrinho dele automaticamente. Vai abrir vazio, e você precisa adicionar os itens de novo (o pedido atual só muda quando você clicar em "Salvar Pedido"). Quer continuar?')) return;
+  }
+
+  builderEditingId = id;
+  builderOriginalItens = temItensEstruturados ? p.itens : [];
+  builderCart = temItensEstruturados ? reconstruirCartDeItens(p.itens) : [];
+  const numMatch = (p.texto_comanda || '').match(/Pedido #(\d+)/);
+  builderNumPedidoOriginal = numMatch ? numMatch[1] : null;
+  builderCreatedAtOriginal = p.created_at;
+
+  const meta = extrairMetaPedidoComandas(p);
+  document.getElementById('builder-titulo').textContent = `✏️ Editar Pedido #${builderNumPedidoOriginal || ''}`;
+  document.getElementById('builder-nome').value = meta.cliente;
+  document.getElementById('builder-telefone').value = meta.telefone;
+  document.getElementById('builder-endereco').value = meta.endereco;
+  document.getElementById('builder-pagamento').value = meta.pagamento;
+  document.querySelector(`input[name="builder-fulfillment"][value="${meta.entrega === 'retirada' ? 'retirada' : 'entrega'}"]`).checked = true;
+  document.getElementById('builder-obs').value = '';
+  document.getElementById('builder-troco').value = '';
+  document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
+  const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
+  document.getElementById('builder-maionese').value = mMaionese ? mMaionese[1] : 0;
+
+  atualizarBuilderFulfillment();
+  atualizarBuilderTroco();
+  renderBuilderFormItem();
+  renderBuilderCart();
+  document.getElementById('builder-overlay').style.display = 'block';
+}
+
+function fecharBuilder(){
+  document.getElementById('builder-overlay').style.display = 'none';
+}
+function atualizarBuilderFulfillment(){
+  const tipo = document.querySelector('input[name="builder-fulfillment"]:checked').value;
+  document.getElementById('builder-endereco').style.display = tipo === 'entrega' ? 'block' : 'none';
+  renderBuilderCart();
+}
+function atualizarBuilderTroco(){
+  const forma = document.getElementById('builder-pagamento').value;
+  document.getElementById('builder-troco-wrap').style.display = forma === 'Dinheiro' ? 'inline' : 'none';
+}
+
+// ---------- formulário de adicionar item, por tipo ----------
+function renderBuilderFormItem(){
+  const tipo = document.getElementById('builder-tipo-item').value;
+  const el = document.getElementById('builder-form-item');
+  if(tipo === 'pizza'){
+    el.innerHTML = `
+      <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
+        <div class="campo-grupo">
+          <label class="campo-lbl">Tamanho</label>
+          <select id="bp-tamanho" style="padding:6px;"><option value="M">Média</option><option value="G">Grande</option><option value="GG">Família</option></select>
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-lbl">Quantos sabores</label>
+          <select id="bp-estilo" onchange="renderBuilderPizzaSabores()" style="padding:6px;">
+            <option value="1">Inteira (1 sabor)</option>
+            <option value="2">Meio a meio (2 sabores)</option>
+            <option value="3">3 sabores (só Família)</option>
+          </select>
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-lbl">Quantidade de pizzas</label>
+          <input type="number" id="bp-qtd" value="1" min="1" style="width:55px; padding:6px;">
+        </div>
+      </div>
+      <label class="campo-lbl" style="margin-top:6px;">Sabor(es)</label>
+      <div id="bp-sabores-wrap"></div>
+      <div class="campo-grupo" style="margin-top:4px;">
+        <label class="campo-lbl">Borda recheada</label>
+        <select id="bp-borda" style="padding:6px;"><option value="">Sem borda</option>${Object.keys(MENU.bordas).map(b=>`<option value="${b.replace(/"/g,'&quot;')}">${b} (+${brlB(MENU.bordas[b])})</option>`).join('')}</select>
+      </div>
+      <br>
+      <button class="acao btn-salvar" style="margin-top:8px;" onclick="adicionarBuilderPizza()">Adicionar pizza</button>
+    `;
+    renderBuilderPizzaSabores();
+  } else if(tipo === 'calzone'){
+    el.innerHTML = `
+      <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
+        <div class="campo-grupo"><label class="campo-lbl">Sabor do calzone</label><select id="bc-sabor" style="padding:6px;">${opcoesSelect(MENU.calzones, 'calzones')}</select></div>
+        <div class="campo-grupo"><label class="campo-lbl">Quantidade</label><input type="number" id="bc-qtd" value="1" min="1" style="width:55px; padding:6px;"></div>
+      </div>
+      <button class="acao btn-salvar" onclick="adicionarBuilderCalzone()">Adicionar</button>
+    `;
+  } else if(tipo === 'brotinho'){
+    el.innerHTML = `
+      <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
+        <div class="campo-grupo"><label class="campo-lbl">Sabor do brotinho</label><select id="bb-sabor" style="padding:6px;">${opcoesSelect(MENU.brotinho, 'brotinho')}</select></div>
+        <div class="campo-grupo"><label class="campo-lbl">Quantidade</label><input type="number" id="bb-qtd" value="1" min="1" style="width:55px; padding:6px;"></div>
+      </div>
+      <label><input type="checkbox" id="bb-disquetes"> + Disquetes (+${brlB(DISQUETES_PRICE)})</label><br>
+      <button class="acao btn-salvar" style="margin-top:6px;" onclick="adicionarBuilderBrotinho()">Adicionar</button>
+    `;
+  } else if(tipo === 'esfiha'){
+    el.innerHTML = `
+      <p style="opacity:.7; margin:0 0 6px;">Mínimo ${ESFIHA_MIN_QTY} esfihas no total do combo. Preencha a quantidade de cada sabor desejado:</p>
+      <div id="be-sabores">${Object.keys(MENU.esfihas).map(f => `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:8px;">
+          <span>${f}</span>
+          <input type="number" class="be-qtd" data-sabor="${f.replace(/"/g,'&quot;')}" value="0" min="0" style="width:55px; padding:5px;" title="Quantidade de ${f}">
+        </div>`).join('')}</div>
+      <button class="acao btn-salvar" onclick="adicionarBuilderEsfiha()">Adicionar combo</button>
+    `;
+  } else if(tipo === 'bebida'){
+    el.innerHTML = `
+      <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
+        <div class="campo-grupo"><label class="campo-lbl">Bebida</label><select id="bd-item" style="padding:6px;">${opcoesSelect(MENU.bebidas, 'bebidas')}</select></div>
+        <div class="campo-grupo"><label class="campo-lbl">Quantidade</label><input type="number" id="bd-qtd" value="1" min="1" style="width:55px; padding:6px;"></div>
+      </div>
+      <button class="acao btn-salvar" onclick="adicionarBuilderBebida()">Adicionar</button>
+    `;
+  } else if(tipo === 'combo'){
+    el.innerHTML = `
+      <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
+        <div class="campo-grupo"><label class="campo-lbl">Combo/Promoção</label><select id="bco-item" style="padding:6px;">${opcoesSelect(MENU.combos, 'combos')}</select></div>
+        <div class="campo-grupo"><label class="campo-lbl">Quantidade</label><input type="number" id="bco-qtd" value="1" min="1" style="width:55px; padding:6px;"></div>
+      </div>
+      <label class="campo-lbl">Observação (ex: sabor da pizza do combo, se precisar)</label>
+      <input type="text" id="bco-nota" placeholder="Ex: Pizza Calabresa" style="width:100%; padding:6px;">
+      <button class="acao btn-salvar" style="margin-top:6px;" onclick="adicionarBuilderCombo()">Adicionar</button>
+    `;
+  }
+}
+
+function renderBuilderPizzaSabores(){
+  const estilo = parseInt(document.getElementById('bp-estilo').value, 10);
+  const wrap = document.getElementById('bp-sabores-wrap');
+  let html = '';
+  for(let i = 0; i < estilo; i++){
+    html += `<div class="campo-grupo"><label class="campo-lbl">${estilo>1?`Sabor ${i+1}`:'Sabor'}</label><select class="bp-sabor" data-slot="${i}" style="padding:6px;">${opcoesSelect(MENU.pizzas, 'pizzas')}</select></div>`;
+  }
+  wrap.innerHTML = html;
+  const tamanhoSel = document.getElementById('bp-tamanho');
+  if(estilo === 3){ tamanhoSel.value = 'GG'; tamanhoSel.disabled = true; } else { tamanhoSel.disabled = false; }
+}
+
+// ---------- estoque: checagem + confirmação manual do funcionário ----------
+function checarEstoqueBuilder(key, nome, qtd){
+  const info = PRODUCT_STOCK[key]?.[nome];
+  if(!info || info.infinito) return true;
+  const tipoMap = { pizzas:'pizza', calzones:'calzone', brotinho:'brotinho', bebidas:'bebida', combos:'combo' };
+  let jaNoCarrinho = 0;
+  builderCart.forEach(item => {
+    if(key === 'pizzas' && item.type === 'pizza') (item.flavors||[]).forEach(f => { if(f===nome) jaNoCarrinho += item.qty; });
+    else if(key === 'bordas' && item.type === 'pizza'){ if(item.crust===nome) jaNoCarrinho += item.qty; }
+    else if(key === 'esfihas' && item.type === 'esfiha'){ jaNoCarrinho += (item.counts?.[nome]||0); }
+    else if(item.type === tipoMap[key]){ if(item.flavor===nome || item.item===nome) jaNoCarrinho += item.qty; }
+  });
+  return (jaNoCarrinho + qtd) <= info.qty;
+}
+function confirmarApesarDoEstoque(nome){
+  return confirm(`"${nome}" está esgotado ou sem estoque suficiente no cadastro. Adicionar mesmo assim? (o estoque pode ficar negativo)`);
+}
+
+// ---------- adicionar cada tipo de item ao carrinho do builder ----------
+function adicionarBuilderPizza(){
+  const tamanho = document.getElementById('bp-tamanho').value;
+  const qtd = parseInt(document.getElementById('bp-qtd').value, 10) || 1;
+  const bordaSel = document.getElementById('bp-borda').value;
+  const saboresSel = Array.from(document.querySelectorAll('.bp-sabor')).map(s => s.value);
+  for(const f of saboresSel){ if(!checarEstoqueBuilder('pizzas', f, qtd) && !confirmarApesarDoEstoque(f)) return; }
+  if(bordaSel && !checarEstoqueBuilder('bordas', bordaSel, qtd) && !confirmarApesarDoEstoque(bordaSel)) return;
+
+  let unit = 0;
+  saboresSel.forEach(f => unit += (MENU.pizzas[f]?.[tamanho] || 0));
+  unit = saboresSel.length ? unit / saboresSel.length : 0;
+  if(bordaSel) unit += (MENU.bordas[bordaSel] || 0);
+
+  builderCart.push({
+    type:'pizza', qty:qtd, size:tamanho, flavors:saboresSel, crust:bordaSel||null,
+    unitPrice:unit, lineTotal:unit*qtd,
+    label:`Pizza ${TAMANHO_LABEL[tamanho]} (${saboresSel.length} sabor${saboresSel.length>1?'es':''})`, detail:''
+  });
+  renderBuilderCart();
+}
+function adicionarBuilderCalzone(){
+  const sabor = document.getElementById('bc-sabor').value;
+  const qtd = parseInt(document.getElementById('bc-qtd').value, 10) || 1;
+  if(!checarEstoqueBuilder('calzones', sabor, qtd) && !confirmarApesarDoEstoque(sabor)) return;
+  const preco = MENU.calzones[sabor] || 0;
+  builderCart.push({ type:'calzone', qty:qtd, flavor:sabor, unitPrice:preco, lineTotal:preco*qtd, label:`Calzone ${sabor}`, detail:'' });
+  renderBuilderCart();
+}
+function adicionarBuilderBrotinho(){
+  const sabor = document.getElementById('bb-sabor').value;
+  const qtd = parseInt(document.getElementById('bb-qtd').value, 10) || 1;
+  const disquetes = document.getElementById('bb-disquetes').checked;
+  if(!checarEstoqueBuilder('brotinho', sabor, qtd) && !confirmarApesarDoEstoque(sabor)) return;
+  const preco = (MENU.brotinho[sabor] || 0) + (disquetes ? DISQUETES_PRICE : 0);
+  builderCart.push({ type:'brotinho', qty:qtd, flavor:sabor, unitPrice:preco, lineTotal:preco*qtd, label:`Brotinho Doce - ${sabor}`, detail: disquetes ? 'Complemento: Disquetes' : '' });
+  renderBuilderCart();
+}
+function adicionarBuilderEsfiha(){
+  const counts = {};
+  document.querySelectorAll('.be-qtd').forEach(inp => {
+    const q = parseInt(inp.value, 10) || 0;
+    if(q > 0) counts[inp.dataset.sabor] = q;
+  });
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  if(total < ESFIHA_MIN_QTY){ alert(`Mínimo de ${ESFIHA_MIN_QTY} esfihas no combo.`); return; }
+  for(const f of Object.keys(counts)){ if(!checarEstoqueBuilder('esfihas', f, counts[f]) && !confirmarApesarDoEstoque(f)) return; }
+  let preco = 0;
+  Object.keys(counts).forEach(f => preco += (MENU.esfihas[f] || 0) * counts[f]);
+  const detail = Object.keys(counts).map(f => `${counts[f]}x ${f}`).join(', ');
+  builderCart.push({ type:'esfiha', qty:1, comboSize:total, counts, unitPrice:preco, lineTotal:preco, label:`Combo ${total} Esfihas`, detail });
+  renderBuilderCart();
+}
+function adicionarBuilderBebida(){
+  const item = document.getElementById('bd-item').value;
+  const qtd = parseInt(document.getElementById('bd-qtd').value, 10) || 1;
+  if(!checarEstoqueBuilder('bebidas', item, qtd) && !confirmarApesarDoEstoque(item)) return;
+  const preco = MENU.bebidas[item] || 0;
+  builderCart.push({ type:'bebida', qty:qtd, item, unitPrice:preco, lineTotal:preco*qtd, label:item, detail:'' });
+  renderBuilderCart();
+}
+function adicionarBuilderCombo(){
+  const item = document.getElementById('bco-item').value;
+  const qtd = parseInt(document.getElementById('bco-qtd').value, 10) || 1;
+  const nota = document.getElementById('bco-nota').value.trim();
+  if(!checarEstoqueBuilder('combos', item, qtd) && !confirmarApesarDoEstoque(item)) return;
+  const preco = MENU.combos[item] || 0;
+  builderCart.push({ type:'combo', qty:qtd, item, unitPrice:preco, lineTotal:preco*qtd, label:item, detail:'', note: nota || undefined });
+  renderBuilderCart();
+}
+function removerBuilderItem(idx){
+  builderCart.splice(idx, 1);
+  renderBuilderCart();
+}
+
+// ---------- total e renderização do carrinho ----------
+function builderSubtotal(){ return builderCart.reduce((s,i) => s + i.lineTotal, 0); }
+function builderFee(){
+  const tipo = document.querySelector('input[name="builder-fulfillment"]:checked')?.value;
+  if(tipo !== 'entrega') return 0;
+  const sub = builderSubtotal();
+  return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
+}
+function builderExtras(){
+  const qtd = parseInt(document.getElementById('builder-maionese')?.value, 10) || 0;
+  return Math.max(0, qtd - 1) * MAIONESE_PRICE;
+}
+function builderTotal(){ return builderSubtotal() + builderFee() + builderExtras(); }
+
+function renderBuilderCart(){
+  const lista = document.getElementById('builder-cart-lista');
+  const vazio = document.getElementById('builder-cart-vazio');
+  if(builderCart.length === 0){
+    lista.innerHTML = '';
+    vazio.style.display = 'block';
+  } else {
+    vazio.style.display = 'none';
+    lista.innerHTML = builderCart.map((item, idx) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f5f5f5; padding:6px 10px; border-radius:6px; margin-bottom:4px; font-size:.85rem; gap:8px;">
+        <span>${item.qty}x ${item.label}${item.detail ? ` — ${item.detail}` : ''}${item.crust ? ` + Borda ${item.crust}` : ''}</span>
+        <span style="white-space:nowrap;">${brlB(item.lineTotal)} <button onclick="removerBuilderItem(${idx})" style="margin-left:8px; border:none; background:#c03a3a; color:#fff; border-radius:4px; padding:2px 8px; cursor:pointer;">✕</button></span>
+      </div>
+    `).join('');
+  }
+  const totalEl = document.getElementById('builder-total');
+  if(totalEl) totalEl.textContent = brlB(builderTotal());
+}
+
+// ---------- texto da comanda + itens estruturados ----------
+function quebrarTextoB(texto, largura, prefixo){
+  const palavras = texto.split(' ');
+  let linhas = []; let atual = prefixo;
+  palavras.forEach(p => {
+    if((atual + p).length > largura){ linhas.push(atual.trimEnd()); atual = prefixo; }
+    atual += p + ' ';
+  });
+  linhas.push(atual.trimEnd());
+  return linhas.join('\n');
+}
+
+function gerarComandaBuilder(){
+  const nome = document.getElementById('builder-nome').value.trim();
+  const telefone = document.getElementById('builder-telefone').value.trim();
+  const endereco = document.getElementById('builder-endereco').value.trim();
+  const obs = document.getElementById('builder-obs').value.trim();
+  const troco = document.getElementById('builder-troco').value.trim();
+  const pagamento = document.getElementById('builder-pagamento').value;
+  const fulfillment = document.querySelector('input[name="builder-fulfillment"]:checked').value;
+  const wantKetchup = document.getElementById('builder-ketchup').checked;
+  const maioneseQty = parseInt(document.getElementById('builder-maionese').value, 10) || 0;
+
+  const numPedido = builderNumPedidoOriginal || Math.floor(1000 + Math.random()*9000);
+  const agora = builderCreatedAtOriginal ? new Date(builderCreatedAtOriginal) : new Date();
+  const dataStr = agora.toLocaleDateString('pt-BR');
+  const horaStr = agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+  const subtotal = builderSubtotal();
+  const fee = builderFee();
+  const extras = builderExtras();
+  const total = subtotal + fee + extras;
+
+  const LARG = 32;
+  const SEP = '='.repeat(LARG);
+  const EMOJI_ITEM = { pizza:'🍕', calzone:'🥟', brotinho:'🍩', esfiha:'🥙', bebida:'🥤', combo:'🍽️' };
+
+  let c = `${SEP}\n`;
+  c += `     MANEL'S PIZZARIA\n`;
+  c += `     📞 88 9 9218-2784\n`;
+  c += `${SEP}\n`;
+  c += `🧾 Pedido #${numPedido}\n`;
+  c += `📅 ${dataStr}   🕒 ${horaStr}\n`;
+
+  c += `${SEP}\n`;
+  c += `*🍕 PARA O PIZZAIOLO*\n`;
+  c += `${SEP}\n`;
+
+  builderCart.slice().reverse().forEach(item => {
+    const emoji = EMOJI_ITEM[item.type] || '•';
+    c += `${emoji} ${item.qty}x ${item.label}\n`;
+    if(item.type === 'pizza'){
+      item.flavors.forEach((f,i) => { c += quebrarTextoB(`🔸[${i+1}/${item.flavors.length}] ${f}`, LARG, '  ') + '\n'; });
+      if(item.crust) c += `🧀 Borda Recheada: ${item.crust}\n`;
+    } else if(item.type === 'esfiha'){
+      Object.keys(item.counts).filter(f => item.counts[f] > 0).forEach(f => { c += quebrarTextoB(`🔸${item.counts[f]}x ${f}`, LARG, '  ') + '\n'; });
+    } else if(item.detail){
+      c += quebrarTextoB(`🔸${item.detail}`, LARG, '  ') + '\n';
+    }
+    if(item.note) c += quebrarTextoB(`📝 Observação: ${item.note}`, LARG, '  ') + '\n';
+  });
+
+  if(wantKetchup || maioneseQty > 0){
+    if(wantKetchup) c += `🔹 Ketchup\n`;
+    if(maioneseQty > 0){
+      const custoMaionese = Math.max(0, maioneseQty - 1) * MAIONESE_PRICE;
+      c += `🔹 Maionese Temperada: ${maioneseQty}x (1ª grátis${custoMaionese>0?`, + ${brlB(custoMaionese)}`:''})\n`;
+    }
+  }
+  if(obs) c += quebrarTextoB(`❗*OBS:* ${obs}`, LARG, '') + '\n';
+
+  c += `${SEP}\n`;
+  c += `*🛵 PARA O MOTOBOY*\n`;
+  c += `${SEP}\n`;
+  c += `👤 Cliente: ${nome}\n`;
+  c += `📞 Telefone: ${telefone}\n`;
+
+  if(fulfillment === 'entrega'){
+    c += quebrarTextoB(`📍 Endereço: ${endereco}`, LARG, '') + '\n';
+    if(fee > 0) c += `🛵 Taxa de entrega: ${brlB(fee)}\n`;
+  } else {
+    c += `🏠 *RETIRADA NO BALCÃO*\n`;
+  }
+
+  c += `💳 Pagamento: ${pagamento}\n`;
+  if(pagamento === 'Dinheiro' && troco){
+    const valorPago = parseFloat(troco.replace(/\./g,'').replace(',','.'));
+    if(!isNaN(valorPago) && valorPago >= total){
+      c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} → Troco: R$ ${(valorPago-total).toFixed(2).replace('.',',')}\n`;
+    }
+  }
+
+  c += `${SEP}\n`;
+  c += `💰 *TOTAL A COBRAR: ${brlB(total)}*\n`;
+  c += `${SEP}\n`;
+  c += `   Bom apetite! 🍕🔥\n`;
+  c += SEP;
+
+  return { texto: c, total };
+}
+
+function construirItensEstruturadosBuilder(){
+  return builderCart.map(item => {
+    if(item.type === 'pizza') return { categoria:'pizza', nome:'Pizza', sabores:item.flavors, tamanho:item.size||null, borda:item.crust||null, quantidade:item.qty, preco:item.lineTotal };
+    if(item.type === 'esfiha') return { categoria:'esfiha', nome:'Combo de Esfihas', sabores:item.counts, quantidade:item.comboSize, preco:item.lineTotal };
+    if(item.type === 'calzone') return { categoria:'calzone', nome:'Calzone', sabor:item.flavor, quantidade:item.qty, preco:item.lineTotal };
+    if(item.type === 'brotinho') return { categoria:'brotinho', nome:'Brotinho Doce', sabor:item.flavor, quantidade:item.qty, preco:item.lineTotal };
+    if(item.type === 'bebida') return { categoria:'bebida', nome:item.item, quantidade:item.qty, preco:item.lineTotal };
+    if(item.type === 'combo') return { categoria:'combo', nome:item.item, quantidade:item.qty, preco:item.lineTotal, observacao:item.note||'' };
+    return { categoria:item.type||'outro', nome:item.label||'Item', quantidade:item.qty||1, preco:item.lineTotal||0 };
+  });
+}
+
+// ---------- estoque: aplica desconto/devolução de verdade no Supabase ----------
+function extrairBaixasDeItens(itens){
+  const baixas = [];
+  const add = (key, nome, qty) => { const info = PRODUCT_STOCK[key]?.[nome]; if(info && !info.infinito && info.id) baixas.push({ id: info.id, qty }); };
+  (itens || []).forEach(item => {
+    if(item.categoria === 'pizza'){
+      (item.sabores||[]).forEach(f => add('pizzas', f, item.quantidade));
+      if(item.borda) add('bordas', item.borda, item.quantidade);
+    } else if(item.categoria === 'esfiha'){
+      Object.keys(item.sabores||{}).forEach(f => { if(item.sabores[f]>0) add('esfihas', f, item.sabores[f]); });
+    } else if(item.categoria === 'calzone'){
+      add('calzones', item.sabor, item.quantidade);
+    } else if(item.categoria === 'brotinho'){
+      add('brotinho', item.sabor, item.quantidade);
+    } else if(item.categoria === 'bebida'){
+      add('bebidas', item.nome, item.quantidade);
+    } else if(item.categoria === 'combo'){
+      add('combos', item.nome, item.quantidade);
+    }
+  });
+  return baixas;
+}
+async function aplicarDeltaEstoque(idsQtds, sinal){
+  for(const { id, qty } of idsQtds){
+    try{
+      const { data } = await supabaseClient.from('products').select('stock_qty').eq('id', id).single();
+      if(!data) continue;
+      const novoValor = Math.max(0, (data.stock_qty || 0) + sinal*qty);
+      await supabaseClient.from('products').update({ stock_qty: novoValor }).eq('id', id);
+    } catch(e){ console.error('Falha ao ajustar estoque:', e); }
+  }
+}
+
+// ---------- salvar (criar ou editar) ----------
+async function salvarBuilder(){
+  if(builderCart.length === 0){ alert('Adicione pelo menos um item ao pedido.'); return; }
+  if(!document.getElementById('builder-nome').value.trim()){ alert('Informe o nome do cliente.'); return; }
+  const fulfillment = document.querySelector('input[name="builder-fulfillment"]:checked').value;
+  if(fulfillment === 'entrega' && !document.getElementById('builder-endereco').value.trim()){ alert('Informe o endereço para entrega.'); return; }
+
+  const botao = document.querySelector('#builder-modal .btn-salvar');
+  if(botao){ botao.disabled = true; botao.textContent = 'Salvando...'; }
+
+  const novosItens = construirItensEstruturadosBuilder();
+  const { texto, total } = gerarComandaBuilder();
+  const baixasNovas = extrairBaixasDeItens(novosItens);
+  const baixasAntigas = extrairBaixasDeItens(builderOriginalItens);
+
+  try{
+    if(builderEditingId){
+      const { error } = await supabaseClient.from('pedidos').update({ itens: novosItens, texto_comanda: texto, total }).eq('id', builderEditingId);
+      if(error) throw error;
+      // Atualiza a caixa de texto na tela ANTES de recarregar — se não fizer isso, o
+      // sistema que preserva digitação em andamento acaba recapturando o texto
+      // antigo que ainda estava ali e sobrescrevendo o texto novo que acabamos de salvar.
+      const textareaAtual = document.querySelector(`textarea[data-id="${builderEditingId}"]`);
+      if(textareaAtual) textareaAtual.value = texto;
+      // Devolve tudo que o pedido tinha antes e desconta tudo que ele tem agora —
+      // mais simples e seguro que calcular só a diferença, e dá no mesmo resultado.
+      await aplicarDeltaEstoque(baixasAntigas, +1);
+      await aplicarDeltaEstoque(baixasNovas, -1);
+    } else {
+      const { error } = await supabaseClient.from('pedidos').insert({ status:'novo', total, texto_comanda: texto, itens: novosItens });
+      if(error) throw error;
+      await aplicarDeltaEstoque(baixasNovas, -1);
+    }
+  } catch(e){
+    alert('Não foi possível salvar o pedido.\n\nErro: ' + (e.message || JSON.stringify(e)));
+    if(botao){ botao.disabled = false; botao.textContent = '💾 Salvar Pedido'; }
+    return;
+  }
+
+  fecharBuilder();
+  await carregarMenuBuilder();
+  await carregarPedidosAtivos();
+  await carregarHistorico();
+  if(botao){ botao.disabled = false; botao.textContent = '💾 Salvar Pedido'; }
+}
+
+/* ==================== LINK DE AVALIAÇÃO (com pontos) ==================== */
+function gerarTokenAvaliacao(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+  return Array.from({length:32}, () => Math.floor(Math.random()*16).toString(16)).join('');
+}
+
+async function gerarLinkAvaliacao(pedidoId){
+  const token = gerarTokenAvaliacao();
+  const expiraEm = new Date(Date.now() + 3*60*60*1000); // 3 horas de validade
+  const { error } = await supabaseClient.from('links_avaliacao').insert({
+    pedido_id: pedidoId, token, expira_em: expiraEm.toISOString(), usado: false
+  });
+  if(error){
+    alert('Não foi possível gerar o link de avaliação.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "links_avaliacao" existe no Supabase — veja as instruções que te passei.');
+    console.error(error);
+    return;
+  }
+  const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
+  try{
+    await navigator.clipboard.writeText(url);
+    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por 3 horas:\n\n' + url);
+  } catch(e){
+    prompt('Copie o link abaixo e cole no WhatsApp do cliente (vale por 3 horas):', url);
+  }
 }
 </script>
 </body>
