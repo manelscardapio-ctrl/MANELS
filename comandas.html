@@ -208,6 +208,25 @@ supabaseClient.auth.getSession().then(({ data: { session } }) => {
   }
 });
 
+const STATUS_LABELS = {
+  novo: '🟠 Recebido',
+  em_andamento: '🔵 Em andamento',
+  finalizado_pago: '🟢 Finalizado e pago',
+  pendencia: '🔴 Pendência',
+  impresso: '⚪ Impresso',
+  feito_sem_impressao: '⚪ Feito (sem impressão)'
+};
+const STATUS_ATIVOS = ['novo','em_andamento','pendencia','impresso'];
+const MINUTOS_ATRASO = 15;
+
+const statusEl = document.getElementById('status');
+const listaEl = document.getElementById('lista');
+const vazioEl = document.getElementById('vazio');
+
+let modoAtual = 'novos';
+let pedidosAtivos = [];
+let pedidosHistorico = [];
+
 // ===== SOM DE AVISO DE NOVO PEDIDO =====
 // Gerado direto no navegador (Web Audio API) em vez de usar um arquivo de som externo:
 // não depende de nenhum site de terceiro pra funcionar (não quebra se o link cair) e
