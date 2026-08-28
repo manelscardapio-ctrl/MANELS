@@ -1012,7 +1012,16 @@ async function verificarLoginIndex(){
   }
 }
 async function entrarComGoogleIndex(){
-  await supabaseClient.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
+  if(!supabaseClient){
+    alert('Não foi possível iniciar o login: conexão com o servidor indisponível no momento.');
+    return;
+  }
+  const { error } = await supabaseClient.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
+  if(error){
+    console.error('Erro ao entrar com Google:', error);
+    alert('Não foi possível entrar com o Google.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nIsso geralmente significa que o login com Google não está habilitado no Supabase, ou que esta URL não está na lista de "Redirect URLs" autorizadas.');
+  }
 }
 async function sairDoLogin(){
   await supabaseClient.auth.signOut();
