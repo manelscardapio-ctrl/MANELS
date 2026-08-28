@@ -71,7 +71,8 @@
 
 <div id="tela-senha">
   <h2>🍕 Painel de Pedidos</h2>
-  <input type="password" id="input-senha" placeholder="Senha do painel" autofocus>
+  <input type="email" id="input-email" placeholder="E-mail" autocomplete="username" autofocus>
+  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
   <button onclick="conferirSenha()">Entrar</button>
   <div class="erro-senha" id="erro-senha"></div>
 </div>
@@ -79,7 +80,10 @@
 <div id="conteudo" style="display:none;">
   <header>
     <h1>🍕 Painel de Pedidos — Manel's</h1>
-    <span id="status">conectando...</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span id="status">conectando...</span>
+      <button onclick="sairPainel()" class="btn-topo" style="border-radius:20px; font-size:.75rem; padding:6px 12px;">Sair</button>
+    </div>
   </header>
 
   <div id="resumo-dia"></div>
@@ -171,40 +175,38 @@ const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Senha simples do painel — troque aqui quando quiser.
-// Isso é só uma trava básica contra curiosos, não é segurança de verdade.
-const SENHA_PAINEL = "manel2026";
+async function conferirSenha(){
+  const email = document.getElementById('input-email').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const erroEl = document.getElementById('erro-senha');
+  erroEl.textContent = '';
+  if(!email || !senha){ erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+  if(error){
+    erroEl.textContent = error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message;
+    return;
+  }
+  document.getElementById('tela-senha').style.display = 'none';
+  document.getElementById('conteudo').style.display = 'block';
+  iniciar();
+}
+async function sairPainel(){
+  await supabaseClient.auth.signOut();
+  document.getElementById('conteudo').style.display = 'none';
+  document.getElementById('tela-senha').style.display = 'flex';
+  document.getElementById('input-senha').value = '';
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+document.getElementById('input-email').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
 
-const STATUS_LABELS = {
-  novo: '🟠 Recebido',
-  em_andamento: '🔵 Em andamento',
-  finalizado_pago: '🟢 Finalizado e pago',
-  pendencia: '🔴 Pendência',
-  impresso: '⚪ Impresso',
-  feito_sem_impressao: '⚪ Feito (sem impressão)'
-};
-const STATUS_ATIVOS = ['novo','em_andamento','pendencia','impresso'];
-const MINUTOS_ATRASO = 15;
-
-const statusEl = document.getElementById('status');
-const listaEl = document.getElementById('lista');
-const vazioEl = document.getElementById('vazio');
-
-let modoAtual = 'novos';
-let pedidosAtivos = [];
-let pedidosHistorico = [];
-
-function conferirSenha(){
-  const valor = document.getElementById('input-senha').value;
-  if(valor === SENHA_PAINEL){
+// Se já existe uma sessão válida (ex: recarregou a página), pula a tela de login.
+supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  if(session){
     document.getElementById('tela-senha').style.display = 'none';
     document.getElementById('conteudo').style.display = 'block';
     iniciar();
-  } else {
-    document.getElementById('erro-senha').textContent = 'Senha incorreta.';
   }
-}
-document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+});
 
 // ===== SOM DE AVISO DE NOVO PEDIDO =====
 // Gerado direto no navegador (Web Audio API) em vez de usar um arquivo de som externo:
