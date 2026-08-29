@@ -2164,6 +2164,26 @@ async function enviarComandaParaPainelComRetry(textoComanda, total, itens){
   const TIMEOUT_MS = 3500;
   const ok1 = await enviarComandaParaPainelUmaVez(textoComanda, total, itens, TIMEOUT_MS);
   if(ok1) return true;
+
+  // Antes de tentar de novo: talvez o primeiro envio tenha dado certo no
+  // servidor e só a CONFIRMAÇÃO que não chegou a tempo (comum em internet
+  // instável). Perguntamos ao banco se um pedido idêntico já chegou há
+  // pouco — se sim, não reenviamos (evita pedido duplicado).
+  try{
+    const { data: jaExiste, error: erroCheck } = await supabaseClient.rpc('pedido_recente_existe', {
+      p_total: total,
+      p_texto_comanda: textoComanda,
+      p_janela_segundos: 20
+    });
+    if(!erroCheck && jaExiste === true){
+      return true; // já tinha ido — não reenvia
+    }
+  } catch(e){
+    console.error('Falha ao checar duplicidade antes do reenvio:', e);
+    // Se a checagem falhar, seguimos pro reenvio normal (comportamento antigo)
+    // em vez de travar o pedido do cliente por causa disso.
+  }
+
   await new Promise(r => setTimeout(r, 500));
   return await enviarComandaParaPainelUmaVez(textoComanda, total, itens, TIMEOUT_MS);
 }
