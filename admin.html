@@ -1,2355 +1,1426 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>Manel's Pizzaria — Faça seu Pedido</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rye&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<title>Gestão de Produtos — Manel's Pizzaria</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{
-  --cream:#F2E5D3; --cream-soft:#EAD9BF; --paper:#EFE0C6;
-  --forest:#1F6E48; --forest-dark:#123F29;
-  --rust:#A8532B; --rust-dark:#7C3B1D;
-  --ink:#2B2118; --ink-soft:#5B4C3D; --gold:#C99A4A;
-  --line: rgba(43,33,24,0.22);
-}
-*{box-sizing:border-box; margin:0; padding:0;}
-html{scroll-behavior:smooth;}
-body{background:transparent; color:var(--ink); font-family:'Work Sans',sans-serif; -webkit-font-smoothing:antialiased; padding-bottom:90px;}
-.bg-photo{position:fixed; inset:-20px; z-index:-2; background-size:cover; background-position:center 30%; filter:blur(9px) brightness(.4) saturate(1.15); transform:scale(1.06);}
-.bg-tint{position:fixed; inset:0; z-index:-1; background:rgba(242,229,211,.87);}
-h1,h2,h3{font-family:'Fraunces',serif; color:var(--forest-dark); font-weight:700;}
-.wrap{max-width:720px; margin:0 auto; padding:0 1.1rem 2rem;}
+  :root{ --dark-green:#2d4a3a; --terracotta:#c0622f; --beige:#f5e6d3; --red:#c0392b; --green-ok:#3a7d4a; }
+  *{box-sizing:border-box;}
+  body{ font-family:'Courier New', monospace; background:var(--dark-green); color:var(--beige); margin:0; padding:20px; min-height:100vh; }
 
-.trailnav{position:sticky; top:0; z-index:60; background:rgba(242,229,211,0.95); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:.55rem 0;}
-.trailnav-inner{max-width:720px; margin:0 auto; padding:0 1.1rem; display:flex; gap:.4rem; overflow-x:auto; scrollbar-width:none;}
-.trailnav-inner::-webkit-scrollbar{display:none;}
-.trail-pill{flex:0 0 auto; font-weight:600; font-size:12px; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-soft); background:transparent; border:1px solid var(--line); border-radius:999px; padding:.4rem .8rem; text-decoration:none; white-space:nowrap;}
-.trail-pill.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+  #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
+  #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
+  #tela-senha button{ font-family:inherit; font-size:.9rem; padding:10px 20px; border:none; border-radius:6px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
+  #tela-senha .erro-senha{ color:#f7b0a0; font-size:.85rem; min-height:1em; }
 
-.hero{text-align:center; padding:2.2rem 0 1.2rem;}
-.hero img{width:min(190px,50vw); display:block; margin:0 auto .8rem; filter:drop-shadow(0 6px 14px rgba(43,33,24,0.18));}
-.hero-eyebrow{font-family:'Caveat',cursive; font-size:20px; font-weight:700; color:var(--rust); transform:rotate(-2deg); display:inline-block;}
-.hero h1{font-size:clamp(24px,6.5vw,32px);}
-.hero p.sub{color:var(--ink-soft); font-size:13.5px; max-width:420px; margin:.5rem auto 0;}
-.hero-meta{display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem; margin:1rem 0 0;}
-.hero-meta-item{font-size:11.5px; font-weight:600; color:var(--forest-dark); background:rgba(255,255,255,.6); border:1px solid var(--line); border-radius:999px; padding:.4rem .8rem;}
-.hero-cta{display:inline-block; margin-top:1.15rem; background:var(--forest); color:#fff; text-decoration:none; font-family:'Fraunces',serif; font-weight:700; font-size:15px; padding:.8rem 1.8rem; border-radius:999px; box-shadow:0 5px 14px rgba(31,110,72,.32);}
+  header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--terracotta); flex-wrap:wrap; gap:10px; }
+  h1{ margin:0; font-size:1.3rem; }
+  #status{ font-size:.8rem; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,.1); }
+  #status.ok{ color:#8fd19e; } #status.erro{ color:#e88; }
 
-.section{padding-top:2rem; scroll-margin-top:64px;}
-.section-head{display:flex; align-items:center; gap:.75rem; margin-bottom:.3rem;}
-.stop-badge{flex:0 0 auto; width:46px; height:46px; border-radius:50%; background:var(--forest); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 4px var(--cream), 0 0 0 5px var(--line);}
-.stop-badge svg{width:22px; height:22px;}
-.section-head h2{font-size:22px;}
-.section-desc{font-size:13px; color:var(--ink-soft); margin:.3rem 0 1rem 60px; font-style:italic;}
+  .aviso-config{ background:rgba(224,90,58,.18); border:1px solid #e05a3a; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:.82rem; line-height:1.5; display:none; }
+  .aviso-config.show{ display:block; }
 
-.panel{background:var(--paper); border:1.5px dashed var(--line); border-radius:12px; padding:1.1rem; margin-top:.3rem;}
-.field-label{display:block; font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.4rem;}
-.btn-row{display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:1rem;}
-.opt-btn{padding:.55rem .95rem; border:1.5px solid var(--line); border-radius:10px; background:var(--cream); color:var(--ink); font-weight:600; font-size:13.5px; cursor:pointer; transition:all .15s;}
-.opt-btn.active{background:var(--forest); border-color:var(--forest); color:#fff;}
-.opt-btn:disabled{opacity:.35; cursor:not-allowed;}
-.opt-btn.small{font-size:12px; padding:.4rem .7rem;}
-.link-btn{background:none; border:none; color:var(--forest-dark); font-size:12.5px; font-weight:600; text-decoration:underline; cursor:pointer; padding:.2rem 0; display:inline-block;}
+  .tabs{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab{ font-family:inherit; font-size:.85rem; padding:8px 16px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
+  .tab.active{ background:var(--terracotta); color:#fff; }
 
-.size-btn{flex:1; min-width:84px; display:flex; flex-direction:column; align-items:center; gap:2px; padding:.65rem .5rem; border:1.5px solid var(--line); border-radius:12px; background:var(--cream); cursor:pointer; transition:all .15s;}
-.size-btn .sz-name{font-family:'Fraunces',serif; font-weight:700; font-size:14px; color:var(--ink); text-transform:uppercase; letter-spacing:.02em;}
-.size-btn .sz-meta{font-size:11px; color:var(--ink-soft);}
-.size-btn.active{background:var(--forest); border-color:var(--forest);}
-.size-btn.active .sz-name, .size-btn.active .sz-meta{color:#fff;}
-.size-btn:disabled{opacity:.35; cursor:not-allowed;}
+  .categoria{ display:none; }
+  .categoria.active{ display:block; }
 
-select, input[type=text], input[type=tel], textarea{
-  width:100%; padding:.7rem .8rem; border:1.5px solid var(--line); border-radius:8px;
-  background:#fff; color:var(--ink); font-size:14.5px; font-family:'Work Sans',sans-serif;
-}
-select:focus, input:focus, textarea:focus{outline:none; border-color:var(--forest);}
-.flavor-select{margin-bottom:.6rem;}
+  .grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; margin-bottom:18px; }
 
-.flavor-grid{display:flex; flex-direction:column; gap:.65rem; margin-bottom:.7rem;}
-.flavor-card{position:relative; display:flex; flex-direction:column; background:#fff; border:1.5px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer; text-align:left; transition:all .15s; font-family:'Work Sans',sans-serif;}
-.flavor-card .fmedia{position:relative; width:100%; height:150px; background:var(--cream-soft);}
-.flavor-card .fimg{width:100%; height:100%; object-fit:cover; display:block;}
-.flavor-card .fbody{padding:.65rem .85rem .8rem;}
-.flavor-card.no-media .fbody{padding-top:.85rem;}
-.flavor-card .fname{font-family:'Fraunces',serif; font-size:15.5px; font-weight:600; display:block; line-height:1.25; color:var(--ink);}
-.flavor-card .fdesc{font-size:11.5px; color:var(--ink-soft); display:block; margin-top:3px; line-height:1.35;}
-.flavor-card .fprice-row{display:block; margin-top:5px;}
-.flavor-card .fprice{font-size:14.5px; color:var(--rust-dark); font-weight:800;}
-.flavor-card .fprice-old{font-size:10.5px; color:var(--ink-soft); text-decoration:line-through; margin-right:.35rem;}
-.flavor-card .fprice-promo{font-size:13px; color:var(--rust-dark); font-weight:700;}
-.flavor-card .promo-badge{position:absolute; top:8px; left:8px; z-index:2; background:var(--rust); color:#fff; font-size:8.5px; font-weight:700; padding:.2rem .5rem; border-radius:5px; letter-spacing:.02em; text-transform:uppercase; max-width:80px; line-height:1.2;}
-.flavor-card .fbadge{position:absolute; top:8px; right:8px; z-index:2; width:28px; height:28px; border-radius:50%; border:2px solid #fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:13px; color:transparent; background:rgba(255,255,255,.85); transition:all .15s; box-shadow:0 1px 4px rgba(43,33,24,.2);}
-.flavor-card .fbadge.check{background:var(--forest); border-color:#fff; color:#fff;}
-.flavor-card .fbadge.n1{background:var(--forest); border-color:#fff; color:#fff;}
-.flavor-card .fbadge.n2{background:var(--rust); border-color:#fff; color:#fff;}
-.flavor-card .fbadge.n3{background:var(--gold); border-color:#fff; color:#fff;}
-.flavor-card.active{border-color:var(--forest); background:rgba(31,110,72,.05); box-shadow:0 0 0 1.5px var(--forest);}
-.flavor-card.disabled{opacity:.45; cursor:not-allowed;}
-.flavor-card:hover:not(.active):not(.disabled){border-color:var(--forest);}
-.flavor-grid.compact{gap:.4rem;}
-.flavor-card.compact{flex-direction:row; align-items:center;}
-.flavor-card.compact .fmedia{width:58px; height:58px; flex:0 0 auto;}
-.flavor-card.compact .fbody{padding:.4rem .65rem; flex:1; min-width:0;}
-.flavor-card.compact .fname{font-size:13px;}
-.flavor-card.compact .fdesc{font-size:10px; margin-top:1px; -webkit-line-clamp:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:block;}
-.flavor-card.compact .fprice-row{margin-top:2px;}
-.flavor-card.compact .fprice, .flavor-card.compact .fprice-promo{font-size:12.5px;}
-.flavor-card.compact .fprice-old{font-size:9.5px;}
-.flavor-card.compact .fbadge{width:20px; height:20px; font-size:10px; top:3px; right:3px;}
-.flavor-card.compact .promo-badge{font-size:7px; padding:.12rem .3rem; top:3px; left:3px; max-width:52px;}
-.flavor-slot-label{display:flex; align-items:center; gap:.5rem; font-family:'Fraunces',serif; font-size:15px; font-weight:700; color:#fff; background:var(--rust); text-transform:none; letter-spacing:.02em; margin:0 0 .5rem; padding:.5rem .8rem; border-radius:8px 8px 0 0;}
-.flavor-slot-label .slot-num{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.25); font-size:12.5px; flex:0 0 auto;}
-.pizza-flavor-block{border:1.5px dashed var(--line); border-radius:8px; margin-bottom:.9rem; padding-bottom:.7rem; background:rgba(255,255,255,.4);}
-.pizza-flavor-block .flavor-grid{padding:0 .7rem;}
-.pizza-style-hint{font-size:12px; color:var(--ink-soft); display:block; margin-top:.3rem; line-height:1.35;}
+  .produto{ background:#fff; color:#222; border-radius:10px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,.25); display:flex; flex-direction:column; gap:8px; }
+  .produto.inativo{ opacity:.55; }
+  .produto .foto-wrap{ position:relative; width:100%; height:140px; border-radius:8px; overflow:hidden; background:#eee; cursor:pointer; }
+  .produto .foto-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .produto .foto-wrap .foto-vazia{ display:flex; align-items:center; justify-content:center; height:100%; color:#999; font-size:.75rem; text-align:center; padding:8px; }
+  .produto .foto-wrap .foto-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.75rem; opacity:0; transition:opacity .15s; }
+  .produto .foto-wrap:hover .foto-overlay{ opacity:1; }
+  .produto input[type=file]{ display:none; }
 
-.stepper{display:flex; align-items:center; gap:.6rem; background:#fff; border:1.5px solid var(--line); border-radius:999px; padding:.3rem .5rem; width:fit-content;}
-.step-btn{width:30px; height:30px; border-radius:50%; border:1.5px solid var(--line); background:var(--cream); font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center;}
-.step-val{min-width:22px; text-align:center; font-weight:700;}
+  .campo{ display:flex; flex-direction:column; gap:3px; }
+  .campo label{ font-size:.68rem; text-transform:uppercase; opacity:.7; font-weight:bold; }
+  .campo input[type=text], .campo input[type=number], .campo textarea{ font-family:inherit; font-size:.85rem; padding:7px 9px; border-radius:6px; border:1px solid #ccc; width:100%; }
+  .campo textarea{ resize:vertical; min-height:50px; }
 
-.crust-toggle{display:flex; align-items:center; gap:.6rem; background:rgba(201,154,74,.14); border:1px solid rgba(201,154,74,.4); border-radius:8px; padding:.6rem .8rem; margin:.9rem 0; cursor:pointer;}
-.crust-toggle input{width:18px; height:18px; accent-color:var(--rust);}
-.crust-toggle span{font-size:13.5px; color:var(--ink-soft);}
-.crust-toggle b{color:var(--rust-dark);}
-.crust-toggle img.thumb, .complement-toggle img.thumb{width:46px;height:46px;object-fit:cover;border-radius:8px;flex:0 0 auto;}
-.complement-toggle{display:flex; align-items:center; gap:.6rem; background:rgba(201,154,74,.14); border:1px solid rgba(201,154,74,.4); border-radius:8px; padding:.6rem .8rem; margin:.9rem 0; cursor:pointer;}
-.complement-toggle input{width:18px; height:18px; accent-color:var(--rust);}
-.complement-toggle span{font-size:13.5px; color:var(--ink-soft);}
-.complement-toggle b{color:var(--rust-dark);}
-.section-top-img{width:100%; max-width:260px; height:160px; object-fit:cover; border-radius:12px; display:block; margin:0 auto .9rem; box-shadow:0 4px 10px rgba(43,33,24,.18);}
+  .linha-precos{ display:flex; gap:6px; }
+  .linha-precos .campo{ flex:1; }
 
-.price-preview{font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--rust-dark); margin:.8rem 0;}
-.add-btn{width:100%; padding:1.05rem; background:linear-gradient(135deg, var(--forest), var(--forest-dark)); color:#fff; border:2px solid var(--forest-dark); border-radius:12px; font-weight:800; font-size:16.5px; letter-spacing:.01em; cursor:pointer; box-shadow:0 8px 18px rgba(31,110,72,.38), 0 2px 5px rgba(0,0,0,.18); transition:transform .12s ease, box-shadow .12s ease; animation:add-btn-pulse 2.6s ease-in-out infinite;}
-.add-btn:active{transform:scale(.97); box-shadow:0 4px 10px rgba(31,110,72,.35);}
-.add-btn:disabled{background:#a9a294; border-color:#a9a294; box-shadow:none; cursor:not-allowed; animation:none;}
-@keyframes add-btn-pulse{0%,100%{box-shadow:0 8px 18px rgba(31,110,72,.38), 0 2px 5px rgba(0,0,0,.18);} 50%{box-shadow:0 8px 22px rgba(31,110,72,.55), 0 2px 5px rgba(0,0,0,.18);}}
+  .campo-toggle{ display:flex; align-items:center; gap:8px; font-size:.82rem; }
+  .campo-toggle input{ width:16px; height:16px; }
 
-.esf-flavor-row{display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px dashed var(--line); border-radius:8px; padding:.55rem .8rem; margin-bottom:.5rem;}
-.closed-banner{background:#3a2a1f; border-radius:14px; padding:1.1rem 1.2rem; color:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18);}
-.closed-badge{display:inline-block; background:var(--rust); font-size:12px; font-weight:700; letter-spacing:.02em; padding:.3rem .7rem; border-radius:999px; margin-bottom:.55rem;}
-.closed-banner p{font-size:13.5px; color:rgba(255,255,255,.92); line-height:1.5; margin-bottom:.8rem;}
-.closed-wa{display:inline-block; background:#25D366; color:#fff; text-decoration:none; font-weight:700; font-size:13.5px; padding:.6rem 1rem; border-radius:10px;}
-.esf-flavor-row .esf-info{flex:1; min-width:0; padding-right:.6rem;}
-.esf-flavor-row .name{font-family:'Fraunces',serif; font-size:14.5px;}
-.esf-flavor-row .price-hint{font-size:11px; color:var(--ink-soft); display:block;}
-.esf-flavor-row .fdesc{font-size:10.5px; color:var(--ink-soft); display:block; margin-top:2px; line-height:1.3;}
-.esf-count-controls{display:flex; align-items:center; gap:.5rem;}
-.flavor-card .esf-count-controls{margin-top:.55rem;}
-.flavor-card.compact .esf-count-controls{margin-top:.35rem;}
-.esf-progress{font-size:12.5px; font-weight:700; text-align:right; margin:.6rem 0; color:var(--ink-soft);}
-.esf-progress.ok{color:var(--forest);}
+  details.promo{ border:1px dashed #ccc; border-radius:6px; padding:8px; }
+  details.promo summary{ font-size:.78rem; font-weight:bold; cursor:pointer; color:var(--terracotta); }
+  details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
 
-/* CART */
-.cart-box{background:var(--paper); border:1.5px dashed var(--line); border-radius:12px; padding:1.1rem; margin-top:.6rem;}
-.cart-empty{font-size:13.5px; color:var(--ink-soft); text-align:center; padding:1rem 0;}
-.cart-item{display:flex; justify-content:space-between; align-items:flex-start; gap:.6rem; padding:.65rem 0; border-bottom:1px dashed var(--line); font-size:13.5px;}
-.cart-item:last-child{border-bottom:none;}
-.cart-item .desc{flex:1;}
-.cart-item .desc b{font-family:'Fraunces',serif; display:block; font-size:14.5px;}
-.cart-item .desc small{color:var(--ink-soft); display:block; margin-top:2px; line-height:1.4;}
-.cart-item .right{text-align:right; flex:0 0 auto;}
-.cart-item .right .p{font-family:'Fraunces',serif; font-weight:700; color:var(--rust-dark);}
-.cart-item .remove{background:none; border:none; color:var(--ink-soft); font-size:11px; text-decoration:underline; cursor:pointer; margin-top:4px;}
+  .acoes-produto{ display:flex; gap:6px; margin-top:4px; }
+  .acoes-produto button{ flex:1; font-family:inherit; font-size:.78rem; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
+  .btn-salvar{ background:var(--green-ok); color:#fff; }
+  .btn-excluir{ background:var(--red); color:#fff; }
+  .salvo-ok{ font-size:.72rem; color:var(--green-ok); text-align:center; min-height:1em; }
 
-.summary-line{display:flex; justify-content:space-between; font-size:14px; color:var(--ink-soft); padding:.25rem 0;}
-.summary-total{display:flex; justify-content:space-between; font-size:19px; font-weight:700; color:var(--forest-dark); border-top:1px solid var(--line); margin-top:.5rem; padding-top:.5rem;}
+  .stat-filtro-btn{ font-family:inherit; font-size:.8rem; padding:7px 12px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:transparent; color:#fff; cursor:pointer; }
+  .stat-filtro-btn.active{ background:var(--terracotta); border-color:var(--terracotta); font-weight:bold; }
+  .stat-card{ background:rgba(255,255,255,.08); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:3px; }
+  .stat-card .stat-label{ font-size:.72rem; opacity:.8; }
+  .stat-card .stat-value{ font-size:1.3rem; font-weight:bold; }
+  .stat-card .stat-sub{ font-size:.68rem; opacity:.65; }
+  .stat-comparativo{ font-size:.7rem; font-weight:bold; margin-top:2px; }
+  .stat-comparativo.up{ color:#7ee08a; }
+  .stat-comparativo.down{ color:#e07e7e; }
+  .stat-secao{ margin-top:24px; padding-top:18px; border-top:1px solid rgba(255,255,255,.12); }
+  .stat-secao h4{ margin:0 0 10px; font-size:.95rem; }
+  .stat-secao h5{ margin:0 0 4px; font-size:.8rem; opacity:.85; }
+  .stat-empty{ opacity:.65; font-size:.85rem; }
+  .stat-ranking-list{ list-style:none; padding:0; margin:0; font-size:.88rem; display:flex; flex-direction:column; gap:4px; }
+  .stat-ranking-list li{ display:flex; justify-content:space-between; background:rgba(255,255,255,.05); padding:5px 9px; border-radius:6px; }
+  .stat-legenda{ font-size:.75rem; opacity:.85; background:rgba(255,255,255,.05); padding:8px 10px; border-radius:8px; line-height:1.7; }
+  .stat-badge{ font-size:.7rem; font-weight:bold; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .stat-badge.exato{ background:rgba(46,160,67,.25); color:#7ee08a; }
+  .stat-badge.aproximado{ background:rgba(210,153,34,.25); color:#e0b84a; }
+  .stat-bar-chart{ display:flex; align-items:flex-end; gap:6px; height:140px; overflow-x:auto; padding-bottom:4px; }
+  .stat-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:28px; }
+  .stat-bar{ width:18px; background:var(--terracotta); border-radius:4px 4px 0 0; min-height:4px; }
+  .stat-bar-label{ font-size:.6rem; opacity:.7; margin-top:4px; writing-mode:vertical-rl; transform:rotate(180deg); }
+  .stat-tabela{ width:100%; border-collapse:collapse; font-size:.8rem; }
+  .stat-tabela th{ text-align:left; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.2); opacity:.8; font-size:.72rem; }
+  .stat-tabela td{ padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.07); }
 
-/* CHECKOUT */
-.fulfill-row{display:flex; gap:.6rem; margin-bottom:.9rem;}
-.fulfill-btn{flex:1; padding:.9rem; border:1.5px solid var(--line); border-radius:10px; background:#fff; font-weight:700; font-size:13.5px; cursor:pointer; text-align:center;}
-.fulfill-btn.active{background:var(--forest); color:#fff; border-color:var(--forest);}
-.note-box{background:rgba(201,154,74,.14); border:1px solid rgba(201,154,74,.4); border-radius:8px; padding:.65rem .85rem; font-size:12.5px; color:var(--ink-soft); margin:.6rem 0;}
-.note-box b{color:var(--forest-dark);}
-.pay-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.7rem;}
-.field-group{margin-bottom:1rem;}
-.error-msg{color:var(--rust-dark); font-size:12.5px; font-weight:600; margin-top:.5rem; display:none;}
-.error-msg.show{display:block;}
-.field-error{border-color:var(--rust-dark) !important; background:rgba(168,83,43,.06) !important; box-shadow:0 0 0 1.5px var(--rust-dark);}
-#pay-row.field-error{box-shadow:0 0 0 1.5px var(--rust-dark); border-radius:10px; padding:4px;}
-#troco-need-row.field-error{box-shadow:0 0 0 1.5px var(--rust-dark); border-radius:10px; padding:4px;}
-
-.floating-cart{position:fixed; bottom:0; left:0; right:0; z-index:70; background:var(--forest-dark); color:#fff; padding:.7rem 1.1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 -4px 14px rgba(0,0,0,.2); transition:background .25s ease;}
-.floating-cart.empty{background:#6b6154;}
-@keyframes cartPulse{0%{transform:scale(1);} 30%{transform:scale(1.035); box-shadow:0 -4px 22px rgba(168,83,43,.55);} 100%{transform:scale(1);}}
-.floating-cart.pulse{animation:cartPulse .45s ease;}
-.floating-cart span.lbl{font-size:11px; opacity:.8; display:block;}
-.floating-cart span.val{font-family:'Fraunces',serif; font-weight:700; font-size:18px;}
-.floating-cart a{background:var(--rust); color:#fff; text-decoration:none; font-weight:700; font-size:13px; padding:.6rem 1rem; border-radius:8px;}
-
-.cart-empty-alert{display:none; align-items:flex-start; gap:.6rem; background:#FBEAD9; border:2px solid var(--rust); border-radius:10px; padding:.85rem 1rem; margin-bottom:.8rem;}
-.cart-empty-alert .ico{font-size:1.3rem; line-height:1;}
-.cart-empty-alert .txt b{display:block; color:var(--rust-dark); font-size:14px; margin-bottom:.15rem;}
-.cart-empty-alert .txt span{font-size:12.5px; color:var(--ink-soft); line-height:1.4;}
-
-.wa-btn{display:block; width:100%; padding:1rem; background:#25D366; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:15.5px; cursor:pointer; text-align:center; margin-top:1rem;}
-.wa-btn:disabled{background:#a9a294; cursor:not-allowed;}
-
-.footer{text-align:center; margin-top:2.5rem; padding-top:1.5rem; border-top:1px dashed var(--line);}
-.footer .hand{font-family:'Caveat',cursive; font-size:22px; color:var(--rust);}
-.footer p{font-size:12px; color:var(--ink-soft); margin-top:.3rem;}
-
-.toast-erro{position:fixed; top:12px; left:50%; transform:translateX(-50%) translateY(-16px); width:min(92vw,420px); background:#fff; border:2px solid var(--rust-dark); border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.28); padding:.9rem 1rem; z-index:999; opacity:0; pointer-events:none; transition:opacity .22s ease, transform .22s ease;}
-.toast-erro.show{opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto;}
-.toast-erro-title{display:flex; align-items:center; gap:.4rem; font-family:'Fraunces',serif; font-weight:700; color:var(--rust-dark); font-size:14.5px; margin:0 1.4rem .4rem 0;}
-.toast-erro ul{margin:0; padding-left:1.15rem; font-size:12.8px; color:var(--ink); line-height:1.55;}
-.toast-erro-close{position:absolute; top:8px; right:9px; background:none; border:none; font-size:15px; line-height:1; cursor:pointer; color:var(--ink-soft); padding:.2rem;}
-
-@media (max-width:420px){
-  .section-desc{margin-left:0;}
-  .section-head{gap:.55rem;}
-}
-.enviando-overlay{position:fixed; inset:0; background:rgba(30,20,10,.6); z-index:10050; display:flex; align-items:center; justify-content:center; padding:1rem;}
-.enviando-box{background:#fff; border-radius:16px; padding:1.9rem 2.1rem; text-align:center; box-shadow:0 14px 34px rgba(0,0,0,.32); max-width:280px;}
-.enviando-box p{font-weight:800; font-size:15px; color:var(--ink); margin:1rem 0 .3rem;}
-.enviando-box small{color:var(--ink-soft); font-size:12px; line-height:1.4; display:block;}
-.enviando-spinner{width:40px; height:40px; border:4px solid rgba(31,110,72,.18); border-top-color:var(--forest); border-radius:50%; margin:0 auto; animation:enviando-spin .8s linear infinite;}
-@keyframes enviando-spin{to{transform:rotate(360deg);}}
+  .card-novo{ background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.35); border-radius:10px; padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:bold; text-align:center; }
+  .card-novo:hover{ background:rgba(255,255,255,.14); }
 </style>
 </head>
 <body>
-<div class="bg-photo" style="background-image:url(&#39;bg-hero.jpg&#39;);"></div>
-<div class="bg-tint"></div>
 
-<nav class="trailnav">
-  <div class="trailnav-inner" id="trailnav-inner">
-    <a href="#combos" class="trail-pill" id="nav-combos">Promoções</a>
-    <a href="#pizzas" class="trail-pill">Pizzas</a>
-    <a href="#calzones" class="trail-pill">Calzones</a>
-    <a href="#brotinho" class="trail-pill">Brotinho</a>
-    <a href="#esfihas" class="trail-pill">Esfihas</a>
-    <a href="#bebidas" class="trail-pill">Bebidas</a>
-    <a href="#finalizar" class="trail-pill">Finalizar</a>
-  </div>
-</nav>
+<div id="tela-senha">
+  <h1>🍕 Gestão de Produtos</h1>
+  <input type="email" id="input-email" placeholder="E-mail" autocomplete="username" autofocus>
+  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
+  <button onclick="conferirSenha()">Entrar</button>
+  <div class="erro-senha" id="erro-senha"></div>
+</div>
 
-<div class="wrap">
-  <div id="tempo-espera-aviso" style="display:none; margin:0 0 .8rem; padding:.6rem 1rem; background:var(--rust); color:#fff; border-radius:8px; font-weight:bold; text-align:center;"></div>
-  <section class="section" id="horario-aviso" style="display:none; padding-top:1.2rem;">
-    <div class="closed-banner">
-      <span class="closed-badge">🕒 Estamos fechados no momento</span>
-      <p>Funcionamos <b>sexta, sábado e domingo, das 18h às 21h</b>. Fora desse horário você pode ver o cardápio numa boa e, se quiser, já fazer sua <b>encomenda antecipada</b> — nesse caso pedimos pagamento adiantado ou um sinal de 50% para confirmar.</p>
-      <a class="closed-wa" href="https://wa.me/5588992182784" target="_blank">📲 Falar no WhatsApp</a>
+<div id="conteudo" style="display:none;">
+  <header>
+    <h1>🍕 Gestão de Produtos — Manel's</h1>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div id="status">conectando…</div>
+      <button onclick="sairPainel()" style="font-family:inherit; font-size:.75rem; padding:6px 12px; border:none; border-radius:20px; background:rgba(255,255,255,.15); color:var(--beige); cursor:pointer;">Sair</button>
     </div>
-  </section>
-
-  <header class="hero">
-    <img src="logo-manels.jpg" alt="Manel's Pizzaria" />
-    <span class="hero-eyebrow">bem-vindo à trilha do sabor</span>
-    <h1>Manel's Pizzaria</h1>
-    <p class="sub">Sabores nordestinos feitos na hora. Escolha os itens abaixo — no final, seu pedido é enviado prontinho pro nosso WhatsApp.</p>
-    <div class="hero-meta">
-      <span class="hero-meta-item">🕒 Sex, sáb e dom · 18h às 21h</span>
-      <span class="hero-meta-item">🛵 Entrega em 35–50 min</span>
-    </div>
-    <a href="#pizzas" class="hero-cta">Pedir Agora</a>
   </header>
 
-  <!-- PROMOÇÕES (antigo "Combos") -->
-  <section class="section" id="combos">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 11h18"/><path d="M12 7V3M8 3h8"/></svg></div>
-      <h2>Promoções</h2>
-    </div>
-    <p class="section-desc">Combinações especiais com o melhor custo-benefício.</p>
-    <div class="panel">
-      <span class="field-label">Escolha a promoção</span>
-      <div id="combo-flavor-grid" class="flavor-grid"></div>
-      <div id="combo-note-box" style="display:none; margin-bottom:.8rem;"></div>
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changeComboQty(-1)">-</button>
-        <span class="step-val" id="combo-qty">1</span>
-        <button class="step-btn" onclick="changeComboQty(1)">+</button>
-      </div>
-      <div class="price-preview" id="combo-price-preview">R$ 0,00</div>
-      <button class="add-btn" id="combo-add-btn" onclick="addComboToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
+  <div class="aviso-config" id="aviso-config"></div>
 
-  <!-- PIZZAS -->
-  <section class="section" id="pizzas">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c0 2 0 4 0 6"/><path d="M12 9c-3 0-4 1.5-4 4v8h8v-8c0-2.5-1-4-4-4z"/></svg></div>
-      <h2>Pizzas</h2>
-    </div>
-    <p class="section-desc">Tamanhos M (30cm), G (35cm) e GG (40cm).</p>
+  <div class="tabs" id="tabs"></div>
 
-    <div class="panel">
-      <span class="field-label">1. Escolha o tamanho</span>
-      <div class="btn-row" id="pizza-size-row">
-        <button class="size-btn active" data-size="M" onclick="selectPizzaSize('M')"><span class="sz-name">Média</span><span class="sz-meta">30 cm</span></button>
-        <button class="size-btn" data-size="G" onclick="selectPizzaSize('G')"><span class="sz-name">Grande</span><span class="sz-meta">35 cm</span></button>
-        <button class="size-btn" data-size="GG" onclick="selectPizzaSize('GG')"><span class="sz-name">Família</span><span class="sz-meta">40 cm</span></button>
-      </div>
-
-      <span class="field-label">2. Inteira, meio a meio, ou 3 sabores?</span>
-      <div class="btn-row" id="pizza-style-row">
-        <button class="opt-btn active" data-style="1" onclick="selectPizzaStyle(1)">Pizza Inteira</button>
-        <button class="opt-btn" data-style="2" onclick="selectPizzaStyle(2)">Meio a Meio</button>
-        <button class="opt-btn" data-style="3" id="pizza-style-3" disabled onclick="selectPizzaStyle(3)">3 Sabores (só GG)</button>
-      </div>
-      <span class="pizza-style-hint" id="pizza-style-hint">Pizza inteira: 1 sabor só, do início ao fim.</span>
-
-      <span class="field-label">3. Escolha o(s) sabor(es)</span>
-      <div id="pizza-flavors"></div>
-
-<div class="crust-section" id="crust-section" style="display:none;">
-        <span class="field-label">4. Quer borda recheada? (opcional)</span>
-        <div class="btn-row" id="pizza-crust-row"></div>
-      </div>
-
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changePizzaQty(-1)">-</button>
-        <span class="step-val" id="pizza-qty">1</span>
-        <button class="step-btn" onclick="changePizzaQty(1)">+</button>
-      </div>
-
-      <div class="price-preview" id="pizza-price-preview">R$ 0,00</div>
-      <button class="add-btn" id="pizza-add-btn" onclick="addPizzaToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
-  <!-- CALZONES -->
-  <section class="section" id="calzones">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15c0-6 4-10 8-10s8 4 8 10"/><path d="M4 15h16"/></svg></div>
-      <h2>Calzones</h2>
-    </div>
-    <p class="section-desc">Tamanho único.</p>
-    <div class="panel">
-      <img class="section-top-img" src="topo-calzones.jpg" alt="Calzones">
-      <span class="field-label">Escolha o sabor</span>
-      <div id="calzone-flavor-grid" class="flavor-grid"></div>
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changeCalzoneQty(-1)">-</button>
-        <span class="step-val" id="calzone-qty">1</span>
-        <button class="step-btn" onclick="changeCalzoneQty(1)">+</button>
-      </div>
-      <div class="price-preview" id="calzone-price-preview">R$ 0,00</div>
-      <button class="add-btn" onclick="addCalzoneToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
-  <!-- BROTINHO -->
-  <section class="section" id="brotinho">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c4 0 7-3 7-7 0-3-2-5-3-7-.3 1.5-1 2-1.5 1 .5-2-1-4-2.5-4.5.5 2-.5 3-1.5 4-1.5 1.5-2.5 3.5-2.5 6.5 0 4 3 7 7 7z"/></svg></div>
-      <h2>Brotinho Doce</h2>
-    </div>
-    <p class="section-desc">Massinha fofa recheada de chocolate.</p>
-    <div class="panel">
-      <span class="field-label">Escolha o sabor</span>
-      <div id="brotinho-flavor-grid" class="flavor-grid"></div>
-      <label class="complement-toggle">
-        <img class="thumb" src="complemento-disquetes.jpg" alt="Complemento Disquetes">
-        <input type="checkbox" id="brotinho-disquetes" onchange="updateBrotinhoPreview()">
-        <span>Adicionar <b>Complemento Disquetes (+R$ 1,00)</b></span>
-      </label>
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changeBrotinhoQty(-1)">-</button>
-        <span class="step-val" id="brotinho-qty">1</span>
-        <button class="step-btn" onclick="changeBrotinhoQty(1)">+</button>
-      </div>
-      <div class="price-preview" id="brotinho-price-preview">R$ 0,00</div>
-      <button class="add-btn" onclick="addBrotinhoToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
-  <!-- ESFIHAS -->
-  <section class="section" id="esfihas">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l8-14 8 14z"/></svg></div>
-      <h2>Combo de Esfihas</h2>
-    </div>
-    <p class="section-desc">Monte seu combo misturando os sabores que quiser.</p>
-    <div class="panel">
-      <img class="section-top-img" src="topo-esfihas.jpg" alt="Esfihas">
-      <span class="field-label">Monte seu combo — mínimo de 5 esfihas, na quantidade e nos sabores que quiser</span>
-      <div id="esfiha-flavors"></div>
-      <div class="esf-progress" id="esfiha-progress">0 esfihas selecionadas (mínimo 5)</div>
-      <div class="price-preview" id="esfiha-price-preview">R$ 0,00</div>
-      <button class="add-btn" id="esfiha-add-btn" disabled onclick="addEsfihaToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
-  <!-- BEBIDAS -->
-  <section class="section" id="bebidas">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l-1.2 15.5A2 2 0 0 1 14.8 20H9.2a2 2 0 0 1-2-1.5L6 3z"/><path d="M5.5 7h13"/></svg></div>
-      <h2>Bebidas</h2>
-    </div>
-    <p class="section-desc">Geladinhas, pra acompanhar sua pizza.</p>
-    <div class="panel">
-      <span class="field-label">Escolha a bebida</span>
-      <div id="bebida-flavor-grid" class="flavor-grid"></div>
-      <span class="field-label">Quantidade</span>
-      <div class="stepper" style="margin-bottom:.8rem;">
-        <button class="step-btn" onclick="changeBebidaQty(-1)">-</button>
-        <span class="step-val" id="bebida-qty">1</span>
-        <button class="step-btn" onclick="changeBebidaQty(1)">+</button>
-      </div>
-      <div class="price-preview" id="bebida-price-preview">R$ 0,00</div>
-      <button class="add-btn" onclick="addBebidaToCart()">Adicionar ao Carrinho</button>
-    </div>
-  </section>
-
-  <!-- CARRINHO -->
-  <section class="section" id="carrinho">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.3 11.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/></svg></div>
-      <h2>Seu Carrinho</h2>
-    </div>
-    <div class="cart-box" id="cart-box">
-      <div class="cart-empty-alert" id="cart-empty">
-        <span class="ico">⚠️</span>
-        <div class="txt">
-          <b>Seu carrinho está vazio</b>
-          <span>Escolher o sabor não adiciona o item — role a página pra cima e toque em <b>"Adicionar ao Carrinho"</b> no que você quer pedir.</span>
-        </div>
-      </div>
-      <div id="cart-items"></div>
-      <label class="complement-toggle" for="want-ketchup">
-        <input type="checkbox" id="want-ketchup" onchange="toggleKetchup(this.checked)">
-        <span>Quer <b>Ketchup</b>? <br><small>Grátis</small></span>
-      </label>
-      <div class="complement-toggle" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
-        <span>Quer <b>Maionese Temperada</b>? <br><small>A 1ª é grátis · a partir da 2ª, + R$ 1,00 cada</small></span>
-        <div class="stepper">
-          <button class="step-btn" onclick="changeMaioneseQty(-1)">-</button>
-          <span class="step-val" id="maionese-qty">0</span>
-          <button class="step-btn" onclick="changeMaioneseQty(1)">+</button>
-        </div>
-      </div>
-      <div id="cart-summary" style="display:none;">
-        <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
-        <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
-        <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
-        <div class="summary-total"><span>TOTAL:</span><span id="cart-total">R$ 0,00</span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FINALIZAR -->
-  <section class="section" id="finalizar">
-    <div class="section-head">
-      <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></div>
-      <h2>Finalizar Pedido</h2>
-    </div>
-
-    <div class="panel">
-      <div id="encomenda-antecipada-note" class="note-box" style="display:none; border-color:var(--rust);">
-        <b>⚠️ Estamos fechados agora.</b> Esse pedido será registrado como <b>encomenda antecipada</b> e vamos precisar de pagamento adiantado ou de um sinal de 50% pra confirmar. Combinamos os detalhes com você pelo WhatsApp assim que enviar.
-      </div>
-      <div id="login-widget" style="margin-bottom:14px;">
-        <button type="button" id="login-btn-entrar" onclick="entrarComGoogleIndex()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; color:#3c4043; border:1px solid #dadce0; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; font-family:'Roboto',Arial,sans-serif; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08);">
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.08-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V4.95H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
-          <span>Entrar com Google <span style="font-weight:400; opacity:.8;">— salva seus dados pra próxima compra</span></span>
-        </button>
-        <div id="login-logado" style="display:none; align-items:center; justify-content:space-between; gap:8px; background:rgba(31,110,72,.08); border-radius:10px; padding:10px 12px;">
-          <span>👋 Olá, <b id="login-nome-usuario"></b>! <span id="login-pontos-usuario" style="opacity:.75; font-size:.85rem;"></span></span>
-          <button type="button" onclick="sairDoLogin()" style="border:none; background:none; color:var(--rust); font-weight:bold; cursor:pointer; font-size:.8rem;">Sair</button>
-        </div>
-      </div>
-      <div class="field-group">
-        <span class="field-label">Nome completo *</span>
-        <input type="text" id="chk-nome" placeholder="Seu nome" oninput="this.classList.remove('field-error')" />
-      </div>
-      <div class="field-group">
-        <span class="field-label">Telefone *</span>
-        <input type="tel" id="chk-telefone" placeholder="(88) 9 0000-0000" oninput="this.classList.remove('field-error')" />
-      </div>
-
-      <span class="field-label">Como você vai receber o pedido? *</span>
-      <div class="fulfill-row">
-        <button class="fulfill-btn active" id="fulfill-entrega" onclick="selectFulfillment('entrega')">🛵 Entregar</button>
-        <button class="fulfill-btn" id="fulfill-retirada" onclick="selectFulfillment('retirada')">🏠 Retirar no Balcão</button>
-      </div>
-
-      <div id="endereco-field" class="field-group">
-        <span class="field-label">Endereço de entrega *</span>
-        <!-- Localização automática via GPS + Geocoding Reverso (Nominatim/OpenStreetMap) -->
-        <div id="geo-actions" style="margin:.3rem 0 .5rem;">
-          <button type="button" class="opt-btn small" id="geo-btn" onclick="compartilharLocalizacao()">📍 Compartilhar minha localização atual</button>
-        </div>
-        <div id="geo-status" class="note-box" style="display:none;"></div>
-        <button type="button" class="link-btn" id="manual-addr-btn" onclick="abrirEnderecoManual()">✏️ Prefiro digitar o endereço manualmente</button>
-        <div id="endereco-input-wrap" style="display:none; margin-top:.5rem;">
-          <textarea id="chk-endereco" rows="2" placeholder="Rua, número, bairro, ponto de referência" oninput="this.classList.remove('field-error')"></textarea>
-        </div>
-        <div class="note-box"><b>Atenção:</b> pedidos abaixo de R$ 15,00 têm taxa de entrega de R$ 3,00. A partir de R$ 15,00, a entrega é grátis.</div>
-      </div>
-      <div id="retirada-note" class="note-box" style="display:none;">
-        <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
-      </div>
-
-      <span class="field-label">Forma de pagamento *</span>
-      <div class="pay-row" id="pay-row">
-        <button class="opt-btn" data-pay="Dinheiro" onclick="selectPayment('Dinheiro')">Dinheiro</button>
-        <button class="opt-btn" data-pay="PIX" onclick="selectPayment('PIX')">PIX</button>
-        <button class="opt-btn" data-pay="Débito" onclick="selectPayment('Débito')">Débito</button>
-        <button class="opt-btn" data-pay="Crédito" onclick="selectPayment('Crédito')">Crédito</button>
-      </div>
-
-      <div id="troco-field" class="field-group" style="display:none;">
-        <span class="field-label">Vai precisar de troco?</span>
-        <div class="pay-row" id="troco-need-row">
-          <button type="button" class="opt-btn" data-troco-need="sim" onclick="selectTrocoNeed(true)">Sim</button>
-          <button type="button" class="opt-btn" data-troco-need="nao" onclick="selectTrocoNeed(false)">Não</button>
-        </div>
-        <div id="troco-valor-wrap" style="display:none; margin-top:.6rem;">
-          <span class="field-label">Vai pagar com quanto?</span>
-          <input type="text" inputmode="decimal" id="chk-troco" placeholder="Ex: 100" oninput="sanitizeTrocoInput(this); atualizarTrocoCalculado();" />
-          <div id="troco-calc-hint" class="note-box" style="display:none; margin-top:.4rem;"></div>
-        </div>
-      </div>
-      <div id="pix-note" class="note-box" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
-      <div id="card-note" class="note-box" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
-
-      <div class="field-group">
-        <span class="field-label">Observações gerais (opcional)</span>
-        <textarea id="chk-obs" rows="2" placeholder="Ex: sem cebola, tocar a campainha, etc."></textarea>
-      </div>
-
-      <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
-      <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
-      <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
-      <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
-
-      <div class="error-msg" id="chk-error"></div>
-      <button class="wa-btn" id="enviar-pedido-btn" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
-      <div id="wa-fallback" style="display:none; margin-top:.6rem; text-align:center;">
-        <a id="wa-fallback-link" href="#" target="_blank" rel="noopener" style="display:inline-block; font-size:12.5px; font-weight:700; color:var(--forest-dark); text-decoration:underline; padding:.4rem;">
-          O WhatsApp não abriu? Toque aqui para enviar o pedido
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <span class="hand">bom apetite!</span>
-    <p>Manel's Pizzaria · fim da trilha, começo da fome 🌵🍕</p>
-  </footer>
-</div>
-
-<div class="floating-cart empty" id="floating-cart">
-  <div><span class="lbl" id="floating-lbl">🛒 Carrinho vazio</span><span class="val" id="floating-total" style="display:none;">R$ 0,00</span></div>
-  <a href="#finalizar" id="floating-link" style="display:none;">Finalizar →</a>
-</div>
-
-<div class="enviando-overlay" id="enviando-overlay" style="display:none;">
-  <div class="enviando-box">
-    <div class="enviando-spinner"></div>
-    <p>Enviando seu pedido…</p>
-    <small>Só um instante, não feche o app nem toque em Finalizar de novo.</small>
-  </div>
+  <div id="categorias"></div>
 </div>
 
 <script>
-/* ==================== CARDÁPIO LOCAL (RESERVA) ==================== */
-// Usado automaticamente se o painel do vendedor (Supabase) ainda não estiver
-// configurado, ou se o cardápio online não puder ser carregado por algum motivo.
-// Assim que o banco de dados estiver configurado (veja SUPABASE_URL abaixo),
-// o cardápio real substitui estes dados automaticamente.
-let MENU = {
-  pizzas: {},
-  calzones: {},
-  brotinho: {},
-  esfihas: {},
-  bebidas: {},
-  combos: {},
-  bordas: {}
-};
-let MENU_ORIGINAL = JSON.parse(JSON.stringify(MENU));
-let PRODUCT_IMAGES = {
-  pizzas: {}, calzones: {}, brotinho: {}, esfihas: {}, bebidas: {}, combos: {}, bordas: {}
-};
-let PRODUCT_DESCRIPTIONS = {
-  pizzas: {}, calzones: {}, brotinho: {}, esfihas: {}, bebidas: {}, combos: {}, bordas: {}
-};
-let PROMO_LABELS = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-// Estoque por produto. Cada entrada: { id, infinito, qty, esgotado }.
-// "esgotado" já vem calculado (qty<=0 e comportamento = mostrar como esgotado).
-// Produtos com estoque zerado e comportamento "esconder" nem entram aqui nem no MENU.
-let PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-// Config de observação por item de Promoção (categoria "combo" no banco): quais promoções
-// pedem que o cliente escreva um sabor/observação antes de adicionar ao carrinho.
-let COMBO_NOTE_CONFIG = {}; // { "2 Brotinhos por R$30": { needsNote:true, noteHint:"Escolha 2 sabores de brotinho" } }
+async function conferirSenha(){
+  const email = document.getElementById('input-email').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const erroEl = document.getElementById('erro-senha');
+  erroEl.textContent = '';
+  if(!email || !senha){ erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+  if(error){
+    erroEl.textContent = error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message;
+    return;
+  }
+  document.getElementById('tela-senha').style.display = 'none';
+  document.getElementById('conteudo').style.display = 'block';
+  iniciar();
+}
+async function sairPainel(){
+  await supabaseClient.auth.signOut();
+  document.getElementById('conteudo').style.display = 'none';
+  document.getElementById('tela-senha').style.display = 'flex';
+  document.getElementById('input-senha').value = '';
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+document.getElementById('input-email').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
 
-// CRUST_PRICE removido: as bordas recheadas agora são cadastradas como produtos
-// (categoria "borda") e o preço de cada uma vem do Supabase, editável no admin.html.
-const DISQUETES_PRICE = 1.00;
-const MAIONESE_PRICE = 1.00;
-const DELIVERY_FEE = 3.00;
-const FREE_DELIVERY_THRESHOLD = 15.00;
-const STORE_PHONE_DISPLAY = "88 9 9218-2784";
-const WHATSAPP_NUMBER = "5588992182784";
-const PICKUP_ADDRESS = "Rua Joaquim Soares da Silva, 641, Centro";
-
-// Supabase do PAINEL DE PEDIDOS (o mesmo projeto que o comandas.html usa).
-// É um projeto DIFERENTE do Supabase de produtos/catálogo configurado mais abaixo —
-// por isso o pedido precisa ser enviado separadamente pra cá.
-const PEDIDOS_SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
-const PEDIDOS_SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
-
-let cart = [];
-let cartIdCounter = 1;
-let fulfillment = 'entrega';
-
-// Dados de localização automática do cliente (GPS + Geocoding Reverso)
-let userGeoLat = null;
-let userGeoLng = null;
-let paymentMethod = '';
-let wantKetchup = false;
-let maioneseQty = 0;
-
-function brl(v){ return 'R$ ' + (v||0).toFixed(2).replace('.', ','); }
-
-/* ==================== PAINEL DO VENDEDOR (SUPABASE) ==================== */
-// >>>>>>>>>>>>>>>>>>>>>> COLE SUAS CHAVES AQUI (as mesmas do admin.html) <<<<<<<<<<<<<<<<<<<<<<
-// Mesmo projeto Supabase usado nos pedidos (comandas.html) — o projeto antigo
+// Mesmo projeto Supabase que o cardápio (index.html) usa para carregar os produtos.
+// Mesmo projeto Supabase que o pedidos (comandas.html) usa — o projeto antigo
 // de produtos (qhdxiojewiveazfozpix) não está mais acessível, então unificamos tudo aqui.
 const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+const STORAGE_BUCKET = "produtos"; // precisa existir como bucket PÚBLICO no Supabase
 
-const SUPABASE_CONFIGURED = SUPABASE_URL !== "COLE_AQUI_A_SUA_PROJECT_URL" && SUPABASE_ANON_KEY !== "COLE_AQUI_A_SUA_ANON_PUBLIC_KEY";
-let supabaseClient = null;
-if(SUPABASE_CONFIGURED && window.supabase){
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Se já existe uma sessão válida (ex: recarregou a página), pula a tela de login.
+supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  if(session){
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('conteudo').style.display = 'block';
+    iniciar();
+  }
+});
+
+const CATEGORIAS = [
+  { key:'combo',    label:'Promoções' },
+  { key:'pizza',    label:'Pizzas' },
+  { key:'calzone',  label:'Calzones' },
+  { key:'brotinho', label:'Brotinho' },
+  { key:'esfiha',   label:'Esfihas' },
+  { key:'bebida',   label:'Bebidas' },
+  { key:'borda',    label:'Bordas Recheadas' },
+  { key:'config',   label:'⚙️ Configurações' },
+  { key:'stats',    label:'📊 Estatísticas' },
+  { key:'avaliacoes', label:'⭐ Avaliações' },
+];
+
+let produtos = []; // todos os produtos, de todas as categorias
+let categoriaAtiva = 'combo';
+let horarios = []; // linhas da tabela horario_funcionamento
+let configGeral = { tempo_espera_ativo:false, tempo_espera_texto:'' };
+const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+
+function setStatus(texto, tipo){
+  const el = document.getElementById('status');
+  el.textContent = texto;
+  el.className = tipo || '';
 }
 
-const CATEGORY_DB_TO_MENU = { pizza:'pizzas', calzone:'calzones', brotinho:'brotinho', esfiha:'esfihas', bebida:'bebidas', combo:'combos', borda:'bordas' };
-
-/* ==================== CARDÁPIO DE EMERGÊNCIA (ÚLTIMO RECURSO) ==================== */
-// Só é usado se o Supabase falhar E não existir nenhum cache local salvo no navegador
-// do cliente (ex.: primeiro acesso dele, num aparelho novo, com o Supabase fora do ar).
-// Os preços aqui são um retrato antigo do cardápio — atualize-os de vez em quando editando
-// este bloco, mas isso NUNCA precisa ser feito com frequência: em uso normal, quem manda
-// é sempre o Supabase, e o cache do navegador já cobre praticamente todas as falhas.
-const EMERGENCY_MENU = {
-  pizzas: {
-    "Calabresa com Mussarela": {M:34.5, G:44.5, GG:56.0},
-    "Frango com Catupiry": {M:33.5, G:42.5, GG:54.0},
-    "A Moda Manel's": {M:38.0, G:48.0, GG:59.0},
-    "Portuguesa": {M:35.0, G:44.5, GG:57.0},
-    "Carne de Sol": {M:36.5, G:45.5, GG:58.5},
-    "Marguerita": {M:34.0, G:40.0, GG:53.0},
-  },
-  calzones: {
-    "Calabresa com Mussarela": 22.5,
-    "Frango com Catupiry": 20.5,
-    "A Moda Manel's": 25.5,
-    "Portuguesa": 25.0,
-    "Carne de Sol": 25.0,
-    "Marguerita": 23.0,
-  },
-  brotinho: {
-    "Chocolate": 18.0,
-  },
-  esfihas: {
-    "Carne de Sol com Mussarela": 3.7,
-    "Frango com Catupiry": 2.8,
-    "Calabresa com Mussarela": 3.0,
-    "Carne Moída": 3.3,
-    "Doce (Chocolate)": 3.0,
-  },
-  bebidas: {
-    "Coca-Cola 2L": 12.0,
-    "Cajuína São Geraldo 2L": 12.0,
-    "Guaraná Antarctica 1L": 7.0,
-    "Coca-Cola 250ml": 3.5,
-    "Cajuína São Geraldo 200ml": 3.0,
-  },
-  combos: {},
-  bordas: {
-    "Doce": 9.50,
-    "Cheddar": 6.00,
-  },
-};
-const EMERGENCY_DESCRIPTIONS = {
-  pizzas: {
-    "Calabresa com Mussarela": "Mussarela, calabresa defumada e cebola roxa.",
-    "Frango com Catupiry": "Frango desfiado, catupiry e milho verde.",
-    "A Moda Manel's": "Mussarela, carne ao barbecue e catupiry.",
-    "Portuguesa": "Mussarela, calabresa, ovo, milho e pimentão.",
-    "Carne de Sol": "Carne de sol desfiada, mussarela e pimentão.",
-    "Marguerita": "Mussarela, tomate e manjericão fresco.",
-  },
-  calzones: {
-    "Calabresa com Mussarela": "Mussarela, calabresa defumada e cebola.",
-    "Frango com Catupiry": "Frango desfiado e catupiry cremoso.",
-    "A Moda Manel's": "Mussarela, carne ao barbecue e catupiry.",
-    "Portuguesa": "Mussarela, calabresa, ovo, milho e pimentão.",
-    "Carne de Sol": "Carne de sol, mussarela, milho e pimentão.",
-    "Marguerita": "Mussarela, tomate e manjericão.",
-  },
-  brotinho: {
-    "Chocolate": "Massinha fofa recheada de chocolate cremoso.",
-  },
-  esfihas: {
-    "Carne de Sol com Mussarela": "Carne de sol desfiada e mussarela.",
-    "Frango com Catupiry": "Frango desfiado e catupiry cremoso.",
-    "Calabresa com Mussarela": "Calabresa defumada e mussarela.",
-    "Carne Moída": "Carne moída suculenta e temperada.",
-    "Doce (Chocolate)": "Recheio cremoso de chocolate.",
-  },
-  bebidas: {},
-  combos: {},
-  bordas: {
-    "Doce": "Borda recheada com creme doce de leite condensado.",
-    "Cheddar": "Borda recheada com cheddar cremoso.",
-  },
-};
-
-/* ==================== VALIDAÇÃO E CACHE LOCAL DO CARDÁPIO ==================== */
-// Cache salvo no navegador do próprio cliente (localStorage), sempre que o Supabase
-// responde com dados válidos. É a primeira linha de defesa se o Supabase cair depois:
-// mostramos a última versão que sabemos que era boa, em vez de deixar o site sem itens.
-const MENU_CACHE_KEY = 'manels_menu_cache_v1';
-
-// Confere se um objeto de cardápio tem o formato e os valores esperados antes de aceitá-lo
-// (seja vindo do Supabase, seja vindo do cache). Isso evita substituir uma versão boa por
-// dados incompletos, corrompidos ou com preço zerado/inválido.
-function validarCardapio(menu){
-  if(!menu || typeof menu !== 'object') return false;
-  const categoriasObrigatorias = ['pizzas','calzones','brotinho','esfihas','bebidas'];
-  for(const cat of categoriasObrigatorias){
-    const itens = menu[cat];
-    if(!itens || typeof itens !== 'object' || Array.isArray(itens)) return false;
-    if(Object.keys(itens).length === 0) return false;
-    for(const nome of Object.keys(itens)){
-      const preco = itens[nome];
-      if(cat === 'pizzas'){
-        if(!preco || typeof preco !== 'object') return false;
-        const valores = ['M','G','GG'].map(t => preco[t]).filter(v => v !== undefined);
-        if(valores.length === 0 || valores.some(v => typeof v !== 'number' || !isFinite(v) || v <= 0)) return false;
-      } else {
-        if(typeof preco !== 'number' || !isFinite(preco) || preco <= 0) return false;
-      }
-    }
-  }
-  // "combos" e "bordas" são opcionais (podem não ter nenhum item cadastrado),
-  // mas se vierem precisam ser válidos
-  for(const catOpcional of ['combos','bordas']){
-    if(menu[catOpcional] !== undefined){
-      if(typeof menu[catOpcional] !== 'object' || Array.isArray(menu[catOpcional])) return false;
-      for(const nome of Object.keys(menu[catOpcional])){
-        const preco = menu[catOpcional][nome];
-        if(typeof preco !== 'number' || !isFinite(preco) || preco <= 0) return false;
-      }
-    }
-  }
-  return true;
+function mostrarAvisoConfig(msg){
+  const el = document.getElementById('aviso-config');
+  el.innerHTML = msg;
+  el.classList.add('show');
 }
 
-function salvarCardapioCache(snapshot){
+async function iniciar(){
+  renderTabs();
+  await Promise.all([carregarProdutos(), carregarConfiguracoes()]);
+}
+
+async function carregarConfiguracoes(){
   try{
-    const payload = { savedAt: new Date().toISOString(), ...snapshot };
-    localStorage.setItem(MENU_CACHE_KEY, JSON.stringify(payload));
-  } catch(e){
-    console.error('Não foi possível salvar o cache local do cardápio:', e);
+    const [{ data: h, error: eh }, { data: c, error: ec }] = await Promise.all([
+      supabaseClient.from('horario_funcionamento').select('*').order('dia_semana'),
+      supabaseClient.from('config_geral').select('*').eq('id', 1).maybeSingle()
+    ]);
+    if(eh) throw eh;
+    horarios = h || [];
+    if(!ec && c) configGeral = c;
+  } catch(err){
+    console.error('Erro ao carregar configurações:', err);
   }
+  renderConfiguracoes();
 }
 
-function carregarCardapioCache(){
+function renderTabs(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = CATEGORIAS.map(c =>
+    `<button class="tab ${c.key===categoriaAtiva?'active':''}" onclick="mudarCategoria('${c.key}')">${c.label}</button>`
+  ).join('');
+}
+
+function mudarCategoria(key){
+  categoriaAtiva = key;
+  renderTabs();
+  document.querySelectorAll('.categoria').forEach(el => el.classList.toggle('active', el.dataset.categoria === key));
+}
+
+async function carregarProdutos(){
+  setStatus('carregando…');
   try{
-    const raw = localStorage.getItem(MENU_CACHE_KEY);
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(!parsed || !validarCardapio(parsed.menu)) return null;
-    return parsed;
-  } catch(e){
-    console.error('Cache local do cardápio corrompido, ignorando:', e);
-    return null;
+    const { data, error } = await supabaseClient.from('products').select('*').order('category').order('sort_order');
+    if(error) throw error;
+    produtos = data || [];
+    setStatus(`${produtos.length} produtos · conectado`, 'ok');
+    renderCategorias();
+  } catch(err){
+    console.error(err);
+    setStatus('erro de conexão', 'erro');
+    mostrarAvisoConfig(`
+      <b>⚠️ Não consegui carregar os produtos.</b><br>
+      Isso normalmente acontece por falta de permissão no Supabase. Verifique:<br>
+      1. A tabela <b>products</b> existe no projeto <code>wzmiqubfzlmglimmtkoz</code>?<br>
+      2. Em <b>Authentication → Policies</b>, a tabela <b>products</b> tem uma política de <b>SELECT</b> liberada pro role <b>anon</b>?<br><br>
+      Erro técnico: <code>${(err && err.message) ? err.message : JSON.stringify(err)}</code>
+    `);
   }
 }
 
-function formatarDataHoraCache(iso){
-  try{
-    return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-  } catch(e){ return ''; }
+function renderCategorias(){
+  const box = document.getElementById('categorias');
+  box.innerHTML = CATEGORIAS.map(c => `
+    <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
+    </div>
+  `).join('');
+
+  CATEGORIAS.forEach(c => { if(c.key !== 'config' && c.key !== 'stats' && c.key !== 'avaliacoes') renderGrade(c.key); });
+  renderConfiguracoes();
+  renderEstatisticas();
+  renderAvaliacoes();
 }
 
-async function loadMenuFromDatabase(){
-  if(!supabaseClient){
-    throw new Error('Supabase não está configurado.');
+function renderGrade(catKey){
+  const grade = document.getElementById(`grade-${catKey}`);
+  const itens = produtos.filter(p => p.category === catKey);
+  const isPizza = catKey === 'pizza';
+  const isCombo = catKey === 'combo';
+
+  grade.innerHTML = itens.map(p => cardProdutoHTML(p, isPizza, isCombo)).join('')
+    + `<div class="card-novo" onclick="adicionarProduto('${catKey}')">➕<br>Adicionar ${CATEGORIAS.find(c=>c.key===catKey).label.replace(/s$/,'')}</div>`;
+}
+
+function precoUnico(p){
+  return (p.prices && p.prices.unico !== undefined) ? p.prices.unico : '';
+}
+function precoPizza(p, tam){
+  return (p.prices && p.prices[tam] !== undefined) ? p.prices[tam] : '';
+}
+function promoUnico(p){
+  return (p.promo_prices && p.promo_prices.unico !== undefined) ? p.promo_prices.unico : '';
+}
+function promoPizza(p, tam){
+  return (p.promo_prices && p.promo_prices[tam] !== undefined) ? p.promo_prices[tam] : '';
+}
+
+function cardProdutoHTML(p, isPizza, isCombo){
+  const precosHTML = isPizza ? `
+    <div class="linha-precos">
+      <div class="campo"><label>M</label><input type="number" step="0.01" id="preco-M-${p.id}" value="${precoPizza(p,'M')}"></div>
+      <div class="campo"><label>G</label><input type="number" step="0.01" id="preco-G-${p.id}" value="${precoPizza(p,'G')}"></div>
+      <div class="campo"><label>GG</label><input type="number" step="0.01" id="preco-GG-${p.id}" value="${precoPizza(p,'GG')}"></div>
+    </div>
+  ` : `
+    <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco-unico-${p.id}" value="${precoUnico(p)}"></div>
+  `;
+
+  const promoPrecosHTML = isPizza ? `
+    <div class="linha-precos">
+      <div class="campo"><label>M</label><input type="number" step="0.01" id="promo-M-${p.id}" value="${promoPizza(p,'M')}"></div>
+      <div class="campo"><label>G</label><input type="number" step="0.01" id="promo-G-${p.id}" value="${promoPizza(p,'G')}"></div>
+      <div class="campo"><label>GG</label><input type="number" step="0.01" id="promo-GG-${p.id}" value="${promoPizza(p,'GG')}"></div>
+    </div>
+  ` : `
+    <div class="campo"><label>Preço promocional (R$)</label><input type="number" step="0.01" id="promo-unico-${p.id}" value="${promoUnico(p)}"></div>
+  `;
+
+  const observacaoHTML = isCombo ? `
+    <div class="campo-toggle">
+      <input type="checkbox" id="precisa-nota-${p.id}" ${p.needs_note?'checked':''}>
+      <label for="precisa-nota-${p.id}" style="text-transform:none; font-weight:normal;">Pedir observação do cliente (ex: sabor da pizza, sabor do refrigerante)</label>
+    </div>
+    <div class="campo"><label>Dica mostrada pro cliente</label><input type="text" id="nota-dica-${p.id}" value="${(p.note_hint||'').replace(/"/g,'&quot;')}" placeholder="Ex: Escolha 2 sabores de brotinho"></div>
+  ` : '';
+
+  return `
+    <div class="produto ${p.active===false?'inativo':''}" id="card-${p.id}">
+      <input type="file" id="arquivo-foto-${p.id}" accept="image/*" onchange="uploadFoto(${p.id}, this)">
+      <div class="foto-wrap" onclick="document.getElementById('arquivo-foto-${p.id}').click()">
+        ${p.image_url ? `<img src="${p.image_url}" id="img-${p.id}">` : `<div class="foto-vazia" id="img-${p.id}">Sem foto —<br>toque pra enviar</div>`}
+        <div class="foto-overlay">📷 Trocar foto</div>
+      </div>
+
+      <div class="campo"><label>Nome</label><input type="text" id="nome-${p.id}" value="${(p.name||'').replace(/"/g,'&quot;')}"></div>
+
+      ${precosHTML}
+
+      <div class="campo"><label>Descrição / Características</label><textarea id="desc-${p.id}">${p.description||''}</textarea></div>
+
+      ${observacaoHTML}
+
+      <div class="campo-toggle">
+        <input type="checkbox" id="ativo-${p.id}" ${p.active!==false?'checked':''}>
+        <label for="ativo-${p.id}" style="text-transform:none; font-weight:normal;">Em estoque / visível pro cliente</label>
+      </div>
+
+      <div class="campo" style="border:1px dashed #ccc; border-radius:6px; padding:8px;">
+        <label>Controle de quantidade</label>
+        <select id="estoque-tipo-${p.id}" onchange="alternarCampoEstoque(${p.id})">
+          <option value="infinito" ${(p.stock_type||'infinito')==='infinito'?'selected':''}>Estoque infinito</option>
+          <option value="limitado" ${p.stock_type==='limitado'?'selected':''}>Estoque limitado</option>
+        </select>
+        <div id="estoque-detalhe-${p.id}" style="display:${p.stock_type==='limitado'?'flex':'none'}; flex-direction:column; gap:6px; margin-top:6px;">
+          <div class="campo"><label>Quantidade em estoque</label><input type="number" min="0" id="estoque-qtd-${p.id}" value="${p.stock_qty!==null && p.stock_qty!==undefined ? p.stock_qty : 0}"></div>
+          <div class="campo">
+            <label>Quando chegar a zero</label>
+            <select id="estoque-zero-${p.id}">
+              <option value="esgotado" ${(p.stock_zero_behavior||'esgotado')==='esgotado'?'selected':''}>Mostrar como Esgotado no cardápio</option>
+              <option value="esconder" ${p.stock_zero_behavior==='esconder'?'selected':''}>Esconder do cardápio</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="campo"><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
+
+      <details class="promo">
+        <summary>🏷️ Preço promocional (opcional)</summary>
+        <div class="conteudo-promo">
+          <div class="campo-toggle">
+            <input type="checkbox" id="promo-ativa-${p.id}" ${p.promo_active?'checked':''}>
+            <label for="promo-ativa-${p.id}" style="text-transform:none; font-weight:normal;">Preço promocional ativo</label>
+          </div>
+          ${promoPrecosHTML}
+          <div class="campo"><label>Selo da promoção</label><input type="text" id="promo-label-${p.id}" value="${(p.promo_label||'').replace(/"/g,'&quot;')}" placeholder="Ex: PROMOÇÃO"></div>
+        </div>
+      </details>
+
+      <div class="acoes-produto">
+        <button class="btn-salvar" onclick="salvarProduto(${p.id})">💾 Salvar</button>
+        <button class="btn-excluir" onclick="excluirProduto(${p.id})">🗑️ Excluir</button>
+      </div>
+      <div class="salvo-ok" id="salvo-${p.id}"></div>
+    </div>
+  `;
+}
+
+function alternarCampoEstoque(id){
+  const tipo = document.getElementById(`estoque-tipo-${id}`).value;
+  document.getElementById(`estoque-detalhe-${id}`).style.display = tipo === 'limitado' ? 'flex' : 'none';
+}
+
+function montarPrecos(id, isPizza){
+  if(isPizza){
+    const m = parseFloat(document.getElementById(`preco-M-${id}`).value);
+    const g = parseFloat(document.getElementById(`preco-G-${id}`).value);
+    const gg = parseFloat(document.getElementById(`preco-GG-${id}`).value);
+    const obj = {};
+    if(!isNaN(m)) obj.M = m;
+    if(!isNaN(g)) obj.G = g;
+    if(!isNaN(gg)) obj.GG = gg;
+    return obj;
+  } else {
+    const v = parseFloat(document.getElementById(`preco-unico-${id}`).value);
+    return isNaN(v) ? {} : { unico: v };
+  }
+}
+
+function montarPromoPrecos(id, isPizza){
+  if(isPizza){
+    const m = parseFloat(document.getElementById(`promo-M-${id}`).value);
+    const g = parseFloat(document.getElementById(`promo-G-${id}`).value);
+    const gg = parseFloat(document.getElementById(`promo-GG-${id}`).value);
+    const obj = {};
+    if(!isNaN(m)) obj.M = m;
+    if(!isNaN(g)) obj.G = g;
+    if(!isNaN(gg)) obj.GG = gg;
+    return obj;
+  } else {
+    const v = parseFloat(document.getElementById(`promo-unico-${id}`).value);
+    return isNaN(v) ? {} : { unico: v };
+  }
+}
+
+async function salvarProduto(id){
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+  const isPizza = p.category === 'pizza';
+  const isCombo = p.category === 'combo';
+
+  const ordemVal = document.getElementById(`ordem-${id}`).value;
+  const payload = {
+    name: document.getElementById(`nome-${id}`).value.trim(),
+    prices: montarPrecos(id, isPizza),
+    description: document.getElementById(`desc-${id}`).value.trim(),
+    active: document.getElementById(`ativo-${id}`).checked,
+    sort_order: ordemVal === '' ? null : parseInt(ordemVal, 10),
+    promo_active: document.getElementById(`promo-ativa-${id}`).checked,
+    promo_prices: montarPromoPrecos(id, isPizza),
+    promo_label: document.getElementById(`promo-label-${id}`).value.trim(),
+    stock_type: document.getElementById(`estoque-tipo-${id}`).value,
+    stock_qty: document.getElementById(`estoque-tipo-${id}`).value === 'limitado'
+      ? (parseInt(document.getElementById(`estoque-qtd-${id}`).value, 10) || 0)
+      : null,
+    stock_zero_behavior: document.getElementById(`estoque-zero-${id}`) ? document.getElementById(`estoque-zero-${id}`).value : 'esgotado',
+  };
+  if(isCombo){
+    payload.needs_note = document.getElementById(`precisa-nota-${id}`).checked;
+    payload.note_hint = document.getElementById(`nota-dica-${id}`).value.trim();
   }
 
-  const { data, error } = await supabaseClient
-    .from('products')
-    .select('*')
-    .eq('active', true)
-    .order('category')
-    .order('sort_order', { ascending:true, nullsFirst:false });
-
-  if(error) throw error;
+  const { data, error } = await supabaseClient.from('products').update(payload).eq('id', id).select();
+  const aviso = document.getElementById(`salvo-${id}`);
+  if(error){
+    alert('Não foi possível salvar.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "products" tem uma política de UPDATE liberada pro role anon no Supabase.' +
+      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : '') +
+      (error.message && error.message.includes('stock_') ? '\n\nParece que faltam as colunas de estoque (stock_type, stock_qty, stock_zero_behavior) na tabela products — rode o SQL de estoque que te passei.' : ''));
+    console.error(error);
+    return;
+  }
   if(!data || data.length === 0){
-    throw new Error('Nenhum produto ativo foi encontrado na tabela products.');
+    alert('As alterações NÃO foram salvas (0 linhas afetadas).\n\nIsso geralmente significa que a sua sessão expirou ou que falta permissão de UPDATE para o seu usuário na tabela "products". Tente sair e entrar de novo no painel.');
+    console.warn('Update de produto retornou 0 linhas.', { id, payload });
+    return;
+  }
+  Object.assign(p, payload);
+  aviso.textContent = '✅ Salvo!';
+  document.getElementById(`card-${id}`).classList.toggle('inativo', !payload.active);
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
+
+async function excluirProduto(id){
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+  if(!confirm(`Excluir "${p.name}" definitivamente? Não dá pra desfazer.`)) return;
+
+  const { data, error } = await supabaseClient.from('products').delete().eq('id', id).select();
+  if(error){
+    alert('Não foi possível excluir.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('A exclusão não teve efeito (0 linhas afetadas).\n\nIsso normalmente indica que falta uma política de DELETE liberada pro role anon na tabela "products" no Supabase.');
+    return;
+  }
+  produtos = produtos.filter(x => x.id !== id);
+  renderGrade(p.category);
+}
+
+async function adicionarProduto(catKey){
+  const nome = prompt('Nome do novo item:');
+  if(!nome || !nome.trim()) return;
+
+  const payload = {
+    category: catKey,
+    name: nome.trim(),
+    prices: catKey === 'pizza' ? { M:0, G:0, GG:0 } : { unico:0 },
+    description: '',
+    active: true,
+    sort_order: 999,
+    promo_active: false,
+    promo_prices: {},
+    promo_label: '',
+  };
+  if(catKey === 'combo'){
+    payload.needs_note = false;
+    payload.note_hint = '';
   }
 
-  const newMenu = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-  const newOriginal = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-  const newImages = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-  const newDescriptions = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-  const newPromoLabels = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-  const newComboNotes = {};
-  const newStock = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+  const { data, error } = await supabaseClient.from('products').insert(payload).select();
+  if(error){
+    alert('Não foi possível criar o produto.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "products" tem uma política de INSERT liberada pro role anon no Supabase.' +
+      (error.message && error.message.includes('needs_note') ? '\n\nParece que faltam as colunas "needs_note" e "note_hint" na tabela products — veja as instruções que te passei.' : ''));
+    console.error(error);
+    return;
+  }
+  produtos.push(data[0]);
+  renderGrade(catKey);
+}
 
-  data.forEach(p => {
-    const key = CATEGORY_DB_TO_MENU[p.category];
-    if(!key || !p.name || !p.prices) return;
+async function uploadFoto(id, inputEl){
+  const arquivo = inputEl.files[0];
+  if(!arquivo) return;
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
 
-    // Estoque: "infinito" (padrão, produto antigo sem esses campos cai aqui) ou
-    // "limitado". Se limitado e zerado com comportamento "esconder", o produto
-    // é tratado como se estivesse inativo — nem entra no cardápio.
-    const stockType = p.stock_type || 'infinito';
-    const stockQty = p.stock_qty;
-    const zeroBehavior = p.stock_zero_behavior || 'esgotado';
-    const esgotado = stockType === 'limitado' && (stockQty === null || stockQty === undefined || stockQty <= 0);
-    if(esgotado && zeroBehavior === 'esconder') return; // esconde do cardápio, igual produto inativo
+  const imgEl = document.getElementById(`img-${id}`);
+  const textoOriginal = imgEl.outerHTML;
+  imgEl.outerHTML = `<div class="foto-vazia" id="img-${id}">Enviando…</div>`;
 
-    const hasPromo = p.promo_active === true &&
-      p.promo_prices &&
-      Object.keys(p.promo_prices).length > 0;
+  const caminho = `${p.category}/${Date.now()}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const { error: erroUpload } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(caminho, arquivo, { upsert:true });
+  if(erroUpload){
+    alert('Não foi possível enviar a foto.\n\nErro do Supabase: ' + (erroUpload.message || JSON.stringify(erroUpload)) +
+      `\n\nVerifique se existe um bucket PÚBLICO chamado "${STORAGE_BUCKET}" no Storage do Supabase.`);
+    console.error(erroUpload);
+    document.getElementById(`img-${id}`).outerHTML = textoOriginal;
+    return;
+  }
 
-    const effective = hasPromo ? p.promo_prices : p.prices;
+  const { data: publicData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(caminho);
+  const url = publicData.publicUrl;
 
-    newMenu[key][p.name] = (key === 'pizzas')
-      ? effective
-      : (effective.unico ?? 0);
+  const { data: dataUpdate, error: erroUpdate } = await supabaseClient.from('products').update({ image_url: url }).eq('id', id).select();
+  if(erroUpdate){
+    alert('A foto foi enviada, mas não consegui salvar o link no produto.\n\nErro: ' + (erroUpdate.message || JSON.stringify(erroUpdate)));
+    console.error(erroUpdate);
+    return;
+  }
+  if(!dataUpdate || dataUpdate.length === 0){
+    alert('A foto foi enviada, mas o link NÃO foi salvo no produto (0 linhas afetadas). Tente sair e entrar de novo no painel.');
+    console.warn('Update de image_url retornou 0 linhas.', { id });
+    return;
+  }
 
-    newOriginal[key][p.name] = (key === 'pizzas')
-      ? p.prices
-      : (p.prices.unico ?? 0);
+  p.image_url = url;
+  document.getElementById(`img-${id}`).outerHTML = `<img src="${url}" id="img-${id}">`;
+}
 
-    if(p.image_url) newImages[key][p.name] = p.image_url;
-    if(p.description) newDescriptions[key][p.name] = p.description;
-    if(hasPromo) newPromoLabels[key][p.name] = p.promo_label || 'PROMOÇÃO';
-    if(key === 'combos'){
-      newComboNotes[p.name] = { needsNote: !!p.needs_note, noteHint: (p.note_hint || '').trim() };
-    }
+/* ==================== CONFIGURAÇÕES (horário + aviso de espera) ==================== */
+function horarioDoDia(dia){
+  return horarios.find(h => h.dia_semana === dia) || { dia_semana: dia, hora_abertura:null, hora_fechamento:null, fechado:true };
+}
 
-    newStock[key][p.name] = {
-      id: p.id,
-      infinito: stockType !== 'limitado',
-      qty: stockType === 'limitado' ? (stockQty || 0) : null,
-      esgotado
+function renderConfiguracoes(){
+  const el = document.getElementById('config-config');
+  if(!el) return;
+  const linhasHorario = DIAS_SEMANA.map((nome, dia) => {
+    const h = horarioDoDia(dia);
+    const abertura = (h.hora_abertura || '').slice(0,5);
+    const fechamento = (h.hora_fechamento || '').slice(0,5);
+    return `
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(255,255,255,.06); padding:8px 10px; border-radius:6px; margin-bottom:6px; font-size:.85rem;">
+        <span style="min-width:110px;">${nome}</span>
+        <label style="display:flex; align-items:center; gap:5px; font-weight:normal; text-transform:none;">
+          <input type="checkbox" id="hor-fechado-${dia}" ${h.fechado?'checked':''} onchange="alternarDiaFechado(${dia})">
+          Fechado o dia todo
+        </label>
+        <input type="time" id="hor-abre-${dia}" value="${abertura}" ${h.fechado?'disabled':''} style="width:110px;">
+        <span>até</span>
+        <input type="time" id="hor-fecha-${dia}" value="${fechamento}" ${h.fechado?'disabled':''} style="width:110px;">
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="max-width:640px;">
+      <h3 style="margin-top:0;">🕒 Horário de Funcionamento</h3>
+      <p style="font-size:.8rem; opacity:.8;">Fora desse horário, o cardápio continua acessível pro cliente, mas o pedido é marcado como "encomenda antecipada" (aviso de pagamento adiantado/sinal de 50%).</p>
+      ${linhasHorario}
+      <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarHorarios()">💾 Salvar Horários</button>
+      <div class="salvo-ok" id="salvo-horarios"></div>
+
+      <h3 style="margin-top:28px;">⏱️ Aviso de Tempo de Espera</h3>
+      <div class="campo-toggle">
+        <input type="checkbox" id="espera-ativo" ${configGeral.tempo_espera_ativo?'checked':''}>
+        <label for="espera-ativo" style="text-transform:none; font-weight:normal;">Mostrar aviso no topo do cardápio</label>
+      </div>
+      <div class="campo" style="margin-top:6px;"><label>Texto do aviso</label><input type="text" id="espera-texto" value="${(configGeral.tempo_espera_texto||'').replace(/"/g,'&quot;')}" placeholder="Ex: Tempo estimado hoje: 40-60 min"></div>
+      <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarAvisoEspera()">💾 Salvar Aviso</button>
+      <div class="salvo-ok" id="salvo-espera"></div>
+    </div>
+  `;
+}
+
+function alternarDiaFechado(dia){
+  const fechado = document.getElementById(`hor-fechado-${dia}`).checked;
+  document.getElementById(`hor-abre-${dia}`).disabled = fechado;
+  document.getElementById(`hor-fecha-${dia}`).disabled = fechado;
+}
+
+async function salvarHorarios(){
+  const linhas = DIAS_SEMANA.map((_, dia) => {
+    const fechado = document.getElementById(`hor-fechado-${dia}`).checked;
+    const abre = document.getElementById(`hor-abre-${dia}`).value;
+    const fecha = document.getElementById(`hor-fecha-${dia}`).value;
+    return {
+      dia_semana: dia,
+      fechado,
+      hora_abertura: fechado ? null : (abre || null),
+      hora_fechamento: fechado ? null : (fecha || null),
     };
   });
-
-  // Nunca aceita silenciosamente dados incompletos: se o formato vier errado
-  // (preço zerado, categoria vazia, etc.), trata como falha em vez de substituir
-  // o cardápio válido que já está na tela.
-  if(!validarCardapio(newMenu)){
-    throw new Error('Os dados recebidos do Supabase estão incompletos ou inválidos — o cardápio não foi atualizado.');
+  const { error } = await supabaseClient.from('horario_funcionamento').upsert(linhas, { onConflict: 'dia_semana' });
+  const aviso = document.getElementById('salvo-horarios');
+  if(error){
+    alert('Não foi possível salvar os horários.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "horario_funcionamento" existe e tem política de INSERT/UPDATE liberada pro role anon no Supabase — veja as instruções que te passei.');
+    console.error(error);
+    return;
   }
+  horarios = linhas;
+  aviso.textContent = '✅ Salvo!';
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
 
-  MENU = newMenu;
-  MENU_ORIGINAL = newOriginal;
-  PRODUCT_IMAGES = newImages;
-  PRODUCT_DESCRIPTIONS = newDescriptions;
-  PROMO_LABELS = newPromoLabels;
-  COMBO_NOTE_CONFIG = newComboNotes;
-  PRODUCT_STOCK = newStock;
+async function salvarAvisoEspera(){
+  const payload = {
+    id: 1,
+    tempo_espera_ativo: document.getElementById('espera-ativo').checked,
+    tempo_espera_texto: document.getElementById('espera-texto').value.trim(),
+  };
+  const { error } = await supabaseClient.from('config_geral').upsert(payload, { onConflict: 'id' });
+  const aviso = document.getElementById('salvo-espera');
+  if(error){
+    alert('Não foi possível salvar o aviso.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "config_geral" existe e tem política de INSERT/UPDATE liberada pro role anon no Supabase — veja as instruções que te passei.');
+    console.error(error);
+    return;
+  }
+  configGeral = payload;
+  aviso.textContent = '✅ Salvo!';
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
 
-  // O banco passa a ser a fonte oficial. Guarda uma cópia local válida para
-  // usar como rede de segurança se o Supabase falhar numa próxima visita.
-  salvarCardapioCache({
-    menu: newMenu, menuOriginal: newOriginal, images: newImages,
-    descriptions: newDescriptions, promoLabels: newPromoLabels, comboNotes: newComboNotes
+/* ==================== ESTATÍSTICAS ==================== */
+let statsPedidosCache = null; // guarda os pedidos já buscados, pra não reconsultar toda hora que troca o filtro
+let statsPeriodo = 'hoje';    // hoje | semana | mes | tudo | custom
+let statsDataIni = null;
+let statsDataFim = null;
+let ultimoStatsCalculado = null; // último objeto de estatísticas calculado, usado pela exportação
+
+function brlAdmin(v){ return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
+
+async function carregarPedidosParaStats(forcar){
+  if(statsPedidosCache && !forcar) return statsPedidosCache;
+  const { data, error } = await supabaseClient
+    .from('pedidos')
+    .select('id, created_at, total, texto_comanda, itens, impresso_em, finalizado_em')
+    .order('created_at', { ascending: true })
+    .limit(5000);
+  if(error){
+    console.error('Erro ao carregar pedidos para estatísticas:', error);
+    statsPedidosCache = [];
+    return statsPedidosCache;
+  }
+  statsPedidosCache = data || [];
+  return statsPedidosCache;
+}
+
+function parseMoneyBRAdmin(s){
+  if(!s) return null;
+  const limpo = String(s).trim().replace(/\./g,'').replace(',', '.');
+  const v = parseFloat(limpo);
+  return isNaN(v) ? null : v;
+}
+
+// A regra de faturamento é sempre extrair "💰 TOTAL A COBRAR: R$ X" do texto da
+// comanda — tem prioridade sobre a coluna "total", que pode ficar desatualizada
+// em pedidos editados manualmente.
+function extrairTotalCobrar(texto){
+  if(!texto) return null;
+  const m = texto.match(/TOTAL A COBRAR:\s*R\$\s*([\d.,]+)/i);
+  if(!m) return null;
+  return parseMoneyBRAdmin(m[1]);
+}
+
+// Usa o campo estruturado "itens" quando existir (pedidos novos, salvos a partir
+// da Etapa 2). Pedidos antigos não têm esse campo — nesse caso, interpreta o
+// texto da comanda (aproximado, mas cobre a maioria dos casos).
+function extrairItensPedido(pedido){
+  if(pedido.itens && Array.isArray(pedido.itens) && pedido.itens.length > 0) return pedido.itens;
+  return interpretarTextoComanda(pedido.texto_comanda || '');
+}
+
+function interpretarTextoComanda(texto){
+  const linhas = texto.split('\n');
+  const itens = [];
+  for(let i=0; i<linhas.length; i++){
+    const linha = linhas[i].trim();
+    let m;
+    if((m = linha.match(/^🍕\s*(\d+)x\s*Pizza\s*(\w+)/))){
+      const qty = parseInt(m[1],10);
+      const sabores = [];
+      let borda = null;
+      let j = i+1;
+      while(j < linhas.length && /^🔸/.test(linhas[j].trim())){
+        const fm = linhas[j].trim().match(/^🔸(?:\[\d+\/\d+\]\s*)?(.+)/);
+        if(fm) sabores.push(fm[1].trim());
+        j++;
+      }
+      if(j < linhas.length && /^🧀 Borda Recheada:/.test(linhas[j].trim())){
+        borda = linhas[j].trim().replace(/^🧀 Borda Recheada:\s*/,'').trim();
+      }
+      itens.push({ categoria:'pizza', nome:'Pizza', sabores, tamanho:m[2], borda, quantidade:qty });
+      i = j - 1;
+      continue;
+    }
+    if((m = linha.match(/^🥙\s*(\d+)x/))){
+      const sabores = {};
+      let j = i+1;
+      while(j < linhas.length && /^🔸/.test(linhas[j].trim())){
+        const fm = linhas[j].trim().match(/^🔸(\d+)x\s*(.+)/);
+        if(fm) sabores[fm[2].trim()] = (sabores[fm[2].trim()] || 0) + parseInt(fm[1],10);
+        j++;
+      }
+      const totalUnidades = Object.values(sabores).reduce((a,b)=>a+b,0);
+      itens.push({ categoria:'esfiha', nome:'Combo de Esfihas', sabores, quantidade: totalUnidades || parseInt(m[1],10) });
+      i = j - 1;
+      continue;
+    }
+    if((m = linha.match(/^🥟\s*(\d+)x\s*Calzone\s*(.+)/))){
+      itens.push({ categoria:'calzone', nome:'Calzone', sabor:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🍩\s*(\d+)x\s*Brotinho Doce\s*-\s*(.+)/))){
+      itens.push({ categoria:'brotinho', nome:'Brotinho Doce', sabor:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🥤\s*(\d+)x\s*(.+)/))){
+      itens.push({ categoria:'bebida', nome:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+    if((m = linha.match(/^🍽️\s*(\d+)x\s*(.+)/))){
+      itens.push({ categoria:'combo', nome:m[2].trim(), quantidade:parseInt(m[1],10) });
+      continue;
+    }
+  }
+  return itens;
+}
+
+function dataDoPedidoNoPeriodo(createdAt, periodo){
+  const d = new Date(createdAt);
+  const agora = new Date();
+  if(periodo === 'hoje') return d.toDateString() === agora.toDateString();
+  if(periodo === 'semana'){
+    const inicioSemana = new Date(agora);
+    inicioSemana.setDate(agora.getDate() - agora.getDay());
+    inicioSemana.setHours(0,0,0,0);
+    return d >= inicioSemana;
+  }
+  if(periodo === 'mes') return d.getFullYear() === agora.getFullYear() && d.getMonth() === agora.getMonth();
+  if(periodo === 'custom'){
+    if(!statsDataIni || !statsDataFim) return true;
+    const ini = new Date(statsDataIni + 'T00:00:00');
+    const fim = new Date(statsDataFim + 'T23:59:59');
+    return d >= ini && d <= fim;
+  }
+  return true; // 'tudo'
+}
+
+// Extrai informações extras do pedido a partir do texto da comanda: se é
+// entrega ou retirada, qual foi a forma de pagamento, e se os itens vieram
+// estruturados (exato) ou foram interpretados do texto (aproximado).
+function extrairMetaPedido(pedido){
+  const texto = pedido.texto_comanda || '';
+  const exato = !!(pedido.itens && Array.isArray(pedido.itens) && pedido.itens.length > 0);
+  let entrega = null;
+  if(/RETIRADA NO BALC[ÃA]O/i.test(texto)) entrega = 'retirada';
+  else if(/📍\s*Endereço:/.test(texto)) entrega = 'entrega';
+  let pagamento = null;
+  const mPag = texto.match(/💳\s*Pagamento:\s*(.+)/);
+  if(mPag) pagamento = mPag[1].trim();
+  let cliente = null;
+  const mCliente = texto.match(/👤\s*Cliente:\s*(.+)/);
+  if(mCliente) cliente = mCliente[1].trim();
+  let telefone = null;
+  const mTelefone = texto.match(/📞\s*Telefone:\s*(.+)/);
+  if(mTelefone) telefone = mTelefone[1].trim();
+  const totalExtraido = extrairTotalCobrar(texto);
+  let minutosPreparo = null;
+  if(pedido.impresso_em && pedido.finalizado_em){
+    minutosPreparo = (new Date(pedido.finalizado_em) - new Date(pedido.impresso_em)) / 60000;
+    if(minutosPreparo < 0) minutosPreparo = null; // dado inconsistente, ignora
+  }
+  return { exato, entrega, pagamento, cliente, telefone, minutosPreparo, total: totalExtraido !== null ? totalExtraido : (pedido.total || 0) };
+}
+
+function calcularEstatisticas(pedidosFiltrados){
+  let faturamento = 0;
+  let unidadesVendidas = 0;
+  let pedidosExatos = 0;
+  let pedidosAproximados = 0;
+  const produtosRanking = {};       // ranking geral, com categoria no nome pra não confundir sabores repetidos
+  const pizzaSabores = {};
+  const pizzaTamanhos = {};
+  const esfihaSabores = {};
+  const bebidaRanking = {};
+  const calzoneRanking = {};
+  const entregaRanking = { entrega:0, retirada:0, 'não identificado':0 };
+  const pagamentoContagem = {};     // forma de pagamento -> nº de pedidos
+  const pagamentoValor = {};        // forma de pagamento -> R$ total
+  const faturamentoPorDia = {};     // 'YYYY-MM-DD' -> valor
+  const pedidosPorHora = {};        // 0..23 -> nº de pedidos
+  const faturamentoPorDiaSemana = {};   // 'Domingo'..'Sábado' -> valor
+  const pedidosPorDiaSemana = {};       // 'Domingo'..'Sábado' -> nº de pedidos
+  const listaPedidos = []; // usada na tabela de pedidos do período
+  const NOMES_DIA_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const clientesRanking = {}; // telefone -> { nome, pedidos, total }
+  let somaMinutosPreparo = 0;
+  let countComTempoPreparo = 0;
+
+  let totalEntregaR$ = 0, countEntrega = 0, totalRetiradaR$ = 0, countRetirada = 0;
+
+  pedidosFiltrados.forEach(p => {
+    const meta = extrairMetaPedido(p);
+    faturamento += meta.total;
+    meta.exato ? pedidosExatos++ : pedidosAproximados++;
+
+    entregaRanking[meta.entrega || 'não identificado']++;
+    if(meta.entrega === 'entrega'){ totalEntregaR$ += meta.total; countEntrega++; }
+    else if(meta.entrega === 'retirada'){ totalRetiradaR$ += meta.total; countRetirada++; }
+
+    if(meta.pagamento){
+      pagamentoContagem[meta.pagamento] = (pagamentoContagem[meta.pagamento]||0) + 1;
+      pagamentoValor[meta.pagamento] = (pagamentoValor[meta.pagamento]||0) + meta.total;
+    }
+
+    const d = new Date(p.created_at);
+    const diaKey = d.toISOString().slice(0,10);
+    faturamentoPorDia[diaKey] = (faturamentoPorDia[diaKey]||0) + meta.total;
+
+    const hora = d.getHours();
+    pedidosPorHora[hora] = (pedidosPorHora[hora]||0) + 1;
+
+    const nomeDiaSemana = NOMES_DIA_SEMANA[d.getDay()];
+    faturamentoPorDiaSemana[nomeDiaSemana] = (faturamentoPorDiaSemana[nomeDiaSemana]||0) + meta.total;
+    pedidosPorDiaSemana[nomeDiaSemana] = (pedidosPorDiaSemana[nomeDiaSemana]||0) + 1;
+
+    listaPedidos.push({
+      created_at: p.created_at,
+      total: meta.total,
+      entrega: meta.entrega,
+      pagamento: meta.pagamento,
+      cliente: meta.cliente,
+      telefone: meta.telefone,
+      minutosPreparo: meta.minutosPreparo,
+      exato: meta.exato
+    });
+
+    if(meta.minutosPreparo !== null){
+      somaMinutosPreparo += meta.minutosPreparo;
+      countComTempoPreparo++;
+    }
+
+    if(meta.telefone){
+      if(!clientesRanking[meta.telefone]) clientesRanking[meta.telefone] = { nome: meta.cliente || meta.telefone, pedidos: 0, total: 0, nomesDistintos: new Set() };
+      clientesRanking[meta.telefone].pedidos++;
+      clientesRanking[meta.telefone].total += meta.total;
+      if(meta.cliente){
+        clientesRanking[meta.telefone].nome = meta.cliente; // usa o nome mais recente pra exibir
+        clientesRanking[meta.telefone].nomesDistintos.add(meta.cliente);
+      }
+    }
+
+    extrairItensPedido(p).forEach(item => {
+      const qty = item.quantidade || 1;
+      if(item.categoria === 'pizza'){
+        unidadesVendidas += qty;
+        (item.sabores || []).forEach(s => {
+          pizzaSabores[s] = (pizzaSabores[s]||0) + qty;
+          produtosRanking[`${s} (Pizza)`] = (produtosRanking[`${s} (Pizza)`]||0) + qty;
+        });
+        if(item.tamanho) pizzaTamanhos[item.tamanho] = (pizzaTamanhos[item.tamanho]||0) + qty;
+      } else if(item.categoria === 'esfiha'){
+        const sabores = item.sabores || {};
+        Object.keys(sabores).forEach(s => {
+          const q = sabores[s];
+          esfihaSabores[s] = (esfihaSabores[s]||0) + q;
+          produtosRanking[`${s} (Esfiha)`] = (produtosRanking[`${s} (Esfiha)`]||0) + q;
+          unidadesVendidas += q;
+        });
+      } else if(item.categoria === 'bebida'){
+        bebidaRanking[item.nome] = (bebidaRanking[item.nome]||0) + qty;
+        produtosRanking[`${item.nome} (Bebida)`] = (produtosRanking[`${item.nome} (Bebida)`]||0) + qty;
+        unidadesVendidas += qty;
+      } else if(item.categoria === 'calzone'){
+        calzoneRanking[item.sabor] = (calzoneRanking[item.sabor]||0) + qty;
+        produtosRanking[`${item.sabor} (Calzone)`] = (produtosRanking[`${item.sabor} (Calzone)`]||0) + qty;
+        unidadesVendidas += qty;
+      } else {
+        const nome = item.nome || 'Item';
+        const categoriaLabel = item.categoria ? ` (${item.categoria[0].toUpperCase()}${item.categoria.slice(1)})` : '';
+        produtosRanking[`${nome}${categoriaLabel}`] = (produtosRanking[`${nome}${categoriaLabel}`]||0) + qty;
+        unidadesVendidas += qty;
+      }
+    });
   });
 
-  return data;
+  listaPedidos.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return {
+    faturamento,
+    numPedidos: pedidosFiltrados.length,
+    pedidosExatos, pedidosAproximados,
+    ticketMedio: pedidosFiltrados.length ? faturamento / pedidosFiltrados.length : 0,
+    ticketMedioEntrega: countEntrega ? totalEntregaR$ / countEntrega : 0,
+    ticketMedioRetirada: countRetirada ? totalRetiradaR$ / countRetirada : 0,
+    tempoMedioPreparo: countComTempoPreparo ? somaMinutosPreparo / countComTempoPreparo : null,
+    countComTempoPreparo,
+    unidadesVendidas,
+    produtosRanking, pizzaSabores, pizzaTamanhos, esfihaSabores, bebidaRanking, calzoneRanking,
+    entregaRanking, pagamentoContagem, pagamentoValor, faturamentoPorDia, pedidosPorHora,
+    faturamentoPorDiaSemana, pedidosPorDiaSemana, listaPedidos, clientesRanking
+  };
 }
 
-function mostrarAvisoCardapio(mensagemHtml){
-  const existente = document.getElementById('db-error-banner');
-  if(existente) existente.remove();
-
-  const aviso = document.createElement('div');
-  aviso.id = 'db-error-banner';
-  aviso.style.cssText = [
-    'position:fixed',
-    'top:0',
-    'left:0',
-    'right:0',
-    'z-index:9999',
-    'padding:12px 16px',
-    'background:#7C3B1D',
-    'color:#fff',
-    'font:600 13px/1.45 Work Sans,sans-serif',
-    'text-align:center',
-    'box-shadow:0 3px 12px rgba(0,0,0,.25)'
-  ].join(';');
-
-  aviso.innerHTML = mensagemHtml +
-    ' <button onclick="location.reload()" style="margin-left:8px;padding:5px 9px;border:0;border-radius:6px;cursor:pointer;font-weight:700;">Tentar novamente</button>';
-
-  document.body.appendChild(aviso);
+function rankingHTML(obj, limite){
+  limite = limite || 8;
+  const entradas = Object.entries(obj).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]).slice(0, limite);
+  if(entradas.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  return '<ol class="stat-ranking-list">' + entradas.map(([nome,qty]) => `<li><span>${nome}</span><b>${qty}</b></li>`).join('') + '</ol>';
 }
 
-async function refreshAllUI(){
-  // reseta seleções que não existem mais no cardápio atualizado
-  if(!MENU.calzones[calzoneFlavor]) calzoneFlavor = Object.keys(MENU.calzones)[0];
-  if(!MENU.brotinho[brotinhoFlavor]) brotinhoFlavor = Object.keys(MENU.brotinho)[0];
-  if(!MENU.bebidas[bebidaItem]) bebidaItem = Object.keys(MENU.bebidas)[0];
-  const comboKeys = Object.keys(MENU.combos);
-  document.getElementById('combos').style.display = comboKeys.length ? '' : 'none';
-  document.getElementById('nav-combos').style.display = comboKeys.length ? '' : 'none';
-  if(comboKeys.length && !MENU.combos[comboItem]) comboItem = comboKeys[0];
-
-  pizzaState.flavors = pizzaState.flavors.map(f => MENU.pizzas[f] ? f : pizzaFlavorNames()[0]);
-
-  renderPizzaFlavorGrids();
-  renderPizzaCrustOptions();
-  renderCalzoneFlavorGrid(); updateCalzonePreview();
-  renderBrotinhoFlavorGrid(); updateBrotinhoPreview();
-  renderEsfihaFlavors();
-  renderBebidaFlavorGrid(); updateBebidaPreview();
-  if(comboKeys.length){ renderComboFlavorGrid(); updateComboPreview(); }
+// Gráfico de barras simples (sem lib externa) do faturamento por dia, dentro do período filtrado.
+function graficoFaturamentoPorDiaHTML(porDia){
+  const dias = Object.keys(porDia).sort();
+  if(dias.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  const max = Math.max(...dias.map(d => porDia[d]), 1);
+  const barras = dias.map(d => {
+    const valor = porDia[d];
+    const alturaPct = Math.max(4, Math.round((valor / max) * 100));
+    const [ano,mes,dia] = d.split('-');
+    return `
+      <div class="stat-bar-col" title="${dia}/${mes}: ${brlAdmin(valor)}">
+        <div class="stat-bar" style="height:${alturaPct}%"></div>
+        <span class="stat-bar-label">${dia}/${mes}</span>
+      </div>`;
+  }).join('');
+  return `<div class="stat-bar-chart">${barras}</div>`;
 }
 
-/* ==================== INIT FLAVOR GRIDS ==================== */
-function priceLabel(v){ return 'R$ ' + v.toFixed(2).replace('.', ','); }
-
-// Retorna o Set com os nomes esgotados de uma categoria do MENU (chave em PRODUCT_STOCK).
-function nomesEsgotados(key){
-  const stockKey = PRODUCT_STOCK[key] || {};
-  return new Set(Object.keys(stockKey).filter(n => stockKey[n].esgotado));
+// Gráfico de barras por hora do dia (0h-23h), pra enxergar o horário de pico dos pedidos.
+function graficoPorHoraHTML(porHora){
+  const horasComPedido = Object.keys(porHora).map(Number);
+  if(horasComPedido.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  const max = Math.max(...horasComPedido.map(h => porHora[h]), 1);
+  const barras = [];
+  for(let h = 0; h < 24; h++){
+    const valor = porHora[h] || 0;
+    const alturaPct = valor > 0 ? Math.max(4, Math.round((valor / max) * 100)) : 2;
+    barras.push(`
+      <div class="stat-bar-col" title="${h}h: ${valor} pedido${valor===1?'':'s'}">
+        <div class="stat-bar" style="height:${alturaPct}%; ${valor===0?'opacity:.25;':''}"></div>
+        <span class="stat-bar-label">${h}h</span>
+      </div>`);
+  }
+  return `<div class="stat-bar-chart">${barras.join('')}</div>`;
 }
 
-// Soma quantas unidades de um produto (por categoria+nome) já estão no carrinho,
-// pra não deixar passar do estoque disponível somando itens adicionados em blocos separados.
-function qtyNoCarrinho(key, name){
-  const typeMap = { pizzas:'pizza', calzones:'calzone', brotinho:'brotinho', bebidas:'bebida', combos:'combo' };
+function pagamentoHTML(contagem, valor){
+  const chaves = Object.keys(contagem).filter(k => contagem[k] > 0).sort((a,b) => (valor[b]||0) - (valor[a]||0));
+  if(chaves.length === 0) return '<p class="stat-empty">Nenhuma forma de pagamento identificada no texto das comandas desse período.</p>';
+  return '<ol class="stat-ranking-list">' + chaves.map(k =>
+    `<li><span>${k}</span><b>${brlAdmin(valor[k]||0)} · ${contagem[k]} pedido${contagem[k]===1?'':'s'}</b></li>`
+  ).join('') + '</ol>';
+}
+
+function diaSemanaHTML(valorPorDia, contagemPorDia){
+  const nomes = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const entradas = nomes
+    .map(n => [n, valorPorDia[n] || 0, contagemPorDia[n] || 0])
+    .filter(([,,c]) => c > 0)
+    .sort((a,b) => b[1] - a[1]);
+  if(entradas.length === 0) return '<p class="stat-empty">Sem dados nesse período.</p>';
+  return '<ol class="stat-ranking-list">' + entradas.map(([n,v,c]) =>
+    `<li><span>${n}</span><b>${brlAdmin(v)} · ${c} pedido${c===1?'':'s'}</b></li>`
+  ).join('') + '</ol>';
+}
+
+// Calcula os limites de data do período atualmente selecionado (pra poder buscar o
+// período anterior equivalente). Retorna null pra "todo o período" — não faz
+// sentido comparar "tudo" com um "período anterior".
+function limitesPeriodoAtual(periodo){
+  const agora = new Date();
+  if(periodo === 'hoje'){
+    const ini = new Date(agora); ini.setHours(0,0,0,0);
+    const fim = new Date(agora); fim.setHours(23,59,59,999);
+    return { ini, fim };
+  }
+  if(periodo === 'semana'){
+    const ini = new Date(agora); ini.setDate(agora.getDate() - agora.getDay()); ini.setHours(0,0,0,0);
+    const fim = new Date(ini); fim.setDate(ini.getDate() + 6); fim.setHours(23,59,59,999);
+    return { ini, fim };
+  }
+  if(periodo === 'mes'){
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), 1, 0,0,0,0);
+    const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23,59,59,999);
+    return { ini, fim };
+  }
+  if(periodo === 'custom' && statsDataIni && statsDataFim){
+    return { ini: new Date(statsDataIni + 'T00:00:00'), fim: new Date(statsDataFim + 'T23:59:59') };
+  }
+  return null;
+}
+function limitesPeriodoAnterior(periodo){
+  const atual = limitesPeriodoAtual(periodo);
+  if(!atual) return null;
+  const duracaoMs = atual.fim.getTime() - atual.ini.getTime() + 1;
+  const fimAnterior = new Date(atual.ini.getTime() - 1);
+  const iniAnterior = new Date(atual.ini.getTime() - duracaoMs);
+  return { ini: iniAnterior, fim: fimAnterior };
+}
+function faturamentoNoIntervalo(pedidos, ini, fim){
   let total = 0;
-  cart.forEach(item => {
-    if(key === 'pizzas' && item.type === 'pizza'){
-      (item.flavors || []).forEach(f => { if(f === name) total += item.qty; });
-    } else if(key === 'esfihas' && item.type === 'esfiha'){
-      total += (item.counts?.[name] || 0);
-    } else if(key === 'bordas' && item.type === 'pizza'){
-      if(item.crust === name) total += item.qty;
-    } else if(item.type === typeMap[key]){
-      if(item.flavor === name || item.item === name) total += item.qty;
-    }
+  pedidos.forEach(p => {
+    const d = new Date(p.created_at);
+    if(d >= ini && d <= fim) total += extrairMetaPedido(p).total;
   });
   return total;
 }
-
-// Confere se dá pra adicionar "qtyDesejada" unidades a mais desse produto sem passar do estoque.
-// Produto com estoque infinito sempre libera.
-function estoqueSuficiente(key, name, qtyDesejada){
-  const info = PRODUCT_STOCK[key]?.[name];
-  if(!info || info.infinito) return true;
-  return (qtyNoCarrinho(key, name) + qtyDesejada) <= info.qty;
-}
-function avisoEstoqueInsuficiente(name){
-  alert(`Ih, "${name}" não tem estoque suficiente pra essa quantidade agora. Ajuste a quantidade ou escolha outro sabor.`);
-}
-
-function renderFlavorGrid(containerId, obj, selectedValue, onSelect, opts){
-  opts = opts || {};
-  const images = opts.images || {};
-  const original = opts.original || {};
-  const promoLabels = opts.promoLabels || {};
-  const descriptions = opts.descriptions || {};
-  const compactCls = opts.compact ? ' compact' : '';
-  const soldOut = opts.soldOut || new Set();
-  const el = document.getElementById(containerId);
-  el.classList.toggle('compact', !!opts.compact);
-  el.innerHTML = Object.keys(obj).map(k => {
-    const hasPromo = original[k] !== undefined && original[k] !== obj[k];
-    const priceHtml = hasPromo
-      ? `<span class="fprice-old">${priceLabel(original[k])}</span><span class="fprice-promo">${priceLabel(obj[k])}</span>`
-      : `<span class="fprice">${priceLabel(obj[k])}</span>`;
-    const active = k === selectedValue;
-    const esgotado = soldOut.has(k);
-    const img = images[k];
-    const media = img ? `
-      <div class="fmedia">
-        <img class="fimg" src="${img}" alt="${k}" loading="lazy">
-        ${hasPromo && !esgotado ? `<span class="promo-badge">${promoLabels[k] || 'PROMO'}</span>` : ''}
-        ${esgotado ? `<span class="promo-badge" style="background:#777;">ESGOTADO</span>` : ''}
-        <span class="fbadge${active ? ' check' : ''}">${active ? '✓' : ''}</span>
-      </div>` : '';
-    const clickHandler = esgotado ? '' : `onclick="(${onSelect})('${k.replace(/'/g,"\\'")}')"`;
-    return `
-    <div class="flavor-card${compactCls}${active ? ' active' : ''}${img ? '' : ' no-media'}${esgotado ? ' sold-out' : ''}" style="${esgotado ? 'opacity:.55;cursor:not-allowed;' : ''}" ${clickHandler}>
-      ${media}
-      <div class="fbody">
-        <span class="fname">${k}${esgotado && !img ? ' — ESGOTADO' : ''}</span>
-        ${descriptions[k] ? `<span class="fdesc">${descriptions[k]}</span>` : ''}
-        <span class="fprice-row">${priceHtml}</span>
-      </div>
-    </div>
-  `;
-  }).join('');
-}
-
-/* ==================== LOGIN COM GOOGLE (opcional) ==================== */
-// Mesma conta usada no avaliar.html — quem logar aqui também acumula pontos lá,
-// e vice-versa. O login é só uma conveniência: pedir sem entrar continua funcionando normal.
-async function verificarLoginIndex(){
-  if(!supabaseClient) return;
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if(user){
-    mostrarUsuarioLogado(user);
-    await preencherDadosSalvos(user);
+function comparativoFaturamentoHTML(todosOsPedidos, faturamentoAtual, periodo){
+  const limitesAnt = limitesPeriodoAnterior(periodo);
+  if(!limitesAnt) return '';
+  const fatAnterior = faturamentoNoIntervalo(todosOsPedidos, limitesAnt.ini, limitesAnt.fim);
+  if(fatAnterior === 0){
+    return faturamentoAtual > 0 ? '<span class="stat-comparativo up">▲ sem vendas no período anterior pra comparar</span>' : '';
   }
-}
-async function entrarComGoogleIndex(){
-  if(!supabaseClient){
-    alert('Não foi possível iniciar o login: conexão com o servidor indisponível no momento.');
-    return;
-  }
-  const { error } = await supabaseClient.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
-  if(error){
-    console.error('Erro ao entrar com Google:', error);
-    alert('Não foi possível entrar com o Google.\n\nErro: ' + (error.message || JSON.stringify(error)) +
-      '\n\nIsso geralmente significa que o login com Google não está habilitado no Supabase, ou que esta URL não está na lista de "Redirect URLs" autorizadas.');
-  }
-}
-async function sairDoLogin(){
-  await supabaseClient.auth.signOut();
-  document.getElementById('login-btn-entrar').style.display = 'flex';
-  document.getElementById('login-logado').style.display = 'none';
-}
-function mostrarUsuarioLogado(user){
-  const nome = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Cliente';
-  const nomeEl = document.getElementById('login-nome-usuario');
-  if(nomeEl) nomeEl.textContent = nome.split(' ')[0];
-  const btnEl = document.getElementById('login-btn-entrar');
-  const logadoEl = document.getElementById('login-logado');
-  if(btnEl) btnEl.style.display = 'none';
-  if(logadoEl) logadoEl.style.display = 'flex';
-}
-async function preencherDadosSalvos(user){
-  try{
-    const { data } = await supabaseClient.from('pontos_clientes').select('*').eq('cliente_uid', user.id).maybeSingle();
-    const pontosEl = document.getElementById('login-pontos-usuario');
-    if(pontosEl) pontosEl.textContent = data?.pontos ? `⭐ ${data.pontos} ponto${data.pontos===1?'':'s'}` : '';
-    if(data){
-      const nomeInput = document.getElementById('chk-nome');
-      const telInput = document.getElementById('chk-telefone');
-      const endInput = document.getElementById('chk-endereco');
-      if(data.nome_pedido && nomeInput && !nomeInput.value) nomeInput.value = data.nome_pedido;
-      if(data.telefone && telInput && !telInput.value) telInput.value = data.telefone;
-      if(data.endereco && endInput && !endInput.value) endInput.value = data.endereco;
-    }
-  } catch(e){ console.error('Não foi possível carregar os dados salvos do cliente:', e); }
-}
-// Salva/atualiza nome, telefone e endereço do cliente logado — chamado ao enviar
-// um pedido, pra já deixar tudo pronto na próxima compra. Não bloqueia o envio.
-async function salvarPerfilCliente(){
-  if(!supabaseClient) return;
-  try{
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if(!user) return;
-    const nome = document.getElementById('chk-nome')?.value.trim() || '';
-    const telefone = document.getElementById('chk-telefone')?.value.trim() || '';
-    const endereco = document.getElementById('chk-endereco')?.value.trim() || '';
-    const { data: atual } = await supabaseClient.from('pontos_clientes').select('pontos, cliente_nome, cliente_email').eq('cliente_uid', user.id).maybeSingle();
-    await supabaseClient.from('pontos_clientes').upsert({
-      cliente_uid: user.id,
-      cliente_nome: atual?.cliente_nome || user.user_metadata?.full_name || user.user_metadata?.name || '',
-      cliente_email: atual?.cliente_email || user.email || '',
-      pontos: atual?.pontos || 0,
-      nome_pedido: nome,
-      telefone,
-      endereco,
-      atualizado_em: new Date().toISOString()
-    });
-  } catch(e){ console.error('Não foi possível salvar o perfil do cliente:', e); }
+  const variacao = ((faturamentoAtual - fatAnterior) / fatAnterior) * 100;
+  const subiu = variacao >= 0;
+  return `<span class="stat-comparativo ${subiu?'up':'down'}">${subiu?'▲':'▼'} ${Math.abs(variacao).toFixed(0)}% vs período anterior</span>`;
 }
 
-/* ==================== HORÁRIO DE FUNCIONAMENTO ==================== */
-// Horário configurável pelo admin (tabela horario_funcionamento, 1 linha por dia da
-// semana: 0=domingo ... 6=sábado). Se não der pra carregar do banco, cai num horário
-// de segurança (sex/sáb/dom, 18h-21h) pra nunca deixar o site sem essa checagem.
-let HORARIOS_FUNCIONAMENTO = null; // array de 7 linhas quando carregado
-const HORARIO_FALLBACK = [0,1,2,3,4,5,6].map(dia => ({
-  dia_semana: dia,
-  fechado: !(dia === 0 || dia === 5 || dia === 6),
-  hora_abertura: '18:00',
-  hora_fechamento: '21:00'
-}));
-
-async function carregarHorarioFuncionamento(){
-  if(!supabaseClient){ HORARIOS_FUNCIONAMENTO = HORARIO_FALLBACK; return; }
-  try{
-    const { data, error } = await supabaseClient.from('horario_funcionamento').select('*').order('dia_semana');
-    if(error || !data || data.length === 0) throw error || new Error('vazio');
-    HORARIOS_FUNCIONAMENTO = data;
-  } catch(e){
-    console.error('Não foi possível carregar o horário de funcionamento, usando horário padrão:', e);
-    HORARIOS_FUNCIONAMENTO = HORARIO_FALLBACK;
-  }
+function formatarMinutos(min){
+  if(min === null || min === undefined) return '—';
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h > 0 ? `${h}h${String(m).padStart(2,'0')}` : `${m} min`;
 }
 
-function horarioDoDia(dia){
-  return (HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK).find(h => h.dia_semana === dia);
+// Um telefone que aparece em MUITOS pedidos com nomes de cliente diferentes entre si
+// não é "um cliente fiel" — é provavelmente o celular/computador do atendente sendo
+// reutilizado pra digitar pedidos manuais de vários clientes diferentes (presenciais,
+// por telefone, etc). Sinaliza isso separadamente pra não confundir fidelização de
+// verdade com esse uso operacional do número.
+const LIMITE_PEDIDOS_SUSPEITO = 8;
+const LIMITE_NOMES_DISTINTOS_SUSPEITO = 3;
+
+function ehTelefoneDeAtendente(c){
+  return c.pedidos > LIMITE_PEDIDOS_SUSPEITO && c.nomesDistintos.size >= LIMITE_NOMES_DISTINTOS_SUSPEITO;
 }
 
-// Confere se "agora" cai dentro do intervalo [abertura, fechamento) de um dado dia,
-// considerando que o horário pode passar da meia-noite (ex: 18h às 01h).
-function dentroDoIntervalo(minutosAgora, abreMin, fechaMin){
-  if(abreMin === null || fechaMin === null) return false;
-  if(fechaMin > abreMin){
-    return minutosAgora >= abreMin && minutosAgora < fechaMin;
-  }
-  // vira a noite: aberto desde abreMin até 23:59 OU desde 00:00 até fechaMin
-  return minutosAgora >= abreMin || minutosAgora < fechaMin;
-}
-function paraMinutos(hhmm){
-  if(!hhmm) return null;
-  const [h,m] = hhmm.split(':').map(Number);
-  return h*60 + (m||0);
-}
+function clientesRankingHTML(clientes){
+  const todos = Object.values(clientes);
+  const fieis = todos.filter(c => !ehTelefoneDeAtendente(c)).sort((a,b) => b.total - a.total).slice(0, 10);
+  const atendente = todos.filter(ehTelefoneDeAtendente).sort((a,b) => b.pedidos - a.pedidos);
 
-function isStoreOpen(){
-  const now = new Date();
-  const diaHoje = now.getDay();
-  const diaOntem = (diaHoje + 6) % 7;
-  const minutosAgora = now.getHours()*60 + now.getMinutes();
-
-  const hHoje = horarioDoDia(diaHoje);
-  if(hHoje && !hHoje.fechado && dentroDoIntervalo(minutosAgora, paraMinutos(hHoje.hora_abertura), paraMinutos(hHoje.hora_fechamento))) return true;
-
-  // Cobre o caso do expediente de ontem ter virado a noite e ainda estar rolando agora
-  // (ex: ontem era sex 18h-01h e agora são 00h30 — hoje já é sábado, mas ainda tá "aberto de ontem").
-  const hOntem = horarioDoDia(diaOntem);
-  if(hOntem && !hOntem.fechado){
-    const abreOntem = paraMinutos(hOntem.hora_abertura);
-    const fechaOntem = paraMinutos(hOntem.hora_fechamento);
-    if(fechaOntem !== null && abreOntem !== null && fechaOntem <= abreOntem && minutosAgora < fechaOntem) return true;
-  }
-  return false;
-}
-
-function textoHorarioFuncionamento(){
-  const nomesDiasCorrigido = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-  const abertos = (HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK)
-    .filter(h => !h.fechado && h.hora_abertura && h.hora_fechamento)
-    .map(h => `${nomesDiasCorrigido[h.dia_semana]} ${ (h.hora_abertura||'').slice(0,5) }h às ${(h.hora_fechamento||'').slice(0,5)}h`);
-  if(abertos.length === 0) return 'nosso horário de funcionamento configurado';
-  return abertos.join(', ');
-}
-
-let storeClosedAtLoad = false;
-function checkStoreHours(){
-  storeClosedAtLoad = !isStoreOpen();
-  const banner = document.getElementById('horario-aviso');
-  if(banner){
-    const texto = banner.querySelector('.closed-banner p');
-    if(texto) texto.innerHTML = `Funcionamos <b>${textoHorarioFuncionamento()}</b>. Fora desse horário você pode ver o cardápio numa boa e, se quiser, já fazer sua <b>encomenda antecipada</b> — nesse caso pedimos pagamento adiantado ou um sinal de 50% para confirmar.`;
-    banner.style.display = storeClosedAtLoad ? 'block' : 'none';
-  }
-  const checkoutNote = document.getElementById('encomenda-antecipada-note');
-  if(checkoutNote) checkoutNote.style.display = storeClosedAtLoad ? 'block' : 'none';
-}
-
-/* ==================== AVISO DE TEMPO DE ESPERA ==================== */
-let CONFIG_GERAL = { tempo_espera_ativo:false, tempo_espera_texto:'' };
-async function carregarConfigGeral(){
-  if(!supabaseClient) return;
-  try{
-    const { data, error } = await supabaseClient.from('config_geral').select('*').eq('id',1).maybeSingle();
-    if(error || !data) return;
-    CONFIG_GERAL = data;
-  } catch(e){
-    console.error('Não foi possível carregar o aviso de tempo de espera:', e);
-  }
-}
-function mostrarAvisoTempoEspera(){
-  const el = document.getElementById('tempo-espera-aviso');
-  if(!el) return;
-  if(CONFIG_GERAL.tempo_espera_ativo && CONFIG_GERAL.tempo_espera_texto){
-    el.textContent = `⏱️ ${CONFIG_GERAL.tempo_espera_texto}`;
-    el.style.display = 'block';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  // Horário e aviso de espera carregam em paralelo com o resto, mas com um horário
-  // de segurança já disponível de imediato — checkStoreHours() nunca fica esperando.
-  checkStoreHours();
-  carregarHorarioFuncionamento().then(checkStoreHours);
-  carregarConfigGeral().then(mostrarAvisoTempoEspera);
-  verificarLoginIndex();
-
-  document.getElementById('combos').style.display = 'none';
-  document.getElementById('nav-combos').style.display = 'none';
-  renderCart();
-  setupScrollSpy();
-
-  // IMPORTANTE: primeiro busca o cardápio atual no Supabase (fonte oficial).
-  // Se falhar, cai pro cache local válido mais recente; se não houver cache,
-  // usa o cardápio de emergência — o site nunca fica sem itens pro cliente.
-  try {
-    await loadMenuFromDatabase();
-  } catch(err) {
-    console.error('Erro ao carregar cardápio do Supabase:', err);
-    const cache = carregarCardapioCache();
-    if(cache){
-      MENU = cache.menu;
-      MENU_ORIGINAL = cache.menuOriginal;
-      PRODUCT_IMAGES = cache.images;
-      PRODUCT_DESCRIPTIONS = cache.descriptions;
-      PROMO_LABELS = cache.promoLabels;
-      COMBO_NOTE_CONFIG = cache.comboNotes || {};
-      // Sem conexão com o Supabase não dá pra confiar no estoque salvo — trata
-      // tudo como disponível pra não travar vendas por causa de um dado desatualizado.
-      PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-      mostrarAvisoCardapio(
-        `⚠️ Não foi possível atualizar o cardápio agora. Mostrando a última versão salva (${formatarDataHoraCache(cache.savedAt)}).`
-      );
-    } else {
-      MENU = EMERGENCY_MENU;
-      MENU_ORIGINAL = JSON.parse(JSON.stringify(EMERGENCY_MENU));
-      PRODUCT_IMAGES = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-      PRODUCT_DESCRIPTIONS = EMERGENCY_DESCRIPTIONS;
-      PROMO_LABELS = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-      COMBO_NOTE_CONFIG = {};
-      PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
-      mostrarAvisoCardapio(
-        '⚠️ Não foi possível conectar ao cardápio online e não há uma versão salva neste aparelho. Mostrando o cardápio de emergência — confira os preços antes de fechar o pedido.'
-      );
-    }
-  }
-
-  renderCalzoneFlavorGrid();
-  renderBrotinhoFlavorGrid();
-  renderBebidaFlavorGrid();
-  renderPizzaFlavorGrids();
-  renderEsfihaFlavors();
-  updateCalzonePreview();
-  updateBrotinhoPreview();
-  updateBebidaPreview();
-  updatePizzaPreview();
-  await refreshAllUI();
-});
-
-/* ==================== PIZZA ==================== */
-function pizzaFlavorNames(){ return Object.keys(MENU.pizzas); }
-let pizzaState = { size:'M', style:1, qty:1, flavors:[pizzaFlavorNames()[0]] };
-let pizzaCrust = null; // null = sem borda, ou o nome da borda escolhida (ex: "Cheddar")
-
-function renderPizzaCrustOptions(){
-  const section = document.getElementById('crust-section');
-  const row = document.getElementById('pizza-crust-row');
-  const nomes = Object.keys(MENU.bordas || {});
-  if(nomes.length === 0){
-    section.style.display = 'none';
-    pizzaCrust = null;
-    return;
-  }
-  if(pizzaCrust && !MENU.bordas[pizzaCrust]) pizzaCrust = null;
-  section.style.display = '';
-  const bordasEsgotadas = nomesEsgotados('bordas');
-  const semBordaBtn = `<button type="button" class="opt-btn${pizzaCrust===null?' active':''}" onclick="selectPizzaCrust(null)">Sem borda</button>`;
-  const bordaBtns = nomes.map(nome => {
-    const preco = MENU.bordas[nome];
-    const esgotado = bordasEsgotadas.has(nome);
-    if(esgotado) return `<button type="button" class="opt-btn" disabled style="opacity:.5;cursor:not-allowed;">${nome} — ESGOTADO</button>`;
-    return `<button type="button" class="opt-btn${pizzaCrust===nome?' active':''}" onclick="selectPizzaCrust('${nome.replace(/'/g,"\\'")}')">${nome} (+${brl(preco)})</button>`;
-  }).join('');
-  row.innerHTML = semBordaBtn + bordaBtns;
-}
-
-function selectPizzaCrust(nome){
-  pizzaCrust = nome;
-  renderPizzaCrustOptions();
-  updatePizzaPreview();
-}
-
-function selectPizzaSize(size){
-  pizzaState.size = size;
-  document.querySelectorAll('#pizza-size-row .size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
-  const btn3 = document.getElementById('pizza-style-3');
-  if(size !== 'GG'){
-    btn3.disabled = true;
-    if(pizzaState.style === 3){ selectPizzaStyle(2); return; }
-  } else {
-    btn3.disabled = false;
-  }
-  renderPizzaFlavorGrids();
-}
-
-const PIZZA_STYLE_HINTS = {
-  1: 'Pizza inteira: 1 sabor só, do início ao fim.',
-  2: 'Meio a meio: escolha 2 sabores diferentes, um para cada metade. O preço é a média dos dois sabores escolhidos.',
-  3: '3 sabores: escolha 3 sabores diferentes, um para cada terço da pizza (disponível só no tamanho GG). O preço é a média dos três sabores escolhidos.'
-};
-
-function selectPizzaStyle(n){
-  if(n === 3 && pizzaState.size !== 'GG') return;
-  pizzaState.style = n;
-  pizzaState.flavors = (n === 1) ? [pizzaFlavorNames()[0]] : [];
-  document.querySelectorAll('#pizza-style-row .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.style) === n));
-  const hintEl = document.getElementById('pizza-style-hint');
-  if(hintEl) hintEl.textContent = PIZZA_STYLE_HINTS[n] || '';
-  renderPizzaFlavorGrids();
-}
-
-function togglePizzaFlavor(name){
-  const idx = pizzaState.flavors.indexOf(name);
-  if(idx > -1){
-    pizzaState.flavors.splice(idx, 1);
-  } else if(pizzaState.flavors.length < pizzaState.style){
-    pizzaState.flavors.push(name);
-  } else {
-    return; // já escolheu o máximo de sabores; precisa desmarcar um antes
-  }
-  renderPizzaFlavorGrids();
-}
-
-function selectPizzaFlavor(slot, flavor){
-  pizzaState.flavors[slot] = flavor;
-  renderPizzaFlavorGrids();
-}
-
-function renderPizzaFlavorGrids(){
-  const container = document.getElementById('pizza-flavors');
-  const names = pizzaFlavorNames();
-
-  if(pizzaState.style === 1){
-    if(pizzaState.flavors.length !== 1 || !MENU.pizzas[pizzaState.flavors[0]]) pizzaState.flavors = [names[0]];
-    container.innerHTML = `<div class="flavor-grid" id="pizza-flavor-grid-0"></div>`;
-    renderFlavorGrid('pizza-flavor-grid-0', priceMapForSize(pizzaState.size), pizzaState.flavors[0], `(f)=>selectPizzaFlavor(0,f)`, {
-      images: PRODUCT_IMAGES.pizzas,
-      original: originalPriceMapForSize(pizzaState.size),
-      promoLabels: PROMO_LABELS.pizzas,
-      descriptions: PRODUCT_DESCRIPTIONS.pizzas,
-      compact: true,
-      soldOut: nomesEsgotados('pizzas')
-    });
-  } else {
-    renderPizzaFlavorList();
-  }
-  updatePizzaPreview();
-}
-
-function renderPizzaFlavorList(){
-  const container = document.getElementById('pizza-flavors');
-  const names = pizzaFlavorNames();
-  const prices = priceMapForSize(pizzaState.size);
-  const originals = originalPriceMapForSize(pizzaState.size);
-  const selected = pizzaState.flavors;
-  const full = selected.length >= pizzaState.style;
-  const remaining = pizzaState.style - selected.length;
-
-  const hint = remaining > 0
-    ? `Marque ${remaining === pizzaState.style ? pizzaState.style : remaining} sabor${remaining>1?'es':''} na lista abaixo (faltam ${remaining}).`
-    : `Sabores escolhidos! Toque em um deles pra trocar.`;
-
-  const esgotados = nomesEsgotados('pizzas');
-  let html = `<p class="pizza-style-hint" style="margin-bottom:.5rem;">${hint}</p><div class="flavor-grid compact">`;
-  names.forEach(name => {
-    const idx = selected.indexOf(name);
-    const isSelected = idx > -1;
-    const esgotado = esgotados.has(name);
-    const isDisabled = (!isSelected && full) || esgotado;
-    const hasPromo = originals[name] !== undefined && originals[name] !== prices[name];
-    const priceHtml = hasPromo
-      ? `<span class="fprice-old">${priceLabel(originals[name])}</span><span class="fprice-promo">${priceLabel(prices[name])}</span>`
-      : `<span class="fprice">${priceLabel(prices[name])}</span>`;
-    const img = PRODUCT_IMAGES.pizzas[name];
-    const media = img ? `
-      <div class="fmedia">
-        <img class="fimg" src="${img}" alt="${name}" loading="lazy">
-        ${esgotado ? `<span class="promo-badge" style="background:#777;">ESGOTADO</span>` : ''}
-        <span class="fbadge${isSelected ? ' n'+(idx+1) : ''}">${isSelected ? (idx+1) : ''}</span>
-      </div>` : '';
-    const desc = PRODUCT_DESCRIPTIONS.pizzas[name] ? `<span class="fdesc">${PRODUCT_DESCRIPTIONS.pizzas[name]}</span>` : '';
-    const clickAttr = isDisabled ? '' : ` onclick="togglePizzaFlavor('${name.replace(/'/g,"\\'")}')"`;
-    html += `
-      <div class="flavor-card compact${isSelected?' active':''}${isDisabled?' disabled':''}${img?'':' no-media'}${esgotado?' sold-out':''}" style="${esgotado?'opacity:.55;cursor:not-allowed;':''}"${clickAttr}>
-        ${media}
-        <div class="fbody">
-          <span class="fname">${name}${esgotado && !img ? ' — ESGOTADO' : ''}</span>
-          ${desc}
-          <span class="fprice-row">${priceHtml}</span>
-        </div>
+  const tabelaFieis = fieis.length === 0
+    ? '<p class="stat-empty">Nenhum telefone identificado no texto das comandas desse período.</p>'
+    : `<div style="overflow-x:auto;">
+        <table class="stat-tabela">
+          <thead><tr><th>Cliente</th><th style="text-align:center;">Pedidos</th><th style="text-align:right;">Total gasto</th></tr></thead>
+          <tbody>${fieis.map(c => `<tr><td>${c.nome}</td><td style="text-align:center;">${c.pedidos}</td><td style="text-align:right;">${brlAdmin(c.total)}</td></tr>`).join('')}</tbody>
+        </table>
       </div>`;
-  });
-  html += '</div>';
-  container.innerHTML = html;
-}
 
-function priceMapForSize(size){
-  const out = {};
-  pizzaFlavorNames().forEach(f => out[f] = MENU.pizzas[f][size]);
-  return out;
-}
-function originalPriceMapForSize(size){
-  const out = {};
-  pizzaFlavorNames().forEach(f => out[f] = (MENU_ORIGINAL.pizzas[f] || MENU.pizzas[f])[size]);
-  return out;
-}
-
-
-function changePizzaQty(delta){
-  pizzaState.qty = Math.max(1, pizzaState.qty + delta);
-  document.getElementById('pizza-qty').textContent = pizzaState.qty;
-  updatePizzaPreview();
-}
-
-function getPizzaUnitPrice(){
-  if(pizzaState.flavors.length < pizzaState.style) return null;
-  let sum = 0;
-  for(let i=0;i<pizzaState.style;i++){
-    sum += MENU.pizzas[pizzaState.flavors[i]][pizzaState.size];
-  }
-  let unit = sum / pizzaState.style;
-  if(pizzaCrust && MENU.bordas[pizzaCrust]) unit += MENU.bordas[pizzaCrust];
-  return unit;
-}
-
-function updatePizzaPreview(){
-  const unit = getPizzaUnitPrice();
-  const previewEl = document.getElementById('pizza-price-preview');
-  const addBtn = document.getElementById('pizza-add-btn');
-  if(unit === null){
-    const remaining = pizzaState.style - pizzaState.flavors.length;
-    previewEl.textContent = `Escolha mais ${remaining} sabor${remaining>1?'es':''}`;
-    if(addBtn) addBtn.disabled = true;
-  } else {
-    previewEl.textContent = brl(unit * pizzaState.qty);
-    if(addBtn) addBtn.disabled = false;
-  }
-}
-
-function addPizzaToCart(){
-  const unit = getPizzaUnitPrice();
-  if(unit === null) return;
-  const flavors = pizzaState.flavors.slice(0, pizzaState.style);
-  const crust = (pizzaCrust && MENU.bordas[pizzaCrust]) ? pizzaCrust : null;
-  for(const f of flavors){
-    if(!estoqueSuficiente('pizzas', f, pizzaState.qty)){ avisoEstoqueInsuficiente(f); return; }
-  }
-  if(crust && !estoqueSuficiente('bordas', crust, pizzaState.qty)){ avisoEstoqueInsuficiente(crust); return; }
-  cart.push({
-    id: cartIdCounter++, type:'pizza', qty: pizzaState.qty, size: pizzaState.size, flavors, crust,
-    unitPrice: unit, lineTotal: unit * pizzaState.qty,
-    label: `Pizza ${pizzaState.size} (${flavors.length===1?'1 sabor':'fracionada'})`,
-    detail: flavors.map((f,i)=>`[${i+1}/${flavors.length}] ${f}`).join(', ') + (crust ? ` · + Borda Recheada ${crust}` : '')
-  });
-  pizzaState.qty = 1;
-  document.getElementById('pizza-qty').textContent = 1;
-  renderCart(); flashAdded();
-}
-
-
-/* ==================== CALZONE ==================== */
-let calzoneQty = 1;
-let calzoneFlavor = Object.keys(MENU.calzones)[0];
-function renderCalzoneFlavorGrid(){
-  renderFlavorGrid('calzone-flavor-grid', MENU.calzones, calzoneFlavor, 'selectCalzoneFlavor', {
-    images: PRODUCT_IMAGES.calzones, original: MENU_ORIGINAL.calzones, promoLabels: PROMO_LABELS.calzones,
-    descriptions: PRODUCT_DESCRIPTIONS.calzones, compact: true, soldOut: nomesEsgotados('calzones')
-  });
-}
-function selectCalzoneFlavor(f){ calzoneFlavor = f; renderCalzoneFlavorGrid(); updateCalzonePreview(); }
-function changeCalzoneQty(d){ calzoneQty = Math.max(1, calzoneQty+d); document.getElementById('calzone-qty').textContent = calzoneQty; updateCalzonePreview(); }
-function updateCalzonePreview(){
-  const price = MENU.calzones[calzoneFlavor] || 0;
-  document.getElementById('calzone-price-preview').textContent = brl(price * calzoneQty);
-}
-function addCalzoneToCart(){
-  const flavor = calzoneFlavor;
-  const price = MENU.calzones[flavor];
-  if(!estoqueSuficiente('calzones', flavor, calzoneQty)){ avisoEstoqueInsuficiente(flavor); return; }
-  cart.push({ id:cartIdCounter++, type:'calzone', qty:calzoneQty, flavor, unitPrice:price, lineTotal:price*calzoneQty, label:`Calzone ${flavor}`, detail:'' });
-  calzoneQty = 1; document.getElementById('calzone-qty').textContent = 1;
-  renderCart(); flashAdded();
-}
-
-/* ==================== BROTINHO ==================== */
-let brotinhoQty = 1;
-let brotinhoFlavor = Object.keys(MENU.brotinho)[0];
-function renderBrotinhoFlavorGrid(){
-  renderFlavorGrid('brotinho-flavor-grid', MENU.brotinho, brotinhoFlavor, 'selectBrotinhoFlavor', {
-    images: PRODUCT_IMAGES.brotinho, original: MENU_ORIGINAL.brotinho, promoLabels: PROMO_LABELS.brotinho,
-    descriptions: PRODUCT_DESCRIPTIONS.brotinho, compact: true, soldOut: nomesEsgotados('brotinho')
-  });
-}
-function selectBrotinhoFlavor(f){ brotinhoFlavor = f; renderBrotinhoFlavorGrid(); updateBrotinhoPreview(); }
-function changeBrotinhoQty(d){ brotinhoQty = Math.max(1, brotinhoQty+d); document.getElementById('brotinho-qty').textContent = brotinhoQty; updateBrotinhoPreview(); }
-function updateBrotinhoPreview(){
-  let price = MENU.brotinho[brotinhoFlavor] || 0;
-  if(document.getElementById('brotinho-disquetes').checked) price += DISQUETES_PRICE;
-  document.getElementById('brotinho-price-preview').textContent = brl(price * brotinhoQty);
-}
-function addBrotinhoToCart(){
-  const flavor = brotinhoFlavor;
-  const disquetes = document.getElementById('brotinho-disquetes').checked;
-  const price = MENU.brotinho[flavor] + (disquetes ? DISQUETES_PRICE : 0);
-  if(!estoqueSuficiente('brotinho', flavor, brotinhoQty)){ avisoEstoqueInsuficiente(flavor); return; }
-  cart.push({ id:cartIdCounter++, type:'brotinho', qty:brotinhoQty, flavor, disquetes, unitPrice:price, lineTotal:price*brotinhoQty, label:`Brotinho Doce - ${flavor}`, detail: disquetes ? 'Complemento: Disquetes' : '' });
-  brotinhoQty = 1; document.getElementById('brotinho-qty').textContent = 1;
-  document.getElementById('brotinho-disquetes').checked = false;
-  renderCart(); flashAdded();
-}
-
-/* ==================== ESFIHAS ==================== */
-const ESFIHA_MIN_QTY = 5;
-let esfihaCounts = {};
-function renderEsfihaFlavors(){
-  const container = document.getElementById('esfiha-flavors');
-  esfihaCounts = {};
-  Object.keys(MENU.esfihas).forEach(f => esfihaCounts[f] = 0);
-  const esfihasEsgotadas = nomesEsgotados('esfihas');
-  container.innerHTML = `<div class="flavor-grid compact">` + Object.keys(MENU.esfihas).map(f => {
-    const img = PRODUCT_IMAGES.esfihas[f];
-    const esgotado = esfihasEsgotadas.has(f);
-    const media = img ? `
-      <div class="fmedia">
-        <img class="fimg" src="${img}" alt="${f}" loading="lazy">
-        ${esgotado ? `<span class="promo-badge" style="background:#777;">ESGOTADO</span>` : ''}
-        <span class="fbadge" id="esf-badge-${slug(f)}"></span>
-      </div>` : '';
-    const desc = PRODUCT_DESCRIPTIONS.esfihas[f] ? `<span class="fdesc">${PRODUCT_DESCRIPTIONS.esfihas[f]}</span>` : '';
-    return `
-    <div class="flavor-card compact${img ? '' : ' no-media'}${esgotado ? ' sold-out' : ''}" style="${esgotado ? 'opacity:.55;' : ''}" id="esf-card-${slug(f)}">
-      ${media}
-      <div class="fbody">
-        <span class="fname">${f}${esgotado && !img ? ' — ESGOTADO' : ''}</span>
-        ${desc}
-        <span class="fprice-row"><span class="fprice">R$ ${MENU.esfihas[f].toFixed(2).replace('.',',')}/un</span></span>
-        <div class="esf-count-controls">
-          <button class="step-btn" ${esgotado?'disabled':''} onclick="changeEsfihaCount('${f.replace(/'/g,"\\'")}',-1)">-</button>
-          <span class="step-val" id="esf-count-${slug(f)}">0</span>
-          <button class="step-btn" ${esgotado?'disabled style="opacity:.5;cursor:not-allowed;"':''} onclick="changeEsfihaCount('${f.replace(/'/g,"\\'")}',1)">+</button>
-        </div>
+  const tabelaAtendente = atendente.length === 0 ? '' : `
+    <div style="margin-top:16px;">
+      <p class="stat-sub" style="display:block; margin-bottom:6px;">📱 Esses telefones apareceram em mais de ${LIMITE_PEDIDOS_SUSPEITO} pedidos com ${LIMITE_NOMES_DISTINTOS_SUSPEITO}+ nomes de cliente diferentes — provavelmente é o celular/computador de quem atende, usado pra digitar pedido manual de vários clientes distintos (não é fidelização de verdade). Foram excluídos do ranking de clientes fiéis acima.</p>
+      <div style="overflow-x:auto;">
+        <table class="stat-tabela">
+          <thead><tr><th>Telefone</th><th style="text-align:center;">Pedidos</th><th style="text-align:center;">Nomes diferentes usados</th><th style="text-align:right;">Total</th></tr></thead>
+          <tbody>${atendente.map(c => `<tr><td>📱 ${Object.keys(clientes).find(k=>clientes[k]===c) || ''}</td><td style="text-align:center;">${c.pedidos}</td><td style="text-align:center;">${c.nomesDistintos.size}</td><td style="text-align:right;">${brlAdmin(c.total)}</td></tr>`).join('')}</tbody>
+        </table>
       </div>
     </div>`;
-  }).join('') + `</div>`;
-  updateEsfihaProgress();
-}
-function slug(s){ return s.replace(/[^a-zA-Z0-9]/g,''); }
-function changeEsfihaCount(flavor, delta){
-  if(delta===-1 && esfihaCounts[flavor]<=0) return;
-  if(delta===1){
-    const info = PRODUCT_STOCK.esfihas?.[flavor];
-    if(info && !info.infinito && esfihaCounts[flavor] >= info.qty){ avisoEstoqueInsuficiente(flavor); return; }
-  }
-  esfihaCounts[flavor] += delta;
-  document.getElementById('esf-count-'+slug(flavor)).textContent = esfihaCounts[flavor];
-  const card = document.getElementById('esf-card-'+slug(flavor));
-  const badge = document.getElementById('esf-badge-'+slug(flavor));
-  if(card) card.classList.toggle('active', esfihaCounts[flavor] > 0);
-  if(badge){
-    badge.textContent = esfihaCounts[flavor] > 0 ? esfihaCounts[flavor] : '';
-    badge.classList.toggle('check', esfihaCounts[flavor] > 0);
-  }
-  updateEsfihaProgress();
-}
-function updateEsfihaProgress(){
-  const total = Object.values(esfihaCounts).reduce((a,b)=>a+b,0);
-  const price = Object.keys(esfihaCounts).reduce((sum,f)=> sum + esfihaCounts[f]*MENU.esfihas[f], 0);
-  const progEl = document.getElementById('esfiha-progress');
-  progEl.textContent = total < ESFIHA_MIN_QTY
-    ? `${total} esfiha${total===1?'':'s'} selecionada${total===1?'':'s'} (mínimo ${ESFIHA_MIN_QTY})`
-    : `${total} esfihas selecionadas`;
-  progEl.classList.toggle('ok', total>=ESFIHA_MIN_QTY);
-  document.getElementById('esfiha-price-preview').textContent = brl(price);
-  document.getElementById('esfiha-add-btn').disabled = (total < ESFIHA_MIN_QTY);
-}
-function addEsfihaToCart(){
-  const total = Object.values(esfihaCounts).reduce((a,b)=>a+b,0);
-  if(total < ESFIHA_MIN_QTY) return;
-  for(const f of Object.keys(esfihaCounts)){
-    if(esfihaCounts[f] > 0 && !estoqueSuficiente('esfihas', f, esfihaCounts[f])){ avisoEstoqueInsuficiente(f); return; }
-  }
-  const price = Object.keys(esfihaCounts).reduce((sum,f)=> sum + esfihaCounts[f]*MENU.esfihas[f], 0);
-  const detail = Object.keys(esfihaCounts).filter(f=>esfihaCounts[f]>0)
-    .map(f => `${esfihaCounts[f]}x ${f} (R$ ${MENU.esfihas[f].toFixed(2).replace('.',',')}/un)`).join(', ');
-  cart.push({ id:cartIdCounter++, type:'esfiha', qty:1, comboSize:total, counts:{...esfihaCounts}, unitPrice:price, lineTotal:price, label:`Combo ${total} Esfihas`, detail });
-  renderEsfihaFlavors();
-  renderCart(); flashAdded();
+
+  return tabelaFieis + tabelaAtendente;
 }
 
-/* ==================== BEBIDA ==================== */
-let bebidaQty = 1;
-let bebidaItem = Object.keys(MENU.bebidas)[0];
-function renderBebidaFlavorGrid(){
-  renderFlavorGrid('bebida-flavor-grid', MENU.bebidas, bebidaItem, 'selectBebidaFlavor', {
-    images: PRODUCT_IMAGES.bebidas, original: MENU_ORIGINAL.bebidas, promoLabels: PROMO_LABELS.bebidas, compact: true, soldOut: nomesEsgotados('bebidas')
-  });
-}
-function selectBebidaFlavor(f){ bebidaItem = f; renderBebidaFlavorGrid(); updateBebidaPreview(); }
-function changeBebidaQty(d){ bebidaQty = Math.max(1, bebidaQty+d); document.getElementById('bebida-qty').textContent = bebidaQty; updateBebidaPreview(); }
-function updateBebidaPreview(){
-  const price = MENU.bebidas[bebidaItem] || 0;
-  document.getElementById('bebida-price-preview').textContent = brl(price * bebidaQty);
-}
-function addBebidaToCart(){
-  const item = bebidaItem;
-  const price = MENU.bebidas[item];
-  if(!estoqueSuficiente('bebidas', item, bebidaQty)){ avisoEstoqueInsuficiente(item); return; }
-  cart.push({ id:cartIdCounter++, type:'bebida', qty:bebidaQty, item, unitPrice:price, lineTotal:price*bebidaQty, label:item, detail:'' });
-  bebidaQty = 1; document.getElementById('bebida-qty').textContent = 1;
-  renderCart(); flashAdded();
-}
-
-/* ==================== COMBOS ==================== */
-let comboQty = 1;
-let comboItem = null;
-let comboNote = '';
-function renderComboFlavorGrid(){
-  if(!comboItem) comboItem = Object.keys(MENU.combos)[0];
-  renderFlavorGrid('combo-flavor-grid', MENU.combos, comboItem, 'selectComboFlavor', {
-    images: PRODUCT_IMAGES.combos, original: MENU_ORIGINAL.combos, promoLabels: PROMO_LABELS.combos,
-    descriptions: PRODUCT_DESCRIPTIONS.combos, soldOut: nomesEsgotados('combos')
-  });
-  renderComboNoteField();
-}
-function selectComboFlavor(f){ comboItem = f; comboNote = ''; renderComboFlavorGrid(); updateComboPreview(); }
-function changeComboQty(d){ comboQty = Math.max(1, comboQty+d); document.getElementById('combo-qty').textContent = comboQty; updateComboPreview(); }
-
-function renderComboNoteField(){
-  const box = document.getElementById('combo-note-box');
-  const cfg = COMBO_NOTE_CONFIG[comboItem];
-  if(!cfg || !cfg.needsNote){
-    box.style.display = 'none';
-    box.innerHTML = '';
-    return;
-  }
-  box.style.display = '';
-  box.innerHTML = `
-    <span class="field-label">Observação — ${cfg.noteHint ? cfg.noteHint.replace(/</g,'&lt;') : 'conte pra gente o que precisa'} <span style="color:var(--rust-dark);">*</span></span>
-    <textarea id="combo-note-input" placeholder="${cfg.noteHint ? cfg.noteHint.replace(/"/g,'&quot;') : 'Escreva aqui...'}" oninput="onComboNoteInput(this.value)">${comboNote}</textarea>
+function tabelaPedidosHTML(lista){
+  if(lista.length === 0) return '<p class="stat-empty">Sem pedidos nesse período.</p>';
+  const LIMITE_LINHAS = 100;
+  const mostrar = lista.slice(0, LIMITE_LINHAS);
+  const linhas = mostrar.map(p => {
+    const data = new Date(p.created_at);
+    const dataStr = data.toLocaleDateString('pt-BR');
+    const horaStr = data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const tipo = p.entrega === 'retirada' ? '🏠 Retirada' : p.entrega === 'entrega' ? '🛵 Entrega' : '—';
+    const precisao = p.exato
+      ? '<span class="stat-badge exato">🟢 Exato</span>'
+      : '<span class="stat-badge aproximado">🟡 Aproximado</span>';
+    return `<tr>
+      <td>${dataStr} ${horaStr}</td>
+      <td>${p.cliente || '—'}</td>
+      <td>${tipo}</td>
+      <td>${p.pagamento || '—'}</td>
+      <td style="text-align:right;">${brlAdmin(p.total)}</td>
+      <td style="text-align:center;">${formatarMinutos(p.minutosPreparo)}</td>
+      <td>${precisao}</td>
+    </tr>`;
+  }).join('');
+  const aviso = lista.length > LIMITE_LINHAS
+    ? `<p class="stat-empty" style="margin-top:6px;">Mostrando os ${LIMITE_LINHAS} pedidos mais recentes de ${lista.length} no período.</p>`
+    : '';
+  return `
+    <div style="overflow-x:auto;">
+      <table class="stat-tabela">
+        <thead><tr><th>Data/Hora</th><th>Cliente</th><th>Tipo</th><th>Pagamento</th><th style="text-align:right;">Total</th><th style="text-align:center;">Preparo</th><th>Dado</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+    ${aviso}
   `;
 }
-function onComboNoteInput(v){ comboNote = v; updateComboPreview(); }
 
-function updateComboPreview(){
-  const price = MENU.combos[comboItem] || 0;
-  document.getElementById('combo-price-preview').textContent = brl(price * comboQty);
-  const cfg = COMBO_NOTE_CONFIG[comboItem];
-  const precisaNota = cfg && cfg.needsNote;
-  const notaOk = !precisaNota || (comboNote && comboNote.trim().length > 0);
-  document.getElementById('combo-add-btn').disabled = !notaOk;
-}
-function addComboToCart(){
-  const item = comboItem;
-  const price = MENU.combos[item];
-  const cfg = COMBO_NOTE_CONFIG[item];
-  const precisaNota = cfg && cfg.needsNote;
-  if(precisaNota && (!comboNote || !comboNote.trim())) return;
-  if(!estoqueSuficiente('combos', item, comboQty)){ avisoEstoqueInsuficiente(item); return; }
-  const nota = precisaNota ? comboNote.trim() : '';
-  cart.push({
-    id:cartIdCounter++, type:'combo', qty:comboQty, item, unitPrice:price, lineTotal:price*comboQty,
-    label:`Combo - ${item}`,
-    detail: PRODUCT_DESCRIPTIONS.combos[item] || '',
-    note: nota
-  });
-  comboQty = 1; document.getElementById('combo-qty').textContent = 1;
-  comboNote = ''; renderComboNoteField();
-  renderCart(); flashAdded();
-}
+async function renderAvaliacoes(){
+  const el = document.getElementById('config-avaliacoes');
+  if(!el) return;
+  el.innerHTML = '<p>Carregando avaliações…</p>';
 
-/* ==================== CARRINHO ==================== */
-function removeFromCart(id){ cart = cart.filter(i => i.id !== id); renderCart(); }
+  const [{ data: avaliacoes, error: erroAval }, { data: pontos, error: erroPontos }] = await Promise.all([
+    supabaseClient.from('avaliacoes').select('*').order('id', { ascending:false }).limit(200),
+    supabaseClient.from('pontos_clientes').select('*').order('pontos', { ascending:false }).limit(100)
+  ]);
 
-function getSubtotal(){ return cart.reduce((s,i)=>s+i.lineTotal,0); }
-function getFee(){
-  if(fulfillment !== 'entrega') return 0;
-  const sub = getSubtotal();
-  return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
-}
-function getExtras(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
-
-// ===== CÁLCULO AUTOMÁTICO DE TROCO =====
-function parseMoneyBR(str){
-  if(!str) return null;
-  let cleaned = str.replace(/[Rr]\$/g, '').trim();
-  if(cleaned.includes(',') && cleaned.includes('.')){
-    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-  } else if(cleaned.includes(',')){
-    cleaned = cleaned.replace(',', '.');
-  }
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? null : num;
-}
-
-let trocoNeed = null; // true = sim, false = não, null = ainda não escolheu
-
-function selectTrocoNeed(need){
-  trocoNeed = need;
-  document.getElementById('troco-need-row').classList.remove('field-error');
-  document.querySelectorAll('#troco-need-row .opt-btn').forEach(b => {
-    b.classList.toggle('active', (b.dataset.trocoNeed === 'sim') === need);
-  });
-  const wrap = document.getElementById('troco-valor-wrap');
-  if(need){
-    wrap.style.display = 'block';
-    document.getElementById('chk-troco').focus();
-    atualizarTrocoCalculado();
-  } else {
-    wrap.style.display = 'none';
-    document.getElementById('chk-troco').value = '';
-    document.getElementById('chk-troco').classList.remove('field-error');
-    document.getElementById('troco-calc-hint').style.display = 'none';
-  }
-}
-
-function sanitizeTrocoInput(el){
-  // só números e um separador decimal (vírgula ou ponto) — letras/símbolos não passam
-  let v = el.value.replace(/[^0-9.,]/g, '');
-  const firstSep = v.search(/[.,]/);
-  if(firstSep !== -1){
-    v = v.slice(0, firstSep+1) + v.slice(firstSep+1).replace(/[.,]/g, '');
-  }
-  el.value = v;
-  el.classList.remove('field-error');
-}
-
-function atualizarTrocoCalculado(){
-  const hint = document.getElementById('troco-calc-hint');
-  if(!hint) return;
-
-  if(trocoNeed !== true){ hint.style.display = 'none'; return; }
-
-  const raw = document.getElementById('chk-troco').value.trim();
-  if(!raw){ hint.style.display = 'none'; return; }
-
-  const valorPago = parseMoneyBR(raw);
-  if(valorPago === null){
-    hint.style.display = 'block';
-    hint.style.color = 'var(--ink-soft)';
-    hint.textContent = 'Digite apenas números (ex: 100).';
+  if(erroAval || erroPontos){
+    el.innerHTML = `
+      <b>⚠️ Não consegui carregar avaliações/pontos.</b><br>
+      Verifique se as tabelas <b>avaliacoes</b> e <b>pontos_clientes</b> têm uma política de <b>SELECT</b> liberada
+      para o seu usuário (staff) no Supabase.<br><br>
+      Erro técnico: <code>${((erroAval||erroPontos).message)||JSON.stringify(erroAval||erroPontos)}</code>
+    `;
     return;
   }
 
-  const total = getSubtotal() + getFee() + getExtras();
-  const trocoCalc = valorPago - total;
-  hint.style.display = 'block';
-  if(trocoCalc < 0){
-    hint.style.color = 'var(--rust-dark)';
-    hint.textContent = `O valor informado (R$ ${valorPago.toFixed(2).replace('.',',')}) é menor que o total do pedido (R$ ${total.toFixed(2).replace('.',',')}).`;
-  } else {
-    hint.style.color = 'var(--forest-dark)';
-    hint.textContent = `💰 Troco: R$ ${trocoCalc.toFixed(2).replace('.',',')}`;
-  }
-}
+  const listaAvaliacoes = avaliacoes || [];
+  const listaPontos = pontos || [];
 
-function toggleKetchup(checked){ wantKetchup = checked; renderCart(); }
-function changeMaioneseQty(delta){
-  maioneseQty = Math.max(0, maioneseQty + delta);
-  document.getElementById('maionese-qty').textContent = maioneseQty;
-  renderCart();
-}
+  const mediaNota = listaAvaliacoes.length
+    ? (listaAvaliacoes.reduce((s,a)=>s+(a.nota||0),0) / listaAvaliacoes.length).toFixed(1)
+    : '—';
 
-function renderCart(){
-  const box = document.getElementById('cart-items');
-  const empty = document.getElementById('cart-empty');
-  const summary = document.getElementById('cart-summary');
-  const floating = document.getElementById('floating-cart');
-  const floatingLbl = document.getElementById('floating-lbl');
-  const floatingVal = document.getElementById('floating-total');
-  const floatingLink = document.getElementById('floating-link');
+  const estrelas = n => '⭐'.repeat(Math.max(0, Math.min(5, Math.round(n||0)))) + '☆'.repeat(5 - Math.max(0, Math.min(5, Math.round(n||0))));
 
-  const qtdItens = cart.reduce((s,i) => s + i.qty, 0);
-
-  if(cart.length === 0){
-    empty.style.display = 'flex';
-    box.innerHTML = '';
-    summary.style.display = 'none';
-    floating.classList.add('empty');
-    floatingLbl.textContent = '🛒 Carrinho vazio';
-    floatingVal.style.display = 'none';
-    floatingLink.style.display = 'none';
-  } else {
-    empty.style.display = 'none';
-    summary.style.display = 'block';
-    floating.classList.remove('empty');
-    floatingLbl.textContent = `🛒 ${qtdItens} ${qtdItens === 1 ? 'item' : 'itens'}`;
-    floatingVal.style.display = 'inline';
-    floatingLink.style.display = 'inline-block';
-    box.innerHTML = cart.slice().reverse().map(item => `
-      <div class="cart-item">
-        <div class="desc"><b>${item.qty}x ${item.label}</b>${item.detail ? `<small>${item.detail}</small>` : ''}${item.note ? `<small>📝 ${item.note.replace(/</g,'&lt;')}</small>` : ''}</div>
-        <div class="right"><span class="p">${brl(item.lineTotal)}</span><br><button class="remove" onclick="removeFromCart(${item.id})">remover</button></div>
+  const avaliacoesHTML = listaAvaliacoes.length ? listaAvaliacoes.map(a => `
+    <div style="background:rgba(255,255,255,.05); border-radius:8px; padding:10px 14px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+        <b>${(a.cliente_nome||'Cliente').replace(/</g,'&lt;')}</b>
+        <span>${estrelas(a.nota)} <span style="opacity:.7;">(${a.nota ?? '?'})</span></span>
       </div>
-    `).join('');
-  }
+      ${a.comentario ? `<div style="margin-top:6px; opacity:.9;">"${a.comentario.replace(/</g,'&lt;')}"</div>` : '<div style="margin-top:6px; opacity:.5; font-size:.85rem;">Sem comentário escrito.</div>'}
+      <div style="margin-top:6px; font-size:.75rem; opacity:.6;">
+        ${(() => { const d = a.created_at || a.criado_em || a.data || a.avaliado_em; return d ? new Date(d).toLocaleString('pt-BR') : ''; })()} · Pedido #${a.pedido_id ?? '?'}
+      </div>
+    </div>
+  `).join('') : '<p style="opacity:.7;">Nenhuma avaliação recebida ainda.</p>';
 
-  const subtotal = getSubtotal();
-  const fee = getFee();
-  const extras = getExtras();
-  const total = subtotal + fee + extras;
+  const pontosHTML = listaPontos.length ? `
+    <ol class="stat-ranking-list">
+      ${listaPontos.map(p => `<li><span>${(p.cliente_nome||p.cliente_email||'Cliente').replace(/</g,'&lt;')}</span><b>${p.pontos ?? 0} pt${(p.pontos===1)?'':'s'}</b></li>`).join('')}
+    </ol>
+  ` : '<p style="opacity:.7;">Nenhum cliente com pontos ainda.</p>';
 
-  document.getElementById('cart-subtotal').textContent = brl(subtotal);
-  document.getElementById('cart-fee-line').style.display = fee > 0 ? 'flex' : 'none';
-  document.getElementById('cart-fee').textContent = brl(fee);
-  document.getElementById('cart-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
-  document.getElementById('cart-maionese').textContent = brl(extras);
-  document.getElementById('cart-total').textContent = brl(total);
-  floatingVal.textContent = brl(total);
+  el.innerHTML = `
+    <h3 style="margin-top:0;">⭐ Avaliações dos clientes</h3>
+    <p style="opacity:.8; margin-top:-6px;">${listaAvaliacoes.length} avaliação(ões) recebida(s) · nota média: <b>${mediaNota}</b> ⭐</p>
+    <div style="max-height:480px; overflow-y:auto; margin-bottom:24px;">${avaliacoesHTML}</div>
 
-  document.getElementById('chk-subtotal').textContent = brl(subtotal);
-  document.getElementById('chk-fee-line').style.display = fee > 0 ? 'flex' : 'none';
-  document.getElementById('chk-fee').textContent = brl(fee);
-  document.getElementById('chk-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
-  document.getElementById('chk-maionese').textContent = brl(extras);
-  document.getElementById('chk-total').textContent = brl(total);
-
-  if(paymentMethod === 'Dinheiro') atualizarTrocoCalculado();
+    <h3>🏆 Ranking de pontos de fidelidade</h3>
+    <p style="opacity:.8; margin-top:-6px;">Pontos ganhos por avaliações feitas com login do Google (1 ponto por avaliação).</p>
+    ${pontosHTML}
+  `;
 }
 
-function flashAdded(){
-  const floating = document.getElementById('floating-cart');
-  floating.classList.remove('pulse');
-  void floating.offsetWidth; // reinicia a animação mesmo em cliques seguidos
-  floating.classList.add('pulse');
+async function renderEstatisticas(){
+  const el = document.getElementById('config-stats');
+  if(!el) return;
+  el.innerHTML = '<p class="stat-empty">Carregando pedidos...</p>';
+
+  const pedidos = await carregarPedidosParaStats();
+  const filtrados = pedidos.filter(p => dataDoPedidoNoPeriodo(p.created_at, statsPeriodo));
+  const s = calcularEstatisticas(filtrados);
+  ultimoStatsCalculado = s; // guardado pra exportação não precisar recalcular tudo de novo
+  const comparativo = comparativoFaturamentoHTML(pedidos, s.faturamento, statsPeriodo);
+
+  const opcoesFiltro = [
+    ['hoje','Hoje'], ['semana','Esta semana'], ['mes','Este mês'], ['tudo','Todo o período'], ['custom','Personalizado']
+  ];
+  const botoes = opcoesFiltro.map(([key,label]) =>
+    `<button class="stat-filtro-btn${statsPeriodo===key?' active':''}" onclick="mudarPeriodoStats('${key}')">${label}</button>`
+  ).join('');
+
+  const customRow = statsPeriodo === 'custom' ? `
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+      <input type="date" id="stats-data-ini" value="${statsDataIni||''}">
+      <span>até</span>
+      <input type="date" id="stats-data-fim" value="${statsDataFim||''}">
+      <button class="btn-salvar" style="max-width:140px;" onclick="aplicarPeriodoCustom()">Aplicar</button>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div style="max-width:960px;">
+      <h3 style="margin-top:0;">📊 Estatísticas de Vendas</h3>
+
+      <div class="stat-legenda">
+        <span class="stat-badge exato">🟢 Exato</span> = pedido feito depois da atualização, com itens salvos certinho.
+        <span class="stat-badge aproximado">🟡 Aproximado</span> = pedido antigo, lido a partir do texto da comanda — pode não pegar 100% dos sabores, mas o valor em R$ está sempre correto.
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">${botoes}</div>
+      ${customRow}
+
+      <div class="stat-secao">
+        <h4>Resumo do período</h4>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;">
+          <div class="stat-card"><span class="stat-label">💰 Faturamento</span><span class="stat-value">${brlAdmin(s.faturamento)}</span><span class="stat-sub">soma do TOTAL A COBRAR de cada comanda</span>${comparativo}</div>
+          <div class="stat-card"><span class="stat-label">📦 Pedidos</span><span class="stat-value">${s.numPedidos}</span><span class="stat-sub">${s.pedidosExatos} exatos · ${s.pedidosAproximados} aproximados</span></div>
+          <div class="stat-card"><span class="stat-label">🎯 Ticket médio</span><span class="stat-value">${brlAdmin(s.ticketMedio)}</span><span class="stat-sub">🛵 entrega: ${brlAdmin(s.ticketMedioEntrega)} · 🏠 retirada: ${brlAdmin(s.ticketMedioRetirada)}</span></div>
+          <div class="stat-card"><span class="stat-label">🛒 Unidades vendidas</span><span class="stat-value">${s.unidadesVendidas}</span><span class="stat-sub">soma de todos os itens</span></div>
+        </div>
+      </div>
+
+      <div class="stat-secao">
+        <h4>📈 Faturamento por dia</h4>
+        ${graficoFaturamentoPorDiaHTML(s.faturamentoPorDia)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>⏰ Horário de pico</h4>
+        <p class="stat-sub" style="display:block; margin-bottom:8px;">quantidade de pedidos por hora do dia — ajuda a saber quando reforçar a produção</p>
+        ${graficoPorHoraHTML(s.pedidosPorHora)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>📅 Dia da semana mais forte</h4>
+        ${diaSemanaHTML(s.faturamentoPorDiaSemana, s.pedidosPorDiaSemana)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>⏱️ Tempo médio de preparo</h4>
+        <p class="stat-sub" style="display:block; margin-bottom:8px;">do momento em que o pedido foi impresso até ser marcado como finalizado, no comandas.html</p>
+        <div class="stat-card" style="max-width:220px;">
+          <span class="stat-value">${formatarMinutos(s.tempoMedioPreparo)}</span>
+          <span class="stat-sub">${s.countComTempoPreparo} pedido${s.countComTempoPreparo===1?'':'s'} com esse dado — só conta a partir de quando essa atualização entrou no comandas.html</span>
+        </div>
+      </div>
+
+      <div class="stat-secao">
+        <h4>⭐ Clientes que mais compraram</h4>
+        <p class="stat-sub" style="display:block; margin-bottom:8px;">identificados pelo telefone informado no pedido</p>
+        ${clientesRankingHTML(s.clientesRanking)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>🛵 Entrega x Retirada</h4>
+        ${rankingHTML(s.entregaRanking, 3)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>💳 Forma de pagamento</h4>
+        ${pagamentoHTML(s.pagamentoContagem, s.pagamentoValor)}
+      </div>
+
+      <div class="stat-secao">
+        <h4>🏆 Produtos mais vendidos</h4>
+        <p class="stat-sub" style="display:block; margin-bottom:8px;">o ranking geral mostra a categoria entre parênteses pra não confundir sabores repetidos entre pizza, esfiha e calzone</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px;">
+          <div><h5>Geral</h5>${rankingHTML(s.produtosRanking)}</div>
+          <div><h5>🍕 Sabores de pizza</h5>${rankingHTML(s.pizzaSabores)}</div>
+          <div><h5>📏 Pizzas por tamanho</h5>${rankingHTML(s.pizzaTamanhos)}</div>
+          <div><h5>🥙 Esfihas</h5>${rankingHTML(s.esfihaSabores)}</div>
+          <div><h5>🥤 Bebidas</h5>${rankingHTML(s.bebidaRanking)}</div>
+          <div><h5>🥟 Calzones</h5>${rankingHTML(s.calzoneRanking)}</div>
+        </div>
+      </div>
+
+      <div class="stat-secao">
+        <h4>🧾 Pedidos do período</h4>
+        ${tabelaPedidosHTML(s.listaPedidos)}
+      </div>
+
+      <button class="btn-salvar" style="margin-top:20px; max-width:200px;" onclick="atualizarStats()">🔄 Atualizar dados</button>
+      <button class="btn-salvar" style="margin-top:20px; margin-left:8px; max-width:220px; background:var(--terracotta);" onclick="exportarEstatisticasCSV()">📥 Exportar tudo (CSV)</button>
+    </div>
+  `;
 }
 
-/* ==================== CHECKOUT ==================== */
-function selectFulfillment(type){
-  fulfillment = type;
-  document.getElementById('fulfill-entrega').classList.toggle('active', type==='entrega');
-  document.getElementById('fulfill-retirada').classList.toggle('active', type==='retirada');
-  document.getElementById('endereco-field').style.display = type==='entrega' ? 'block' : 'none';
-  document.getElementById('retirada-note').style.display = type==='retirada' ? 'block' : 'none';
-  renderCart();
+function mudarPeriodoStats(periodo){
+  statsPeriodo = periodo;
+  renderEstatisticas();
+}
+function aplicarPeriodoCustom(){
+  statsDataIni = document.getElementById('stats-data-ini').value;
+  statsDataFim = document.getElementById('stats-data-fim').value;
+  renderEstatisticas();
+}
+async function atualizarStats(){
+  await carregarPedidosParaStats(true);
+  renderEstatisticas();
 }
 
-function selectPayment(method){
-  paymentMethod = method;
-  document.getElementById('pay-row').classList.remove('field-error');
-  document.querySelectorAll('#pay-row .opt-btn').forEach(b => b.classList.toggle('active', b.dataset.pay === method));
-  document.getElementById('troco-field').style.display = method==='Dinheiro' ? 'block' : 'none';
-  if(method !== 'Dinheiro'){
-    trocoNeed = null;
-    document.querySelectorAll('#troco-need-row .opt-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('troco-need-row').classList.remove('field-error');
-    document.getElementById('troco-valor-wrap').style.display = 'none';
-    document.getElementById('chk-troco').value = '';
-  }
-  document.getElementById('pix-note').style.display = method==='PIX' ? 'block' : 'none';
-  document.getElementById('card-note').style.display = (method==='Débito'||method==='Crédito') ? 'block' : 'none';
+/* ==================== EXPORTAR ESTATÍSTICAS (CSV) ==================== */
+function csvEscape(v){
+  const s = String(v ?? '');
+  if(/[;"\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function csvLinha(campos){ return campos.map(csvEscape).join(';'); }
+
+function baixarArquivo(nome, conteudo){
+  const blob = new Blob(['\uFEFF' + conteudo], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
-function setupScrollSpy(){
-  const sections = document.querySelectorAll('.section');
-  const pills = document.querySelectorAll('.trail-pill');
-  const map = {};
-  pills.forEach(p => map[p.getAttribute('href').slice(1)] = p);
-  const floatingLink = document.getElementById('floating-link');
-  const obs = new IntersectionObserver((entries)=>{
-    entries.forEach(entry => {
-      if(entry.isIntersecting){
-        pills.forEach(p=>p.classList.remove('active'));
-        map[entry.target.id]?.classList.add('active');
-
-        // Quando o cliente CHEGA na seção de finalizar pedido, o botão flutuante
-        // deixa de "rolar até lá" (ele já está lá) e passa a enviar o pedido direto
-        // pelo WhatsApp — evita o cliente clicar em "Finalizar" de novo achando
-        // que é isso que envia o pedido, quando na verdade não faz nada.
-        if(entry.target.id === 'finalizar'){
-          floatingLink.textContent = '📲 Enviar Pedido';
-          floatingLink.removeAttribute('href');
-          floatingLink.onclick = (e) => { e.preventDefault(); enviarPedido(); };
-        } else {
-          floatingLink.textContent = 'Finalizar →';
-          floatingLink.setAttribute('href', '#finalizar');
-          floatingLink.onclick = null;
-        }
-      }
-    });
-  }, { rootMargin:'-40% 0px -50% 0px' });
-  sections.forEach(s => obs.observe(s));
+function labelPeriodoAtual(){
+  const nomes = { hoje:'Hoje', semana:'Esta semana', mes:'Este mês', tudo:'Todo o período', custom:'Personalizado' };
+  let label = nomes[statsPeriodo] || statsPeriodo;
+  if(statsPeriodo === 'custom' && statsDataIni && statsDataFim) label += ` (${statsDataIni} a ${statsDataFim})`;
+  return label;
 }
 
-/* ==================== GERAÇÃO DA COMANDA ==================== */
-function quebrarTexto(texto, limite, prefixo=""){
-  let palavras = texto.split(" ");
-  let linhas = []; let linhaAtual = prefixo;
-  palavras.forEach(p => {
-    if((linhaAtual+p).length > limite){ linhas.push(linhaAtual.trimEnd()); linhaAtual = prefixo+p+" "; }
-    else { linhaAtual += p+" "; }
-  });
-  if(linhaAtual.trim() !== prefixo.trim()) linhas.push(linhaAtual.trimEnd());
-  return linhas.join("\n");
-}
+// Exporta TODAS as seções das Estatísticas (resumo, rankings, pagamento, entrega,
+// dia da semana, horário de pico, clientes fiéis e a lista detalhada de pedidos)
+// num único CSV, respeitando o filtro de período selecionado na tela.
+function exportarEstatisticasCSV(){
+  if(!ultimoStatsCalculado){ alert('Aguarde os dados carregarem antes de exportar.'); return; }
+  const s = ultimoStatsCalculado;
+  const linhas = [];
 
-function gerarComanda(){
-  const nome = document.getElementById('chk-nome').value.trim();
-  const telefone = document.getElementById('chk-telefone').value.trim();
-  const endereco = document.getElementById('chk-endereco').value.trim();
-  const obs = document.getElementById('chk-obs').value.trim();
-  const troco = document.getElementById('chk-troco').value.trim();
+  linhas.push(csvLinha(["MANEL'S PIZZARIA — EXPORTAÇÃO DE ESTATÍSTICAS"]));
+  linhas.push(csvLinha(['Período', labelPeriodoAtual()]));
+  linhas.push(csvLinha(['Gerado em', new Date().toLocaleString('pt-BR')]));
+  linhas.push('');
 
-  const numPedido = Math.floor(1000+Math.random()*9000);
-  const dataStr = new Date().toLocaleDateString('pt-BR');
-  const horaStr = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  linhas.push(csvLinha(['RESUMO']));
+  linhas.push(csvLinha(['Faturamento','Pedidos','Pedidos exatos','Pedidos aproximados','Ticket médio','Ticket médio entrega','Ticket médio retirada','Unidades vendidas','Tempo médio de preparo (min)']));
+  linhas.push(csvLinha([
+    brlAdmin(s.faturamento), s.numPedidos, s.pedidosExatos, s.pedidosAproximados,
+    brlAdmin(s.ticketMedio), brlAdmin(s.ticketMedioEntrega), brlAdmin(s.ticketMedioRetirada),
+    s.unidadesVendidas, s.tempoMedioPreparo !== null ? s.tempoMedioPreparo.toFixed(1) : ''
+  ]));
+  linhas.push('');
 
-  const subtotal = getSubtotal();
-  const fee = getFee();
-  const extras = getExtras();
-  const total = subtotal + fee + extras;
-
-  // Largura pensada para a folha de comanda física (8,5 x 21cm), impressa em
-  // fonte monoespaçada 14px — 32 colunas é o que cabe sem quebrar no meio da palavra.
-  const LARG = 32;
-  const SEP = '='.repeat(LARG);
-
-  // Emoji por tipo de item principal, pra identificar rápido sem precisar de espaço extra.
-  const EMOJI_ITEM = { pizza:'🍕', calzone:'🥟', brotinho:'🍩', esfiha:'🥙', bebida:'🥤', combo:'🍽️' };
-
-  let c = `${SEP}\n`;
-  c += `     MANEL'S PIZZARIA\n`;
-  c += `     📞 ${STORE_PHONE_DISPLAY}\n`;
-  c += `${SEP}\n`;
-  c += `🧾 Pedido #${numPedido}\n`;
-  c += `📅 ${dataStr}   🕒 ${horaStr}\n`;
-  if(!isStoreOpen()){
-    c += `${SEP}\n`;
-    c += `⚠️ *ENCOMENDA ANTECIPADA*\n`;
-    c += quebrarTexto(`Funcionamos ${textoHorarioFuncionamento()}.`, LARG, '') + '\n';
-  }
-
-  // ---------- PARA O PIZZAIOLO ----------
-  c += `${SEP}\n`;
-  c += `*🍕 PARA O PIZZAIOLO*\n`;
-  c += `${SEP}\n`;
-
-  const itensDoMaisRecente = cart.slice().reverse(); // último item adicionado aparece primeiro
-  itensDoMaisRecente.forEach(item => {
-    const emoji = EMOJI_ITEM[item.type] || '•';
-    c += `${emoji} ${item.qty}x ${item.label}\n`;
-
-    if(item.type === 'pizza'){
-      item.flavors.forEach((f,i) => {
-        c += quebrarTexto(`🔸[${i+1}/${item.flavors.length}] ${f}`, LARG, '  ') + '\n';
-      });
-      if(item.crust){
-        c += `🧀 Borda Recheada: ${item.crust}\n`;
-      }
-    } else if(item.type === 'esfiha'){
-      Object.keys(item.counts).filter(f => item.counts[f] > 0).forEach(f => {
-        c += quebrarTexto(`🔸${item.counts[f]}x ${f}`, LARG, '  ') + '\n';
-      });
-    } else if(item.detail){
-      c += quebrarTexto(`🔸${item.detail}`, LARG, '  ') + '\n';
-    }
-    if(item.note){
-      c += quebrarTexto(`📝 Observação: ${item.note}`, LARG, '  ') + '\n';
-    }
-  });
-
-  if(wantKetchup || maioneseQty > 0){
-    if(wantKetchup){ c += `🔹 Ketchup\n`; }
-    if(maioneseQty > 0){
-      const custoMaionese = Math.max(0, maioneseQty - 1) * MAIONESE_PRICE;
-      c += `🔹 Maionese Temperada: ${maioneseQty}x (1ª grátis${custoMaionese > 0 ? `, + ${brl(custoMaionese)}` : ''})\n`;
-    }
-  }
-  if(obs){
-    c += quebrarTexto(`❗*OBS:* ${obs}`, LARG, '') + '\n';
-  }
-
-  // ---------- PARA O MOTOBOY ----------
-  c += `${SEP}\n`;
-  c += `*🛵 PARA O MOTOBOY*\n`;
-  c += `${SEP}\n`;
-  c += `👤 Cliente: ${nome}\n`;
-  c += `📞 Telefone: ${telefone}\n`;
-
-  if(fulfillment === 'entrega'){
-    c += quebrarTexto(`📍 Endereço: ${endereco}`, LARG, '') + '\n';
-    if(userGeoLat !== null && userGeoLng !== null){
-      c += `🗺️ Mapa: https://www.google.com/maps?q=${userGeoLat},${userGeoLng}\n`;
-    }
-    if(fee > 0){ c += `🛵 Taxa de entrega: ${brl(fee)}\n`; }
-  } else {
-    c += `🏠 *RETIRADA NO BALCÃO*\n`;
-  }
-
-  c += `💳 Pagamento: ${paymentMethod}\n`;
-  if(paymentMethod === 'Dinheiro'){
-    if(trocoNeed === false){
-      c += `💵 Troco: NÃO precisa (valor exato)\n`;
-    } else if(trocoNeed === true){
-      const valorPago = parseMoneyBR(troco);
-      if(valorPago !== null && valorPago >= total){
-        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} → Troco: R$ ${(valorPago-total).toFixed(2).replace('.',',')}\n`;
-      } else if(valorPago !== null){
-        c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} ⚠️ menor que o total\n`;
-      }
-    }
-  }
-
-  c += `${SEP}\n`;
-  c += `💰 *TOTAL A COBRAR: ${brl(total)}*\n`;
-  c += `${SEP}\n`;
-  c += `   Bom apetite! 🍕🔥\n`;
-  c += SEP;
-
-  return c;
-}
-
-// ===== LOCALIZAÇÃO AUTOMÁTICA DO CLIENTE (GPS + Geocoding Reverso via Nominatim/OpenStreetMap) =====
-function abrirEnderecoManual(){
-  document.getElementById('endereco-input-wrap').style.display = 'block';
-  document.getElementById('chk-endereco').focus();
-}
-
-function compartilharLocalizacao(){
-  const statusEl = document.getElementById('geo-status');
-  const btn = document.getElementById('geo-btn');
-
-  if(!navigator.geolocation){
-    statusEl.style.display = 'block';
-    statusEl.style.borderColor = 'var(--rust)';
-    statusEl.innerHTML = 'Seu navegador não suporta localização automática. Preencha o endereço manualmente.';
-    abrirEnderecoManual();
-    return;
-  }
-
-  btn.disabled = true;
-  statusEl.style.display = 'block';
-  statusEl.style.borderColor = '';
-  statusEl.innerHTML = 'Obtendo sua localização... aceite a permissão do navegador.';
-
-  navigator.geolocation.getCurrentPosition(async function(pos){
-    userGeoLat = pos.coords.latitude;
-    userGeoLng = pos.coords.longitude;
-
-    try{
-      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${userGeoLat}&lon=${userGeoLng}&addressdetails=1&accept-language=pt-BR`);
-      if(!resp.ok) throw new Error('Falha na resposta do serviço de geocoding');
-      const data = await resp.json();
-      const addr = data.address || {};
-
-      const rua = addr.road || addr.pedestrian || addr.residential || addr.footway || '';
-      const numero = addr.house_number || '';
-      const bairro = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || '';
-      const cidade = addr.city || addr.town || addr.municipality || '';
-      const estado = addr.state || '';
-      const cep = addr.postcode || '';
-
-      // Monta o endereço no campo existente, mantendo tudo editável pelo cliente
-      let linhas = [];
-      linhas.push(`${rua || 'Rua não identificada'}${numero ? ', ' + numero : ' - (informe o número)'}`);
-      if(bairro) linhas.push(`Bairro: ${bairro}`);
-      if(cidade || estado) linhas.push(`${cidade}${estado ? ' - ' + estado : ''}`);
-      if(cep) linhas.push(`CEP: ${cep}`);
-
-      document.getElementById('chk-endereco').value = linhas.join('\n');
-      abrirEnderecoManual();
-
-      statusEl.style.borderColor = 'var(--forest)';
-      statusEl.innerHTML = '<b>Localização encontrada com sucesso!</b><br>Confira o endereço abaixo, adicione o número da casa e um ponto de referência antes de finalizar o pedido.';
-      btn.textContent = '🔄 Atualizar localização';
-    } catch(err){
-      statusEl.style.borderColor = 'var(--rust)';
-      statusEl.innerHTML = 'Não conseguimos converter suas coordenadas em endereço. Preencha o endereço manualmente abaixo.';
-      abrirEnderecoManual();
-    } finally {
-      btn.disabled = false;
-    }
-  }, function(err){
-    btn.disabled = false;
-    statusEl.style.display = 'block';
-    statusEl.style.borderColor = 'var(--rust)';
-    if(err.code === err.PERMISSION_DENIED){
-      statusEl.innerHTML = 'Permissão de localização negada. Preencha o endereço manualmente abaixo.';
-    } else if(err.code === err.TIMEOUT){
-      statusEl.innerHTML = 'Tempo esgotado ao tentar obter sua localização. Tente novamente ou preencha manualmente abaixo.';
-    } else {
-      statusEl.innerHTML = 'Não foi possível obter sua localização. Preencha o endereço manualmente abaixo.';
-    }
-    abrirEnderecoManual();
-  }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-}
-
-function showError(msg, fieldEl){
-  const el = document.getElementById('chk-error');
-  el.textContent = msg;
-  el.classList.add('show');
-  if(fieldEl){
-    fieldEl.classList.add('field-error');
-    fieldEl.scrollIntoView({behavior:'smooth', block:'center'});
-    fieldEl.focus({preventScroll:true});
-  } else {
-    el.scrollIntoView({behavior:'smooth', block:'center'});
-  }
-}
-function clearError(){
-  document.getElementById('chk-error').classList.remove('show');
-  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
-}
-
-// ===== ENVIO DO PEDIDO: painel (Supabase) + WhatsApp, de forma confiável em qualquer aparelho =====
-
-// Manda a comanda para o painel de pedidos (comandas.html) e ESPERA a confirmação
-// (com um prazo máximo) antes de deixar o fluxo seguir pro WhatsApp. Isso evita que a
-// troca de página pro WhatsApp corte o envio no meio do caminho — o problema que fazia
-// pedidos chegarem no WhatsApp mas sumirem do painel em horários de pico.
-// Retorna true (sucesso), ou false (falhou/estourou o tempo).
-// Monta a versão estruturada dos itens do pedido (além do texto da comanda),
-// usada pela aba de Estatísticas do admin pra montar rankings de sabores/produtos
-// sem precisar reinterpretar o texto depois.
-function construirItensEstruturados(cartSnapshot){
-  return cartSnapshot.map(item => {
-    if(item.type === 'pizza'){
-      return { categoria:'pizza', nome:'Pizza', sabores:item.flavors, tamanho:item.size || null, borda:item.crust || null, quantidade:item.qty, preco:item.lineTotal };
-    }
-    if(item.type === 'esfiha'){
-      return { categoria:'esfiha', nome:'Combo de Esfihas', sabores:item.counts, quantidade:item.comboSize, preco:item.lineTotal };
-    }
-    if(item.type === 'calzone'){
-      return { categoria:'calzone', nome:'Calzone', sabor:item.flavor, quantidade:item.qty, preco:item.lineTotal };
-    }
-    if(item.type === 'brotinho'){
-      return { categoria:'brotinho', nome:'Brotinho Doce', sabor:item.flavor, quantidade:item.qty, preco:item.lineTotal };
-    }
-    if(item.type === 'bebida'){
-      return { categoria:'bebida', nome:item.item, quantidade:item.qty, preco:item.lineTotal };
-    }
-    if(item.type === 'combo'){
-      return { categoria:'combo', nome:item.item, quantidade:item.qty, preco:item.lineTotal, observacao:item.note || '' };
-    }
-    return { categoria: item.type || 'outro', nome: item.label || item.item || item.flavor || 'Item', quantidade: item.qty || 1, preco: item.lineTotal || 0 };
-  });
-}
-
-function enviarComandaParaPainelUmaVez(textoComanda, total, itens, timeoutMs){
-  return new Promise(resolve => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    fetch(`${PEDIDOS_SUPABASE_URL}/rest/v1/pedidos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': PEDIDOS_SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${PEDIDOS_SUPABASE_ANON_KEY}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ status: 'novo', total: total, texto_comanda: textoComanda, itens: itens }),
-      keepalive: true,
-      signal: controller.signal
-    }).then(res => {
-      clearTimeout(timer);
-      resolve(res.ok);
-    }).catch(err => {
-      clearTimeout(timer);
-      console.error('Não foi possível enviar o pedido para o painel:', err);
-      resolve(false);
-    });
-  });
-}
-
-// Tenta enviar pro painel; se falhar ou estourar o prazo, tenta mais uma vez automaticamente.
-async function enviarComandaParaPainelComRetry(textoComanda, total, itens){
-  const TIMEOUT_MS = 3500;
-  const ok1 = await enviarComandaParaPainelUmaVez(textoComanda, total, itens, TIMEOUT_MS);
-  if(ok1) return true;
-
-  // Antes de tentar de novo: talvez o primeiro envio tenha dado certo no
-  // servidor e só a CONFIRMAÇÃO que não chegou a tempo (comum em internet
-  // instável). Perguntamos ao banco se um pedido idêntico já chegou há
-  // pouco — se sim, não reenviamos (evita pedido duplicado).
-  try{
-    const { data: jaExiste, error: erroCheck } = await supabaseClient.rpc('pedido_recente_existe', {
-      p_total: total,
-      p_texto_comanda: textoComanda,
-      p_janela_segundos: 20
-    });
-    if(!erroCheck && jaExiste === true){
-      return true; // já tinha ido — não reenvia
-    }
-  } catch(e){
-    console.error('Falha ao checar duplicidade antes do reenvio:', e);
-    // Se a checagem falhar, seguimos pro reenvio normal (comportamento antigo)
-    // em vez de travar o pedido do cliente por causa disso.
-  }
-
-  await new Promise(r => setTimeout(r, 500));
-  return await enviarComandaParaPainelUmaVez(textoComanda, total, itens, TIMEOUT_MS);
-}
-
-function mostrarEnviandoOverlay(){
-  const overlay = document.getElementById('enviando-overlay');
-  if(overlay) overlay.style.display = 'flex';
-}
-function esconderEnviandoOverlay(){
-  const overlay = document.getElementById('enviando-overlay');
-  if(overlay) overlay.style.display = 'none';
-}
-
-function isIOSDevice(){
-  const ua = navigator.userAgent || '';
-  const iOSClassico = /iPad|iPhone|iPod/.test(ua);
-  const iPadOS13Mais = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-  return iOSClassico || iPadOS13Mais;
-}
-
-// Abre o WhatsApp da forma mais confiável possível conforme o aparelho.
-function abrirWhatsApp(url){
-  if(isIOSDevice()){
-    // No iPhone/iPad navegamos na MESMA aba. É o jeito mais confiável: o Safari do iOS
-    // costuma bloquear window.open() para nova aba mesmo dentro do toque do usuário —
-    // foi exatamente isso que causava o problema relatado em iPhones (ex.: iPhone XR).
-    window.location.href = url;
-    return;
-  }
-  let novaAba = null;
-  try{ novaAba = window.open(url, '_blank'); } catch(e){ novaAba = null; }
-  if(!novaAba){
-    // Bloqueado mesmo assim (ex: configuração do navegador) → navega na aba atual.
-    window.location.href = url;
-  }
-}
-
-// Mostra um link manual de apoio: garante que o cliente sempre tenha como enviar o
-// pedido pelo WhatsApp, mesmo se a abertura automática falhar silenciosamente.
-function mostrarLinkManualWhatsApp(url){
-  const wrap = document.getElementById('wa-fallback');
-  const link = document.getElementById('wa-fallback-link');
-  if(!wrap || !link) return;
-  link.href = url;
-  wrap.style.display = 'block';
-}
-
-// Dá baixa no estoque dos produtos vendidos neste pedido. Roda em segundo plano
-// (não trava o envio pro WhatsApp) e só mexe em produtos com estoque limitado.
-// A atualização só é aplicada se o estoque atual ainda for suficiente (.gte),
-// pra nunca deixar o número ficar negativo mesmo com dois pedidos ao mesmo tempo.
-async function descontarEstoquePedido(cartSnapshot){
-  if(!supabaseClient) return;
-  const baixas = [];
-  const add = (key, name, qty) => {
-    const info = PRODUCT_STOCK[key]?.[name];
-    if(info && !info.infinito && info.id) baixas.push({ id: info.id, qty });
+  const secaoRanking = (titulo, obj, colNome) => {
+    linhas.push(csvLinha([titulo]));
+    linhas.push(csvLinha([colNome, 'Quantidade']));
+    const entradas = Object.entries(obj).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+    if(entradas.length === 0) linhas.push(csvLinha(['(sem dados nesse período)','']));
+    entradas.forEach(([k,v]) => linhas.push(csvLinha([k,v])));
+    linhas.push('');
   };
-  cartSnapshot.forEach(item => {
-    if(item.type === 'pizza'){
-      (item.flavors || []).forEach(f => add('pizzas', f, item.qty));
-      if(item.crust) add('bordas', item.crust, item.qty);
-    } else if(item.type === 'esfiha'){
-      Object.keys(item.counts || {}).forEach(f => { if(item.counts[f] > 0) add('esfihas', f, item.counts[f]); });
-    } else if(item.type === 'calzone'){
-      add('calzones', item.flavor, item.qty);
-    } else if(item.type === 'brotinho'){
-      add('brotinho', item.flavor, item.qty);
-    } else if(item.type === 'bebida'){
-      add('bebidas', item.item, item.qty);
-    } else if(item.type === 'combo'){
-      add('combos', item.item, item.qty);
-    }
+  secaoRanking('PRODUTOS MAIS VENDIDOS (GERAL)', s.produtosRanking, 'Produto');
+  secaoRanking('SABORES DE PIZZA', s.pizzaSabores, 'Sabor');
+  secaoRanking('PIZZAS POR TAMANHO', s.pizzaTamanhos, 'Tamanho');
+  secaoRanking('ESFIHAS', s.esfihaSabores, 'Sabor');
+  secaoRanking('BEBIDAS', s.bebidaRanking, 'Bebida');
+  secaoRanking('CALZONES', s.calzoneRanking, 'Sabor');
+
+  linhas.push(csvLinha(['FORMA DE PAGAMENTO']));
+  linhas.push(csvLinha(['Forma','Pedidos','Valor total']));
+  Object.keys(s.pagamentoContagem).filter(k => s.pagamentoContagem[k] > 0)
+    .sort((a,b) => (s.pagamentoValor[b]||0) - (s.pagamentoValor[a]||0))
+    .forEach(k => linhas.push(csvLinha([k, s.pagamentoContagem[k], brlAdmin(s.pagamentoValor[k]||0)])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['ENTREGA X RETIRADA']));
+  linhas.push(csvLinha(['Tipo','Pedidos']));
+  Object.entries(s.entregaRanking).filter(([,v]) => v > 0).forEach(([k,v]) => linhas.push(csvLinha([k,v])));
+  linhas.push('');
+
+  const NOMES_DIA_ORDEM = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  linhas.push(csvLinha(['DIA DA SEMANA']));
+  linhas.push(csvLinha(['Dia','Faturamento','Pedidos']));
+  NOMES_DIA_ORDEM.filter(n => (s.pedidosPorDiaSemana[n]||0) > 0)
+    .forEach(n => linhas.push(csvLinha([n, brlAdmin(s.faturamentoPorDiaSemana[n]||0), s.pedidosPorDiaSemana[n]||0])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['HORÁRIO DE PICO']));
+  linhas.push(csvLinha(['Hora','Pedidos']));
+  for(let h = 0; h < 24; h++){ if(s.pedidosPorHora[h]) linhas.push(csvLinha([`${h}h`, s.pedidosPorHora[h]])); }
+  linhas.push('');
+
+  linhas.push(csvLinha(['CLIENTES FIÉIS']));
+  linhas.push(csvLinha(['Cliente','Telefone','Pedidos','Total gasto']));
+  Object.entries(s.clientesRanking).filter(([,c]) => !ehTelefoneDeAtendente(c))
+    .sort((a,b) => b[1].total - a[1].total)
+    .forEach(([tel,c]) => linhas.push(csvLinha([c.nome, tel, c.pedidos, brlAdmin(c.total)])));
+  linhas.push('');
+
+  linhas.push(csvLinha(['PEDIDOS DETALHADOS']));
+  linhas.push(csvLinha(['Data/Hora','Cliente','Tipo','Pagamento','Total','Preparo (min)','Dado']));
+  s.listaPedidos.forEach(p => {
+    linhas.push(csvLinha([
+      new Date(p.created_at).toLocaleString('pt-BR'),
+      p.cliente || '',
+      p.entrega === 'retirada' ? 'Retirada' : p.entrega === 'entrega' ? 'Entrega' : '',
+      p.pagamento || '',
+      brlAdmin(p.total),
+      p.minutosPreparo !== null && p.minutosPreparo !== undefined ? p.minutosPreparo.toFixed(1) : '',
+      p.exato ? 'Exato' : 'Aproximado'
+    ]));
   });
 
-  for(const baixa of baixas){
-    try{
-      const { data } = await supabaseClient.from('products').select('stock_qty').eq('id', baixa.id).single();
-      if(!data) continue;
-      const novoValor = Math.max(0, (data.stock_qty || 0) - baixa.qty);
-      await supabaseClient.from('products').update({ stock_qty: novoValor }).eq('id', baixa.id).gte('stock_qty', baixa.qty);
-    } catch(e){
-      console.error('Falha ao dar baixa no estoque:', e);
-    }
-  }
-}
-
-async function enviarPedido(){
-  const btn = document.getElementById('enviar-pedido-btn');
-  if(btn && btn.disabled) return; // evita clique duplo enquanto já está enviando
-
-  clearError();
-  const nome = document.getElementById('chk-nome').value.trim();
-  const telefone = document.getElementById('chk-telefone').value.trim();
-  const endereco = document.getElementById('chk-endereco').value.trim();
-  const troco = document.getElementById('chk-troco').value.trim();
-
-  if(cart.length === 0){ showError('Seu carrinho está vazio. Adicione pelo menos um item.'); document.getElementById('carrinho').scrollIntoView({behavior:'smooth', block:'center'}); return; }
-  if(!nome){ showError('Preencha seu nome.', document.getElementById('chk-nome')); return; }
-  if(!telefone){ showError('Preencha seu telefone.', document.getElementById('chk-telefone')); return; }
-  if(fulfillment === 'entrega' && !endereco){ abrirEnderecoManual(); showError('Preencha o endereço para entrega, ou toque em "Compartilhar minha localização atual".', document.getElementById('chk-endereco')); return; }
-  if(!paymentMethod){ showError('Escolha a forma de pagamento.', document.getElementById('pay-row')); return; }
-  if(paymentMethod === 'Dinheiro' && trocoNeed === null){ showError('Informe se vai precisar de troco.', document.getElementById('troco-need-row')); return; }
-  if(paymentMethod === 'Dinheiro' && trocoNeed === true){
-    if(!troco){ showError('Informe o valor que vai pagar.', document.getElementById('chk-troco')); return; }
-    const valorPago = parseMoneyBR(troco);
-    if(valorPago === null){ showError('Digite apenas números no valor (ex: 100).', document.getElementById('chk-troco')); return; }
-    const totalPedido = getSubtotal() + getFee() + getExtras();
-    if(valorPago < totalPedido){
-      showError(`O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, document.getElementById('chk-troco'));
-      return;
-    }
-  }
-
-  // revalidação defensiva dos combos de esfiha
-  for(const item of cart){
-    if(item.type === 'esfiha'){
-      const total = Object.values(item.counts).reduce((a,b)=>a+b,0);
-      if(total !== item.comboSize || total < ESFIHA_MIN_QTY){ showError('Um dos combos de esfiha está com a distribuição incompleta ou abaixo do mínimo de 5 unidades. Remova e adicione novamente.'); return; }
-    }
-    if(item.type === 'combo'){
-      const cfg = COMBO_NOTE_CONFIG[item.item];
-      if(cfg && cfg.needsNote && (!item.note || !item.note.trim())){
-        showError(`A promoção "${item.item}" precisa de uma observação (${cfg.noteHint || 'sabor/detalhe'}). Remova e adicione novamente preenchendo o campo.`);
-        return;
-      }
-    }
-  }
-
-  let comanda = gerarComanda();
-  const totalPedido = getSubtotal() + getFee() + getExtras();
-
-  // Baixa de estoque e atualização do perfil do cliente logado rodam em segundo
-  // plano — não precisa esperar pra não atrasar o envio.
-  descontarEstoquePedido(cart.slice());
-  salvarPerfilCliente();
-
-  // 1) Mostra o aviso de envio e trava o botão pra não deixar o cliente achando
-  //    que travou (e pra evitar clique duplo enviando o pedido 2x).
-  if(btn) btn.disabled = true;
-  mostrarEnviandoOverlay();
-
-  let chegouNoPainel = false;
-  try{
-    // 2) ESPERA a confirmação de que o pedido chegou no painel (com até 2 tentativas)
-    //    antes de seguir pro WhatsApp — é isso que evita perder pedido em pico de rede.
-    chegouNoPainel = await enviarComandaParaPainelComRetry(comanda, totalPedido, construirItensEstruturados(cart));
-  } finally {
-    esconderEnviandoOverlay();
-    if(btn) btn.disabled = false;
-  }
-
-  // 3) Se mesmo com as duas tentativas não deu pra confirmar o envio ao painel,
-  //    a venda não pode travar por causa disso — o pedido segue pro WhatsApp mesmo
-  //    assim, mas com um aviso bem visível no topo da mensagem, pra vocês notarem
-  //    na hora e lançarem esse pedido manualmente no painel.
-  if(!chegouNoPainel){
-    comanda = `⚠️ *ATENÇÃO: este pedido pode não ter chegado no painel!*\n\n${comanda}`;
-  }
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(comanda)}`;
-
-  // 4) Sempre disponibiliza o link manual de apoio, como garantia extra.
-  mostrarLinkManualWhatsApp(url);
-
-  // 5) Abre o WhatsApp da forma mais confiável para o aparelho do cliente.
-  abrirWhatsApp(url);
+  const nomeArquivo = `estatisticas_manels_${statsPeriodo}_${new Date().toISOString().slice(0,10)}.csv`;
+  baixarArquivo(nomeArquivo, linhas.join('\n'));
 }
 </script>
 </body>
