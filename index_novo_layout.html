@@ -62,6 +62,28 @@ a{color:inherit;}
 
 /* ===== PRODUCT GRID (landing) ===== */
 .grid-title{font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:1.6rem 0 .7rem;}
+
+/* ===== CARROSSEL DE PROMOÇÕES ===== */
+.carrossel-secao{margin-top:1.4rem;}
+.carrossel-wrap{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px;}
+.carrossel-wrap::-webkit-scrollbar{display:none;}
+.carrossel-slide{flex:0 0 82%; max-width:320px; scroll-snap-align:start; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:pointer;}
+.carrossel-slide img{width:100%; height:140px; object-fit:cover; display:block;}
+.carrossel-slide-fallback{width:100%; height:140px; display:flex; align-items:center; justify-content:center; font-size:46px; background:var(--accent-soft);}
+.carrossel-slide-info{padding:.65rem .85rem .8rem;}
+.carrossel-slide-nome{font-family:'Fraunces',serif; font-weight:700; font-size:14.5px;}
+.carrossel-slide-preco{margin-top:.3rem; font-weight:800; color:var(--accent-dark); font-size:14px;}
+.carrossel-preco-velho{text-decoration:line-through; color:var(--ink-soft); font-weight:500; font-size:11.5px; margin-right:.35rem;}
+.carrossel-dots{display:flex; justify-content:center; gap:6px; margin-top:.65rem;}
+.carrossel-dot{width:6px; height:6px; border-radius:50%; background:var(--line-strong); transition:all .2s;}
+.carrossel-dot.active{background:var(--accent); width:16px; border-radius:4px;}
+
+/* ===== CARRINHO — SEÇÃO FINAL ===== */
+.carrinho-cta{margin-top:1.6rem; background:var(--ink); color:#fff; border-radius:var(--radius); padding:1.1rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:.8rem; cursor:pointer;}
+.carrinho-cta .cc-texto .cc-titulo{font-family:'Fraunces',serif; font-weight:700; font-size:16px;}
+.carrinho-cta .cc-texto .cc-sub{font-size:12px; color:rgba(255,255,255,.7); margin-top:.15rem;}
+.carrinho-cta .cc-valor{font-family:'Fraunces',serif; font-weight:800; font-size:19px; flex:0 0 auto;}
+.carrinho-cta .cc-btn{background:var(--accent); color:#fff; border:none; border-radius:10px; padding:.6rem 1rem; font-weight:700; font-size:13px; margin-top:.5rem; cursor:pointer;}
 .product-grid{display:grid; grid-template-columns:1fr 1fr; gap:.7rem;}
 .p-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;}
 .p-card:active{transform:scale(.98);}
@@ -286,10 +308,16 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
   </header>
 
+  <div class="carrossel-secao" id="carrossel-secao" style="display:none;">
+    <div class="grid-title">🔥 Promoções</div>
+    <div class="carrossel-wrap" id="carrossel-wrap" onscroll="atualizarDotsCarrossel()"></div>
+    <div class="carrossel-dots" id="carrossel-dots"></div>
+  </div>
+
   <div class="grid-title">Pizzas — escolha o tamanho</div>
   <div class="product-grid">
     <div class="p-card" onclick="openPizzaCard('M')">
-      <div class="p-media" style="background:#FDECE1;">🍕</div>
+      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Média</div>
@@ -299,7 +327,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openPizzaCard('G')">
-      <div class="p-media" style="background:#FDECE1;">🍕</div>
+      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Grande</div>
@@ -309,7 +337,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openPizzaCard('GG')">
-      <div class="p-media" style="background:#FDECE1;">🍕</div>
+      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Família</div>
@@ -318,6 +346,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('GG')">Escolher pizza</button>
       </div>
     </div>
+  </div>
+
+  <div class="grid-title">Calzones, Brotinho Doce e Esfihas</div>
+  <div class="product-grid">
     <div class="p-card" onclick="openModal('calzones')">
       <div class="p-media" style="background:#EAF3EC;">🥟</div>
       <div class="p-body">
@@ -328,10 +360,6 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <button class="p-btn" onclick="event.stopPropagation(); openModal('calzones')">Ver sabores</button>
       </div>
     </div>
-  </div>
-
-  <div class="grid-title">Mais opções</div>
-  <div class="product-grid">
     <div class="p-card" onclick="openModal('brotinho')">
       <div class="p-media" style="background:#F3E7DA;">🍫</div>
       <div class="p-body">
@@ -352,6 +380,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <button class="p-btn" onclick="event.stopPropagation(); openModal('esfihas')">Montar combo</button>
       </div>
     </div>
+  </div>
+
+  <div class="grid-title">Bebidas</div>
+  <div class="product-grid">
     <div class="p-card" onclick="openModal('bebidas')">
       <div class="p-media" style="background:#E7EEF6;">🥤</div>
       <div class="p-body">
@@ -362,16 +394,15 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <button class="p-btn" onclick="event.stopPropagation(); openModal('bebidas')">Ver opções</button>
       </div>
     </div>
-    <div class="p-card" onclick="openCheckout()">
-      <div class="p-media" style="background:#EFE9E2;">🧾</div>
-      <div class="p-body">
-        <span class="p-eyebrow">Pedido</span>
-        <div class="p-name">Meu Carrinho</div>
-        <span class="p-desc">Revisar itens e finalizar o pedido.</span>
-        <div class="p-price" id="grid-cart-total">R$ 0,00</div>
-        <button class="p-btn" onclick="event.stopPropagation(); openCheckout()">Finalizar pedido</button>
-      </div>
+  </div>
+
+  <div class="carrinho-cta" onclick="openCheckout()">
+    <div class="cc-texto">
+      <div class="cc-titulo">🧾 Meu Carrinho</div>
+      <div class="cc-sub">Revisar itens e finalizar o pedido</div>
+      <button class="cc-btn" onclick="event.stopPropagation(); openCheckout()">Finalizar pedido</button>
     </div>
+    <div class="cc-valor" id="grid-cart-total">R$ 0,00</div>
   </div>
 
   <footer class="footer">
@@ -1124,6 +1155,77 @@ function mostrarAvisoCardapio(mensagemHtml){
   document.body.appendChild(aviso);
 }
 
+/* ==================== CARROSSEL DE PROMOÇÕES ==================== */
+let carrosselTimer = null;
+function renderCarrossel(comboKeys){
+  const wrap = document.getElementById('carrossel-wrap');
+  const secao = document.getElementById('carrossel-secao');
+  if(!wrap || !secao) return;
+
+  if(!comboKeys || comboKeys.length === 0){
+    secao.style.display = 'none';
+    if(carrosselTimer){ clearInterval(carrosselTimer); carrosselTimer = null; }
+    return;
+  }
+  secao.style.display = '';
+
+  wrap.innerHTML = comboKeys.map(nome => {
+    const img = (PRODUCT_IMAGES.combos && PRODUCT_IMAGES.combos[nome]) || '';
+    const precoOriginal = MENU_ORIGINAL.combos && MENU_ORIGINAL.combos[nome];
+    const preco = MENU.combos[nome];
+    const temPromo = precoOriginal && precoOriginal > preco;
+    return `
+      <div class="carrossel-slide" onclick="abrirComboNoCarrinho('${nome.replace(/'/g,"\\'")}')">
+        ${img ? `<img src="${img}" alt="${nome}">` : `<div class="carrossel-slide-fallback">🍕</div>`}
+        <div class="carrossel-slide-info">
+          <div class="carrossel-slide-nome">${nome}</div>
+          <div class="carrossel-slide-preco">
+            ${temPromo ? `<span class="carrossel-preco-velho">${brl(precoOriginal)}</span>` : ''}
+            ${brl(preco)}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  renderCarrosselDots(comboKeys.length);
+  wrap.scrollTo({ left: 0 });
+  iniciarAutoplayCarrossel();
+}
+
+function renderCarrosselDots(qtd){
+  const dotsEl = document.getElementById('carrossel-dots');
+  if(!dotsEl) return;
+  if(qtd <= 1){ dotsEl.innerHTML = ''; return; }
+  dotsEl.innerHTML = Array.from({length: qtd}).map((_,i) => `<span class="carrossel-dot${i===0?' active':''}"></span>`).join('');
+}
+
+function iniciarAutoplayCarrossel(){
+  if(carrosselTimer) clearInterval(carrosselTimer);
+  const wrap = document.getElementById('carrossel-wrap');
+  if(!wrap || wrap.children.length <= 1) return;
+  carrosselTimer = setInterval(() => {
+    const largura = wrap.children[0].getBoundingClientRect().width + 12; // + gap
+    const proximo = wrap.scrollLeft + largura >= wrap.scrollWidth - largura/2 ? 0 : wrap.scrollLeft + largura;
+    wrap.scrollTo({ left: proximo, behavior: 'smooth' });
+  }, 4500);
+}
+
+function atualizarDotsCarrossel(){
+  const wrap = document.getElementById('carrossel-wrap');
+  const dotsEl = document.getElementById('carrossel-dots');
+  if(!wrap || !dotsEl || !wrap.children.length) return;
+  const largura = wrap.children[0].getBoundingClientRect().width + 12;
+  const indice = Math.round(wrap.scrollLeft / largura);
+  [...dotsEl.children].forEach((d,i) => d.classList.toggle('active', i === indice));
+}
+
+function abrirComboNoCarrinho(nome){
+  if(carrosselTimer){ clearInterval(carrosselTimer); carrosselTimer = null; }
+  selectComboFlavor(nome);
+  openModal('combos');
+}
+
 async function refreshAllUI(){
   // reseta seleções que não existem mais no cardápio atualizado
   if(!MENU.calzones[calzoneFlavor]) calzoneFlavor = Object.keys(MENU.calzones)[0];
@@ -1143,6 +1245,7 @@ async function refreshAllUI(){
   renderEsfihaFlavors();
   renderBebidaFlavorGrid(); updateBebidaPreview();
   if(comboKeys.length){ renderComboFlavorGrid(); updateComboPreview(); }
+  renderCarrossel(comboKeys);
   updatePriceHints();
 }
 
@@ -2048,6 +2151,39 @@ function flashAdded(){
   floating.classList.remove('pulse');
   void floating.offsetWidth; // reinicia a animação mesmo em cliques seguidos
   floating.classList.add('pulse');
+
+  // Fecha o modal aberto (se houver) e volta pra tela inicial, mostrando
+  // uma confirmação de que o item entrou no carrinho.
+  const modalAberto = document.querySelector('.modal-overlay.open');
+  if(modalAberto) modalAberto.classList.remove('open');
+  document.body.style.overflow = '';
+  mostrarToastAdicionado();
+}
+
+function mostrarToastAdicionado(){
+  let toast = document.getElementById('toast-adicionado');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'toast-adicionado';
+    toast.style.cssText = 'position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(16px); background:var(--ink); color:#fff; padding:.75rem 1.15rem; border-radius:999px; font-weight:700; font-size:13.5px; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,.28); opacity:0; transition:opacity .25s ease, transform .25s ease; white-space:nowrap; pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = '✅ Adicionado ao carrinho!';
+  clearTimeout(toast._timeoutId);
+  // reinicia a transição mesmo em cliques seguidos
+  toast.style.transition = 'none';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateX(-50%) translateY(16px)';
+  void toast.offsetWidth;
+  toast.style.transition = 'opacity .25s ease, transform .25s ease';
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  toast._timeoutId = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(16px)';
+  }, 2200);
 }
 
 /* ==================== CHECKOUT ==================== */
