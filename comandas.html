@@ -100,6 +100,13 @@
     <button class="btn-topo" onclick="exportarExcel()">📊 Exportar Excel</button>
   </div>
 
+  <div class="barra-acoes" id="filtro-dia" style="display:none;">
+    <input type="date" id="filtro-dia-input">
+    <button class="btn-topo" onclick="buscarHistoricoPorDia()">📅 Ver pedidos desse dia</button>
+    <button class="btn-topo" onclick="resetarHistorico()">↺ Ver últimos 200</button>
+    <span id="filtro-dia-status" style="font-size:.8rem; opacity:.8;"></span>
+  </div>
+
   <div class="grade" id="lista"></div>
   <div id="vazio">Nenhum pedido no momento.</div>
 </div>
@@ -304,6 +311,7 @@ function mudarAba(aba){
   modoAtual = aba;
   document.getElementById('tab-novos').classList.toggle('active', aba === 'novos');
   document.getElementById('tab-historico').classList.toggle('active', aba === 'historico');
+  document.getElementById('filtro-dia').style.display = aba === 'historico' ? 'flex' : 'none';
   if(aba === 'historico') carregarHistorico();
   renderizar();
 }
@@ -416,7 +424,36 @@ async function carregarHistorico(){
   const { data, error } = await supabaseClient.from('pedidos').select('*').order('created_at', { ascending: false }).limit(200);
   if(error){ console.error(error); return; }
   pedidosHistorico = data || [];
+  document.getElementById('filtro-dia-status').textContent = '';
+  document.getElementById('filtro-dia-input').value = '';
   if(modoAtual === 'historico') renderizar();
+}
+
+async function buscarHistoricoPorDia(){
+  const valor = document.getElementById('filtro-dia-input').value; // formato YYYY-MM-DD
+  const statusFiltroEl = document.getElementById('filtro-dia-status');
+  if(!valor){ statusFiltroEl.textContent = 'Escolha uma data primeiro.'; return; }
+  statusFiltroEl.textContent = 'Buscando...';
+  // O dia local (Fortaleza, -03:00) começa e termina nesses instantes em UTC.
+  const inicio = `${valor}T00:00:00-03:00`;
+  const [ano, mes, dia] = valor.split('-').map(Number);
+  const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
+  const fim = `${proximoDia.toISOString().slice(0,10)}T00:00:00-03:00`;
+  const { data, error } = await supabaseClient
+    .from('pedidos')
+    .select('*')
+    .gte('created_at', inicio)
+    .lt('created_at', fim)
+    .order('created_at', { ascending: false });
+  if(error){ console.error(error); statusFiltroEl.textContent = 'Erro ao buscar — veja o console.'; return; }
+  pedidosHistorico = data || [];
+  const [y,m,d] = valor.split('-');
+  statusFiltroEl.textContent = `${pedidosHistorico.length} pedido(s) em ${d}/${m}/${y}.`;
+  if(modoAtual === 'historico') renderizar();
+}
+
+function resetarHistorico(){
+  carregarHistorico();
 }
 
 function encontrarPedido(id){ return pedidosAtivos.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id); }
@@ -433,7 +470,17 @@ async function mudarStatus(id, novoStatus){
   if(novoStatus === 'finalizado_pago' && item && !item.finalizado_em){
     payload.finalizado_em = new Date().toISOString();
   }
-  await supabaseClient.from('pedidos').update(payload).eq('id', id);
+  const { data, error } = await supabaseClient.from('pedidos').update(payload).eq('id', id).select();
+  if(error){
+    alert('Não foi possível mudar o status.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('O status NÃO foi alterado (0 linhas afetadas). Tente sair e entrar de novo no painel.');
+    console.warn('Update de status retornou 0 linhas.', { id, payload });
+    return;
+  }
   if(item) Object.assign(item, payload);
   if(!STATUS_ATIVOS.includes(novoStatus)){
     pedidosAtivos = pedidosAtivos.filter(p => p.id !== id);
@@ -450,10 +497,15 @@ async function salvarEdicao(id){
   const novoTotal = extrairTotalComanda(textarea.value);
   if(novoTotal !== null) payload.total = novoTotal;
 
-  const { error } = await supabaseClient.from('pedidos').update(payload).eq('id', id);
+  const { data, error } = await supabaseClient.from('pedidos').update(payload).eq('id', id).select();
   if(error){
     alert('Não foi possível salvar a edição.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)));
     console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('A edição NÃO foi salva (0 linhas afetadas). Tente sair e entrar de novo no painel.');
+    console.warn('Update de edição retornou 0 linhas.', { id, payload });
     return;
   }
 
@@ -1117,8 +1169,9 @@ async function salvarBuilder(){
 
   try{
     if(builderEditingId){
-      const { error } = await supabaseClient.from('pedidos').update({ itens: novosItens, texto_comanda: texto, total }).eq('id', builderEditingId);
+      const { data, error } = await supabaseClient.from('pedidos').update({ itens: novosItens, texto_comanda: texto, total }).eq('id', builderEditingId).select();
       if(error) throw error;
+      if(!data || data.length === 0) throw new Error('0 linhas afetadas — provável perda de sessão ou permissão insuficiente. Tente sair e entrar de novo no painel.');
       // Atualiza a caixa de texto na tela ANTES de recarregar — se não fizer isso, o
       // sistema que preserva digitação em andamento acaba recapturando o texto
       // antigo que ainda estava ali e sobrescrevendo o texto novo que acabamos de salvar.
