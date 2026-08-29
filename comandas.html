@@ -1220,7 +1220,7 @@ async function gerarLinkAvaliacao(pedidoId){
   const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
   try{
     await navigator.clipboard.writeText(url);
-    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por 3 horas:\n\n' + url);
+    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por ate 3 horas:\n\n' + url);
   } catch(e){
     prompt('Copie o link abaixo e cole no WhatsApp do cliente (vale por 3 horas):', url);
   }
