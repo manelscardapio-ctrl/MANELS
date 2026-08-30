@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Despesas &amp; Estoque — Manel's Pizzaria</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#F2E5D3; --cream-soft:#EAD9BF; --paper:#EFE0C6;
+  --forest:#1F6E48; --forest-dark:#123F29;
+  --rust:#A8532B; --rust-dark:#7C3B1D;
+  --ink:#2B2118; --ink-soft:#5B4C3D; --gold:#C99A4A;
+  --line: rgba(43,33,24,0.22);
+  --ok:#1F6E48; --warn:#A8532B; --danger:#B23A2E;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--cream); color:var(--ink); font-family:'Work Sans',sans-serif; -webkit-font-smoothing:antialiased; padding-bottom:60px;}
+h1,h2,h3{font-family:'Fraunces',serif; color:var(--forest-dark); font-weight:700; margin:0;}
+
+/* ---- login ---- */
+#tela-login{position:fixed; inset:0; background:var(--forest-dark); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; z-index:999;}
+#tela-login h1{color:#fff; font-size:22px; margin-bottom:6px;}
+#tela-login input{font-family:'Work Sans',sans-serif; font-size:14px; padding:11px 14px; border-radius:8px; border:none; width:240px;}
+#tela-login button{font-family:'Fraunces',serif; font-weight:700; font-size:14px; padding:11px 20px; border:none; border-radius:999px; background:var(--rust); color:#fff; cursor:pointer;}
+#tela-login .erro{color:#f7b0a0; font-size:13px; min-height:1em;}
+
+.topbar{background:var(--forest-dark); color:#fff; padding:18px 24px 0;}
+.topbar-inner{max-width:1080px; margin:0 auto;}
+.topbar h1{color:#fff; font-size:22px; display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;}
+.topbar h1 .sair{font-family:'Work Sans',sans-serif; font-size:12px; font-weight:600; color:rgba(255,255,255,.7); cursor:pointer; text-decoration:underline;}
+.eyebrow{font-family:'Caveat',cursive; font-size:18px; color:var(--gold); display:block; margin-bottom:2px;}
+nav.tabs{display:flex; gap:4px; margin-top:16px; overflow-x:auto;}
+nav.tabs button{appearance:none; border:none; background:transparent; color:rgba(255,255,255,.65); font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; padding:11px 18px; border-radius:10px 10px 0 0; cursor:pointer; white-space:nowrap;}
+nav.tabs button:hover{color:#fff; background:rgba(255,255,255,.06);}
+nav.tabs button.active{color:var(--ink); background:var(--cream);}
+main{max-width:1080px; margin:0 auto; padding:26px 24px 40px;}
+.panel{display:none;}
+.panel.active{display:block;}
+.section-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+.section-head p{color:var(--ink-soft); font-size:13.5px; margin:2px 0 0;}
+.card{background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:20px; margin-bottom:18px;}
+.card h3{font-size:16px; margin-bottom:14px;}
+.btn{display:inline-flex; align-items:center; gap:6px; border:none; border-radius:999px; font-family:'Fraunces',serif; font-weight:700; font-size:14px; padding:10px 20px; cursor:pointer; background:var(--forest); color:#fff;}
+.btn.secondary{background:transparent; color:var(--forest-dark); border:1.5px solid var(--forest);}
+.btn.danger{background:var(--danger); color:#fff;}
+.btn.small{padding:6px 13px; font-size:12.5px;}
+.btn:disabled{opacity:.5; cursor:default;}
+label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px;}
+input,select,textarea{width:100%; border:1.5px solid var(--line); border-radius:9px; padding:9px 11px; font-family:'Work Sans',sans-serif; font-size:14px; background:var(--cream); color:var(--ink);}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold); outline-offset:1px; background:#fff;}
+table{width:100%; border-collapse:collapse; font-size:13.5px;}
+th{text-align:left; font-family:'Fraunces',serif; font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:8px 10px; border-bottom:2px solid var(--line);}
+td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:700;}
+.pill.ok{background:rgba(31,110,72,.12); color:var(--ok);}
+.pill.warn{background:rgba(168,83,43,.14); color:var(--warn);}
+.pill.danger{background:rgba(178,58,46,.14); color:var(--danger);}
+.muted{color:var(--ink-soft); font-size:12.5px;}
+.two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+@media (max-width:820px){.two-col{grid-template-columns:1fr;}}
+.stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:18px;}
+.stat{background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:16px 18px;}
+.stat .num{font-family:'Fraunces',serif; font-size:26px; font-weight:700; color:var(--forest-dark);}
+.stat .lbl{font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
+.ficha-picker{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.ficha-picker button{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:7px 15px; font-size:13px; cursor:pointer; font-family:'Work Sans',sans-serif;}
+.ficha-picker button.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+.ing-row{display:grid; grid-template-columns:2fr 90px 70px 30px; gap:8px; align-items:center; margin-bottom:8px;}
+.ing-row.head{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:700;}
+.remove-x{color:var(--danger); cursor:pointer; text-align:center; font-weight:700; user-select:none;}
+.pricebar{display:flex; justify-content:space-between; align-items:center; background:var(--paper); border-radius:12px; padding:14px 18px; margin-top:12px; flex-wrap:wrap; gap:10px;}
+.pricebar .item{text-align:center;}
+.pricebar .item .v{font-family:'Fraunces',serif; font-size:18px; font-weight:700;}
+.pricebar .item .l{font-size:11px; color:var(--ink-soft); text-transform:uppercase;}
+.despesa-item-row{display:grid; grid-template-columns:2fr 90px 90px 110px 30px; gap:8px; align-items:end; margin-bottom:8px;}
+.status-msg{font-size:13px; margin-top:8px; min-height:1.2em;}
+.status-msg.ok{color:var(--ok);}
+.status-msg.erro{color:var(--danger);}
+footer.note{max-width:1080px; margin:24px auto 0; padding:0 24px; color:var(--ink-soft); font-size:12.5px; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<div id="tela-login">
+  <h1>📦 Despesas &amp; Estoque — Manel's</h1>
+  <input type="email" id="input-email" placeholder="E-mail" autocomplete="username">
+  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
+  <button onclick="fazerLogin()">Entrar</button>
+  <div class="erro" id="erro-login"></div>
+</div>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="eyebrow">painel interno</span>
+    <h1>📦 Despesas &amp; Estoque <span class="sair" onclick="sair()">sair</span></h1>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="despesas">Lançar despesa</button>
+      <button class="tab-btn" data-tab="estoque">Estoque</button>
+      <button class="tab-btn" data-tab="ingredientes">Ingredientes</button>
+      <button class="tab-btn" data-tab="fichas">Fichas técnicas</button>
+    </nav>
+  </div>
+</div>
+
+<main>
+
+  <!-- ===== DESPESAS ===== -->
+  <section class="panel active" id="panel-despesas">
+    <div class="section-head">
+      <div><h2>Lançar despesa</h2><p>Uma compra pode ter vários itens do mesmo mercado.</p></div>
+    </div>
+
+    <div class="card">
+      <h3>Nova compra</h3>
+      <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px; margin-bottom:14px;">
+        <div><label>Data da compra</label><input type="date" id="desp-data"></div>
+        <div><label>Mercado / fornecedor</label><input type="text" id="desp-mercado" placeholder="Ex.: Mercado Central"></div>
+      </div>
+
+      <div class="despesa-item-row" style="font-size:11px; text-transform:uppercase; color:var(--ink-soft); font-weight:700;">
+        <span>Ingrediente</span><span>Qtd.</span><span>Unid.</span><span>Valor total (R$)</span><span></span>
+      </div>
+      <div id="desp-itens-lista"></div>
+      <button class="btn secondary small" style="margin-top:6px;" onclick="addDespesaItemLinha()">+ Adicionar item</button>
+
+      <div style="margin-top:16px;">
+        <label>Observação (opcional)</label>
+        <textarea id="desp-obs" rows="2"></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:18px;">
+        <span class="status-msg" id="desp-status"></span>
+        <button class="btn" onclick="salvarDespesa()">Salvar compra</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Últimos lançamentos</h3>
+      <table id="tbl-despesas"><tr><th>Data</th><th>Mercado</th><th>Itens</th><th>Total</th></tr></table>
+    </div>
+  </section>
+
+  <!-- ===== ESTOQUE ===== -->
+  <section class="panel" id="panel-estoque">
+    <div class="section-head">
+      <div><h2>Estoque atual</h2><p>Entradas (despesas) menos saídas (vendas, via ficha técnica).</p></div>
+      <button class="btn secondary small" onclick="processarVendasNovas()">Processar vendas novas</button>
+    </div>
+    <span class="status-msg" id="estoque-status"></span>
+    <div class="stat-row" id="estoque-stats"></div>
+    <div class="card">
+      <table id="tbl-estoque"><tr><th>Ingrediente</th><th>Saldo atual</th><th>Status</th></tr></table>
+    </div>
+  </section>
+
+  <!-- ===== INGREDIENTES ===== -->
+  <section class="panel" id="panel-ingredientes">
+    <div class="section-head">
+      <div><h2>Cadastro de ingredientes</h2><p>O custo por unidade é calculado sozinho.</p></div>
+      <button class="btn small" onclick="addIngredienteLinha()">+ Novo ingrediente</button>
+    </div>
+    <div class="card">
+      <table id="tbl-ingredientes"><tr><th>Nome</th><th>Qtd. embalagem</th><th>Unidade</th><th>Valor embalagem</th><th>Custo/unid.</th><th></th></tr></table>
+    </div>
+  </section>
+
+  <!-- ===== FICHAS TÉCNICAS ===== -->
+  <section class="panel" id="panel-fichas">
+    <div class="section-head">
+      <div><h2>Fichas técnicas &amp; precificação</h2><p>Ingredientes usados por item, e o preço de venda sugerido.</p></div>
+    </div>
+    <div class="ficha-picker" id="ficha-picker"></div>
+    <div class="card" id="ficha-nova-card">
+      <h3>Nova ficha técnica</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:10px;">
+        <div><label>Categoria</label>
+          <select id="nf-categoria">
+            <option value="pizza">Pizza</option>
+            <option value="esfiha">Esfiha</option>
+            <option value="calzone">Calzone</option>
+            <option value="brotinho">Brotinho</option>
+            <option value="bebida">Bebida</option>
+            <option value="combo">Combo</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div><label>Tamanho (se houver)</label><input type="text" id="nf-tamanho" placeholder="30cm, 35cm..."></div>
+        <div><label>Sabor / nome (igual ao cardápio)</label><input type="text" id="nf-sabor" placeholder="Ex.: Calabresa com Mussarela"></div>
+      </div>
+      <button class="btn small" style="margin-top:12px;" onclick="criarFichaNova()">Criar ficha</button>
+    </div>
+
+    <div class="two-col" id="ficha-detalhe" style="display:none;">
+      <div class="card">
+        <h3>Ingredientes da receita</h3>
+        <div class="ing-row head"><span>Ingrediente</span><span>Qtd.</span><span>Unid.</span><span></span></div>
+        <div id="ficha-itens-lista"></div>
+        <button class="btn secondary small" onclick="addFichaItemLinha()">+ Adicionar ingrediente</button>
+      </div>
+      <div class="card">
+        <h3>Precificação</h3>
+        <label>% de lucro desejado: <span id="ficha-lucro-valor">60%</span></label>
+        <input type="range" min="0" max="150" value="60" id="ficha-lucro-slider" style="width:100%; accent-color:var(--forest);" oninput="atualizarPrecificacao()">
+        <div class="pricebar">
+          <div class="item"><div class="v" id="ficha-custo-total">R$ 0,00</div><div class="l">Custo total</div></div>
+          <div class="item"><div class="v" style="color:var(--forest-dark);" id="ficha-preco-sugerido">R$ 0,00</div><div class="l">Preço sugerido</div></div>
+        </div>
+        <span class="status-msg" id="ficha-status"></span>
+        <button class="btn" style="margin-top:12px; width:100%; justify-content:center;" onclick="salvarFicha()">Salvar ficha técnica</button>
+        <button class="btn danger" style="margin-top:8px; width:100%; justify-content:center;" onclick="excluirFicha()">Excluir esta ficha</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="note">
+  Dados conectados em tempo real ao Supabase do projeto MANELS (mesmo banco do cardápio e do painel de pedidos).
+</footer>
+
+<script>
+// >>>>>>>>>>>>> mesmas credenciais usadas em index.html / admin.html <<<<<<<<<<<<<
+const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let ingredientes = [];   // [{id, nome, unidade, embalagem_qtd, embalagem_valor, custo_unidade}]
+let fichas = [];         // [{id, categoria, tamanho, sabor, nome_exibicao, percentual_lucro, itens:[{ingrediente_id, quantidade}]}]
+let fichaAtualId = null;
+let estoqueSaldo = [];   // da view estoque_saldo
+
+function brl(v){ return 'R$ ' + (Number(v)||0).toFixed(2).replace('.', ','); }
+
+/* ---------------- LOGIN ---------------- */
+async function fazerLogin(){
+  const email = document.getElementById('input-email').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const erroEl = document.getElementById('erro-login');
+  if(!email || !senha){ erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+  if(error){ erroEl.textContent = error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message; return; }
+  document.getElementById('tela-login').style.display = 'none';
+  iniciarApp();
+}
+async function sair(){
+  await supabaseClient.auth.signOut();
+  document.getElementById('tela-login').style.display = 'flex';
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') fazerLogin(); });
+supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  if(session){ document.getElementById('tela-login').style.display = 'none'; iniciarApp(); }
+});
+
+/* ---------------- TABS ---------------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'estoque') carregarEstoque();
+  });
+});
+
+/* ---------------- BOOT ---------------- */
+async function iniciarApp(){
+  document.getElementById('desp-data').value = new Date().toISOString().slice(0,10);
+  await carregarIngredientes();
+  addDespesaItemLinha();
+  await carregarDespesas();
+  await carregarFichas();
+}
+
+/* ================= INGREDIENTES ================= */
+async function carregarIngredientes(){
+  const { data, error } = await supabaseClient.from('ingredientes').select('*').order('nome');
+  if(error){ console.error(error); return; }
+  ingredientes = data || [];
+  desenharIngredientes();
+  atualizarSelectsIngredientes();
+}
+function desenharIngredientes(){
+  const tbl = document.getElementById('tbl-ingredientes');
+  tbl.innerHTML = '<tr><th>Nome</th><th>Qtd. embalagem</th><th>Unidade</th><th>Valor embalagem</th><th>Custo/unid.</th><th></th></tr>';
+  ingredientes.forEach(ing=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${ing.nome}" data-f="nome" style="background:transparent;border:none;padding:2px;"></td>
+      <td><input value="${ing.embalagem_qtd}" data-f="embalagem_qtd" style="background:transparent;border:none;padding:2px;"></td>
+      <td>
+        <select data-f="unidade" style="background:transparent;border:none;padding:2px;">
+          <option value="g" ${ing.unidade==='g'?'selected':''}>g</option>
+          <option value="ml" ${ing.unidade==='ml'?'selected':''}>ml</option>
+          <option value="unid" ${ing.unidade==='unid'?'selected':''}>unid</option>
+        </select>
+      </td>
+      <td><input value="${ing.embalagem_valor}" data-f="embalagem_valor" style="background:transparent;border:none;padding:2px;"></td>
+      <td>${brl(ing.custo_unidade)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn secondary small" data-action="salvar">Salvar</button>
+        <button class="btn danger small" data-action="excluir">✕</button>
+      </td>`;
+    tr.querySelector('[data-action="salvar"]').addEventListener('click', ()=>salvarIngrediente(ing.id, tr));
+    tr.querySelector('[data-action="excluir"]').addEventListener('click', ()=>excluirIngrediente(ing.id));
+    tbl.appendChild(tr);
+  });
+}
+async function salvarIngrediente(id, tr){
+  const payload = {
+    nome: tr.querySelector('[data-f="nome"]').value.trim(),
+    embalagem_qtd: parseFloat(tr.querySelector('[data-f="embalagem_qtd"]').value) || 1,
+    unidade: tr.querySelector('[data-f="unidade"]').value,
+    embalagem_valor: parseFloat(tr.querySelector('[data-f="embalagem_valor"]').value) || 0,
+  };
+  const { error } = await supabaseClient.from('ingredientes').update(payload).eq('id', id);
+  if(error){ alert('Erro ao salvar: ' + error.message); return; }
+  await carregarIngredientes();
+}
+async function excluirIngrediente(id){
+  if(!confirm('Excluir este ingrediente? Isso pode quebrar fichas técnicas que o usam.')) return;
+  const { error } = await supabaseClient.from('ingredientes').delete().eq('id', id);
+  if(error){ alert('Erro ao excluir: ' + error.message + '\n\nSe ele estiver em uso numa despesa ou ficha técnica, marque como inativo em vez de excluir.'); return; }
+  await carregarIngredientes();
+}
+async function addIngredienteLinha(){
+  const nome = prompt('Nome do novo ingrediente:');
+  if(!nome) return;
+  const { error } = await supabaseClient.from('ingredientes').insert({ nome: nome.trim().toUpperCase(), unidade:'g', embalagem_qtd:1000, embalagem_valor:0 });
+  if(error){ alert('Erro: ' + error.message); return; }
+  await carregarIngredientes();
+}
+function atualizarSelectsIngredientes(){
+  document.querySelectorAll('.select-ingrediente').forEach(sel=>{
+    const atual = sel.value;
+    sel.innerHTML = ingredientes.map(i=>`<option value="${i.id}">${i.nome} (${i.unidade})</option>`).join('');
+    if(atual) sel.value = atual;
+  });
+}
+
+/* ================= DESPESAS ================= */
+function addDespesaItemLinha(){
+  const div = document.createElement('div');
+  div.className = 'despesa-item-row';
+  div.innerHTML = `
+    <select class="select-ingrediente">${ingredientes.map(i=>`<option value="${i.id}">${i.nome} (${i.unidade})</option>`).join('')}</select>
+    <input type="text" placeholder="Qtd." class="di-qtd">
+    <input type="text" value="${ingredientes[0]?.unidade || ''}" class="di-unid" disabled>
+    <input type="text" placeholder="0,00" class="di-valor">
+    <span class="remove-x" onclick="this.parentElement.remove()">✕</span>`;
+  const sel = div.querySelector('.select-ingrediente');
+  sel.addEventListener('change', ()=>{
+    const ing = ingredientes.find(i=>String(i.id)===sel.value);
+    div.querySelector('.di-unid').value = ing ? ing.unidade : '';
+  });
+  document.getElementById('desp-itens-lista').appendChild(div);
+}
+async function salvarDespesa(){
+  const statusEl = document.getElementById('desp-status');
+  const data = document.getElementById('desp-data').value;
+  const mercado = document.getElementById('desp-mercado').value.trim();
+  const obs = document.getElementById('desp-obs').value.trim();
+  const linhas = Array.from(document.querySelectorAll('#desp-itens-lista .despesa-item-row'));
+  if(!data || !mercado || linhas.length === 0){ statusEl.textContent = 'Preencha data, mercado e ao menos um item.'; statusEl.className='status-msg erro'; return; }
+
+  const itens = linhas.map(l=>({
+    ingrediente_id: parseInt(l.querySelector('.select-ingrediente').value, 10),
+    quantidade: parseFloat(l.querySelector('.di-qtd').value.replace(',','.')) || 0,
+    valor_total: parseFloat(l.querySelector('.di-valor').value.replace(',','.')) || 0,
+  })).filter(i => i.quantidade > 0);
+
+  if(itens.length === 0){ statusEl.textContent = 'Preencha a quantidade dos itens.'; statusEl.className='status-msg erro'; return; }
+
+  const { data: grupo, error: errGrupo } = await supabaseClient.from('despesas_grupos')
+    .insert({ data, mercado, observacao: obs }).select().single();
+  if(errGrupo){ statusEl.textContent = 'Erro: ' + errGrupo.message; statusEl.className='status-msg erro'; return; }
+
+  const itensPayload = itens.map(i => ({ ...i, grupo_id: grupo.id }));
+  const { error: errItens } = await supabaseClient.from('despesas_itens').insert(itensPayload);
+  if(errItens){ statusEl.textContent = 'Erro ao salvar itens: ' + errItens.message; statusEl.className='status-msg erro'; return; }
+
+  const movimentos = itens.map(i => ({ ingrediente_id: i.ingrediente_id, tipo:'entrada', quantidade:i.quantidade, origem:'despesa', origem_id:String(grupo.id) }));
+  const { error: errMov } = await supabaseClient.from('estoque_movimentos').insert(movimentos);
+  if(errMov){ statusEl.textContent = 'Compra salva, mas houve erro ao atualizar o estoque: ' + errMov.message; statusEl.className='status-msg erro'; return; }
+
+  statusEl.textContent = '✅ Compra salva e estoque atualizado!';
+  statusEl.className = 'status-msg ok';
+  document.getElementById('desp-mercado').value = '';
+  document.getElementById('desp-obs').value = '';
+  document.getElementById('desp-itens-lista').innerHTML = '';
+  addDespesaItemLinha();
+  await carregarDespesas();
+}
+async function carregarDespesas(){
+  const { data: grupos, error } = await supabaseClient.from('despesas_grupos')
+    .select('*, despesas_itens(*, ingredientes(nome))')
+    .order('data', { ascending:false }).limit(20);
+  if(error){ console.error(error); return; }
+  const tbl = document.getElementById('tbl-despesas');
+  tbl.innerHTML = '<tr><th>Data</th><th>Mercado</th><th>Itens</th><th>Total</th></tr>';
+  (grupos||[]).forEach(g=>{
+    const itens = g.despesas_itens || [];
+    const total = itens.reduce((s,i)=>s+Number(i.valor_total||0),0);
+    const resumo = itens.map(i=>`${i.ingredientes?.nome||'?'} ${i.quantidade}`).join(', ');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${new Date(g.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${g.mercado}</td><td class="muted">${resumo}</td><td>${brl(total)}</td>`;
+    tbl.appendChild(tr);
+  });
+}
+
+/* ================= ESTOQUE ================= */
+async function carregarEstoque(){
+  const statusEl = document.getElementById('estoque-status');
+  const { data, error } = await supabaseClient.from('estoque_saldo').select('*').order('nome');
+  if(error){ statusEl.textContent = 'Erro ao carregar estoque: ' + error.message; statusEl.className='status-msg erro'; return; }
+  statusEl.textContent = '';
+  estoqueSaldo = data || [];
+  const baixo = estoqueSaldo.filter(e => Number(e.saldo) <= 0);
+  const valorTotal = estoqueSaldo.reduce((s,e)=> s + (Number(e.saldo)||0) * (Number(e.custo_unidade)||0), 0);
+  document.getElementById('estoque-stats').innerHTML = `
+    <div class="stat"><div class="num">${estoqueSaldo.length}</div><div class="lbl">Ingredientes cadastrados</div></div>
+    <div class="stat"><div class="num" style="color:var(--warn)">${baixo.length}</div><div class="lbl">Zerados ou negativos</div></div>
+    <div class="stat"><div class="num">${brl(valorTotal)}</div><div class="lbl">Valor em estoque (custo)</div></div>`;
+  const tbl = document.getElementById('tbl-estoque');
+  tbl.innerHTML = '<tr><th>Ingrediente</th><th>Saldo atual</th><th>Status</th></tr>';
+  estoqueSaldo.forEach(e=>{
+    const saldo = Number(e.saldo);
+    const pill = saldo <= 0 ? '<span class="pill danger">Zerado</span>' : (saldo < 20 ? '<span class="pill warn">Baixo</span>' : '<span class="pill ok">Ok</span>');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${e.nome}</td><td>${saldo.toFixed(2)} ${e.unidade}</td><td>${pill}</td>`;
+    tbl.appendChild(tr);
+  });
+}
+
+// Lê pedidos ainda não processados e desconta do estoque conforme a ficha técnica
+// de cada item vendido. Cada sabor consome a ficha inteira dele (mesmo em pizzas
+// meio a meio) — decisão combinada: mais simples, mais gasto registrado.
+async function processarVendasNovas(){
+  const statusEl = document.getElementById('estoque-status');
+  statusEl.textContent = 'Processando...'; statusEl.className='status-msg';
+
+  const { data: processados, error: errProc } = await supabaseClient.from('estoque_pedidos_processados').select('pedido_id');
+  if(errProc){ statusEl.textContent = 'Erro: ' + errProc.message; statusEl.className='status-msg erro'; return; }
+  const idsProcessados = new Set((processados||[]).map(p=>p.pedido_id));
+
+  const { data: pedidos, error: errPed } = await supabaseClient.from('pedidos').select('id, itens').order('id', { ascending:true }).limit(500);
+  if(errPed){ statusEl.textContent = 'Erro ao ler pedidos: ' + errPed.message; statusEl.className='status-msg erro'; return; }
+
+  const novos = (pedidos||[]).filter(p => !idsProcessados.has(p.id) && Array.isArray(p.itens));
+  if(novos.length === 0){ statusEl.textContent = 'Nenhum pedido novo pra processar.'; statusEl.className='status-msg ok'; return; }
+
+  if(fichas.length === 0) await carregarFichas();
+
+  function acharFicha(categoria, tamanho, sabor){
+    return fichas.find(f => f.categoria === categoria && (f.tamanho||null) === (tamanho||null) && f.sabor.trim().toLowerCase() === (sabor||'').trim().toLowerCase());
+  }
+
+  let movimentos = [];
+  let semFicha = [];
+
+  for(const pedido of novos){
+    for(const item of pedido.itens){
+      const qtdItem = item.quantidade || 1;
+      if(item.categoria === 'pizza' && Array.isArray(item.sabores)){
+        for(const sabor of item.sabores){
+          const ficha = acharFicha('pizza', item.tamanho, sabor);
+          if(!ficha){ semFicha.push(`pizza ${item.tamanho||''} · ${sabor}`); continue; }
+          for(const fi of ficha.itens) movimentos.push({ ingrediente_id: fi.ingrediente_id, tipo:'saida', quantidade: fi.quantidade * qtdItem, origem:'venda', origem_id:String(pedido.id) });
+        }
+      } else if(item.categoria === 'esfiha' && item.sabores && typeof item.sabores === 'object'){
+        for(const [sabor, count] of Object.entries(item.sabores)){
+          const ficha = acharFicha('esfiha', null, sabor);
+          if(!ficha){ semFicha.push(`esfiha · ${sabor}`); continue; }
+          for(const fi of ficha.itens) movimentos.push({ ingrediente_id: fi.ingrediente_id, tipo:'saida', quantidade: fi.quantidade * (count||0), origem:'venda', origem_id:String(pedido.id) });
+        }
+      } else if(['calzone','brotinho'].includes(item.categoria) && item.sabor){
+        const ficha = acharFicha(item.categoria, null, item.sabor);
+        if(!ficha){ semFicha.push(`${item.categoria} · ${item.sabor}`); continue; }
+        for(const fi of ficha.itens) movimentos.push({ ingrediente_id: fi.ingrediente_id, tipo:'saida', quantidade: fi.quantidade * qtdItem, origem:'venda', origem_id:String(pedido.id) });
+      }
+      // bebida/combo/outro: sem ficha técnica de ingredientes por enquanto, ignorado no estoque.
+    }
+  }
+
+  if(movimentos.length > 0){
+    const { error: errMov } = await supabaseClient.from('estoque_movimentos').insert(movimentos);
+    if(errMov){ statusEl.textContent = 'Erro ao gravar baixa de estoque: ' + errMov.message; statusEl.className='status-msg erro'; return; }
+  }
+  const { error: errMarca } = await supabaseClient.from('estoque_pedidos_processados').insert(novos.map(p=>({ pedido_id: p.id })));
+  if(errMarca){ statusEl.textContent = 'Baixa feita, mas houve erro ao marcar pedidos como processados: ' + errMarca.message; statusEl.className='status-msg erro'; return; }
+
+  let msg = `✅ ${novos.length} pedido(s) processado(s).`;
+  if(semFicha.length > 0) msg += ` ⚠️ Sem ficha técnica cadastrada para: ${[...new Set(semFicha)].join(', ')}.`;
+  statusEl.textContent = msg;
+  statusEl.className = 'status-msg ' + (semFicha.length ? 'erro' : 'ok');
+  await carregarEstoque();
+}
+
+/* ================= FICHAS TÉCNICAS ================= */
+async function carregarFichas(){
+  const { data, error } = await supabaseClient.from('fichas_tecnicas').select('*, fichas_tecnicas_itens(*)').order('categoria').order('sabor');
+  if(error){ console.error(error); return; }
+  fichas = (data||[]).map(f => ({ ...f, itens: (f.fichas_tecnicas_itens||[]).map(i=>({ ingrediente_id:i.ingrediente_id, quantidade:i.quantidade, item_id:i.id })) }));
+  desenharFichaPicker();
+}
+function desenharFichaPicker(){
+  const wrap = document.getElementById('ficha-picker');
+  wrap.innerHTML = '';
+  fichas.forEach(f=>{
+    const btn = document.createElement('button');
+    btn.textContent = f.nome_exibicao || `${f.categoria}${f.tamanho ? ' '+f.tamanho : ''} · ${f.sabor}`;
+    btn.className = f.id === fichaAtualId ? 'active' : '';
+    btn.addEventListener('click', ()=>abrirFicha(f.id));
+    wrap.appendChild(btn);
+  });
+}
+function abrirFicha(id){
+  fichaAtualId = id;
+  desenharFichaPicker();
+  const ficha = fichas.find(f=>f.id===id);
+  document.getElementById('ficha-detalhe').style.display = 'grid';
+  document.getElementById('ficha-lucro-slider').value = Math.round((ficha.percentual_lucro||0)*100);
+  desenharFichaItens(ficha.itens);
+  atualizarPrecificacao();
+}
+function desenharFichaItens(itens){
+  const lista = document.getElementById('ficha-itens-lista');
+  lista.innerHTML = '';
+  itens.forEach(it => addFichaItemLinha(it.ingrediente_id, it.quantidade));
+}
+function addFichaItemLinha(ingredienteId, quantidade){
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  div.innerHTML = `
+    <select class="select-ingrediente fi-ing">${ingredientes.map(i=>`<option value="${i.id}">${i.nome}</option>`).join('')}</select>
+    <input type="text" class="fi-qtd" value="${quantidade!=null?quantidade:''}" placeholder="Qtd.">
+    <span class="muted fi-unid">${ingredientes[0]?.unidade||''}</span>
+    <span class="remove-x" onclick="this.parentElement.remove(); atualizarPrecificacao();">✕</span>`;
+  const sel = div.querySelector('.fi-ing');
+  if(ingredienteId) sel.value = ingredienteId;
+  sel.addEventListener('change', atualizarPrecificacao);
+  div.querySelector('.fi-qtd').addEventListener('input', atualizarPrecificacao);
+  document.getElementById('ficha-itens-lista').appendChild(div);
+  atualizarPrecificacao();
+}
+function calcularCustoFicha(){
+  let custo = 0;
+  document.querySelectorAll('#ficha-itens-lista .ing-row').forEach(row=>{
+    const ingId = parseInt(row.querySelector('.fi-ing').value, 10);
+    const qtd = parseFloat(row.querySelector('.fi-qtd').value.replace(',','.')) || 0;
+    const ing = ingredientes.find(i=>i.id===ingId);
+    if(ing) custo += qtd * Number(ing.custo_unidade||0);
+  });
+  return custo;
+}
+function atualizarPrecificacao(){
+  const lucro = parseInt(document.getElementById('ficha-lucro-slider').value,10) / 100;
+  document.getElementById('ficha-lucro-valor').textContent = Math.round(lucro*100) + '%';
+  const custo = calcularCustoFicha();
+  const preco = custo * (1 + lucro);
+  document.getElementById('ficha-custo-total').textContent = brl(custo);
+  document.getElementById('ficha-preco-sugerido').textContent = brl(preco);
+}
+async function criarFichaNova(){
+  const categoria = document.getElementById('nf-categoria').value;
+  const tamanho = document.getElementById('nf-tamanho').value.trim() || null;
+  const sabor = document.getElementById('nf-sabor').value.trim();
+  if(!sabor){ alert('Preencha o sabor/nome.'); return; }
+  const { data, error } = await supabaseClient.from('fichas_tecnicas')
+    .insert({ categoria, tamanho, sabor, nome_exibicao: `${categoria}${tamanho?' '+tamanho:''} · ${sabor}`, percentual_lucro:0.6 })
+    .select().single();
+  if(error){ alert('Erro: ' + error.message); return; }
+  document.getElementById('nf-sabor').value = '';
+  document.getElementById('nf-tamanho').value = '';
+  await carregarFichas();
+  abrirFicha(data.id);
+}
+async function salvarFicha(){
+  const statusEl = document.getElementById('ficha-status');
+  if(!fichaAtualId){ return; }
+  const lucro = parseInt(document.getElementById('ficha-lucro-slider').value,10) / 100;
+  const { error: errUpdate } = await supabaseClient.from('fichas_tecnicas').update({ percentual_lucro: lucro }).eq('id', fichaAtualId);
+  if(errUpdate){ statusEl.textContent = 'Erro: ' + errUpdate.message; statusEl.className='status-msg erro'; return; }
+
+  const { error: errDel } = await supabaseClient.from('fichas_tecnicas_itens').delete().eq('ficha_id', fichaAtualId);
+  if(errDel){ statusEl.textContent = 'Erro ao limpar itens antigos: ' + errDel.message; statusEl.className='status-msg erro'; return; }
+
+  const itens = Array.from(document.querySelectorAll('#ficha-itens-lista .ing-row')).map(row=>({
+    ficha_id: fichaAtualId,
+    ingrediente_id: parseInt(row.querySelector('.fi-ing').value,10),
+    quantidade: parseFloat(row.querySelector('.fi-qtd').value.replace(',','.')) || 0,
+  })).filter(i=>i.quantidade > 0);
+
+  if(itens.length > 0){
+    const { error: errIns } = await supabaseClient.from('fichas_tecnicas_itens').insert(itens);
+    if(errIns){ statusEl.textContent = 'Erro ao salvar itens: ' + errIns.message; statusEl.className='status-msg erro'; return; }
+  }
+  statusEl.textContent = '✅ Ficha técnica salva!';
+  statusEl.className = 'status-msg ok';
+  await carregarFichas();
+}
+async function excluirFicha(){
+  if(!fichaAtualId || !confirm('Excluir esta ficha técnica?')) return;
+  const { error } = await supabaseClient.from('fichas_tecnicas').delete().eq('id', fichaAtualId);
+  if(error){ alert('Erro: ' + error.message); return; }
+  fichaAtualId = null;
+  document.getElementById('ficha-detalhe').style.display = 'none';
+  await carregarFichas();
+}
+</script>
+</body>
+</html>
