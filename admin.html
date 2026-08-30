@@ -180,6 +180,7 @@ let produtos = []; // todos os produtos, de todas as categorias
 let categoriaAtiva = 'combo';
 let horarios = []; // linhas da tabela horario_funcionamento
 let configGeral = { tempo_espera_ativo:false, tempo_espera_texto:'' };
+let TAMANHOS_PIZZA = []; // [{chave, rotulo, medida, max_sabores, ordem, ativo}]
 const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
 function setStatus(texto, tipo){
@@ -194,8 +195,19 @@ function mostrarAvisoConfig(msg){
   el.classList.add('show');
 }
 
+async function carregarTamanhosPizza(){
+  const { data, error } = await supabaseClient.from('tamanhos_pizza').select('*').order('ordem', { ascending:true });
+  if(error){
+    console.error('Erro ao carregar tamanhos de pizza:', error);
+    TAMANHOS_PIZZA = [];
+    return;
+  }
+  TAMANHOS_PIZZA = data || [];
+}
+
 async function iniciar(){
   renderTabs();
+  await carregarTamanhosPizza();
   await Promise.all([carregarProdutos(), carregarConfiguracoes()]);
 }
 
@@ -252,7 +264,7 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
@@ -261,6 +273,7 @@ function renderCategorias(){
   renderEstatisticas();
   renderAvaliacoes();
   renderCarrosselAdmin();
+  renderTamanhosPizzaPainel();
 }
 
 function renderGrade(catKey){
@@ -286,12 +299,127 @@ function promoPizza(p, tam){
   return (p.promo_prices && p.promo_prices[tam] !== undefined) ? p.promo_prices[tam] : '';
 }
 
+function renderTamanhosPizzaPainel(){
+  const el = document.getElementById('tamanhos-pizza-painel');
+  if(!el) return;
+
+  const linhas = TAMANHOS_PIZZA.map((t, i) => `
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:rgba(255,255,255,.05); border-radius:8px; padding:10px; margin-bottom:8px;">
+      <input type="text" value="${(t.rotulo||'').replace(/"/g,'&quot;')}" placeholder="Rótulo (ex: Média)" id="tam-rotulo-${t.chave}" style="width:110px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+      <input type="text" value="${(t.medida||'').replace(/"/g,'&quot;')}" placeholder="Medida (ex: 30 cm)" id="tam-medida-${t.chave}" style="width:100px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+      <label style="font-size:12px; display:flex; align-items:center; gap:4px;">Até
+        <input type="number" min="1" max="4" value="${t.max_sabores}" id="tam-maxsab-${t.chave}" style="width:48px; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        sabor(es)
+      </label>
+      <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" id="tam-ativo-${t.chave}" ${t.ativo?'checked':''}> Ativo
+      </label>
+      <code style="font-size:11px; opacity:.6;">chave: ${t.chave}</code>
+      <button class="btn-salvar" style="max-width:90px; padding:6px 10px;" onclick="salvarTamanhoPizza('${t.chave}')">💾</button>
+      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--rust);" onclick="moverTamanhoPizza('${t.chave}', -1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--rust);" onclick="moverTamanhoPizza('${t.chave}', 1)" ${i===TAMANHOS_PIZZA.length-1?'disabled':''}>↓</button>
+      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:#7C3B1D;" onclick="excluirTamanhoPizza('${t.chave}')">🗑️</button>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div style="background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:14px; margin-bottom:18px;">
+      <h3 style="margin:0 0 4px;">📏 Tamanhos de Pizza</h3>
+      <p style="font-size:.8rem; opacity:.8; margin-top:0;">
+        Crie, renomeie ou desative tamanhos livremente. Desativar um tamanho não apaga os preços já
+        cadastrados nele — só some da tela até você reativar.
+      </p>
+      ${linhas}
+      <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+        <input type="text" id="novo-tam-chave" placeholder="Chave (ex: P)" style="width:80px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        <input type="text" id="novo-tam-rotulo" placeholder="Rótulo (ex: Pequena)" style="width:130px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        <button class="btn-salvar" style="max-width:160px;" onclick="criarTamanhoPizza()">➕ Criar tamanho</button>
+      </div>
+    </div>
+  `;
+}
+
+async function criarTamanhoPizza(){
+  const chave = document.getElementById('novo-tam-chave').value.trim().toUpperCase();
+  const rotulo = document.getElementById('novo-tam-rotulo').value.trim();
+  if(!chave || !rotulo){ alert('Preencha a chave e o rótulo do novo tamanho.'); return; }
+  if(!/^[A-Z0-9_]+$/.test(chave)){ alert('A chave só pode ter letras, números e underline (sem espaços ou acentos). Ex: P, GG2, FAMILIA'); return; }
+  if(TAMANHOS_PIZZA.some(t => t.chave === chave)){ alert('Já existe um tamanho com essa chave.'); return; }
+
+  const maiorOrdem = TAMANHOS_PIZZA.reduce((m,t) => Math.max(m, t.ordem||0), 0);
+  const { data, error } = await supabaseClient.from('tamanhos_pizza').insert({
+    chave, rotulo, medida: '', max_sabores: 2, ordem: maiorOrdem + 1, ativo: true
+  }).select();
+  if(error){
+    alert('Não foi possível criar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  TAMANHOS_PIZZA.push(data[0]);
+  document.getElementById('novo-tam-chave').value = '';
+  document.getElementById('novo-tam-rotulo').value = '';
+  renderTamanhosPizzaPainel();
+  renderGrade('pizza'); // os cards de pizza precisam mostrar o campo de preço do novo tamanho
+}
+
+async function salvarTamanhoPizza(chave){
+  const payload = {
+    rotulo: document.getElementById(`tam-rotulo-${chave}`).value.trim(),
+    medida: document.getElementById(`tam-medida-${chave}`).value.trim(),
+    max_sabores: parseInt(document.getElementById(`tam-maxsab-${chave}`).value, 10) || 1,
+    ativo: document.getElementById(`tam-ativo-${chave}`).checked,
+  };
+  const { data, error } = await supabaseClient.from('tamanhos_pizza').update(payload).eq('chave', chave).select();
+  if(error){
+    alert('Não foi possível salvar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){ alert('0 linhas afetadas — verifique sua sessão/permissão.'); return; }
+  const idx = TAMANHOS_PIZZA.findIndex(t => t.chave === chave);
+  if(idx >= 0) TAMANHOS_PIZZA[idx] = data[0];
+  alert('Tamanho salvo! ✅');
+  renderGrade('pizza');
+}
+
+async function excluirTamanhoPizza(chave){
+  if(!confirm(`Excluir o tamanho "${chave}"? Os preços já cadastrados nele ficam guardados no produto, mas o tamanho some das opções.`)) return;
+  const { error } = await supabaseClient.from('tamanhos_pizza').delete().eq('chave', chave);
+  if(error){
+    alert('Não foi possível excluir.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  TAMANHOS_PIZZA = TAMANHOS_PIZZA.filter(t => t.chave !== chave);
+  renderTamanhosPizzaPainel();
+  renderGrade('pizza');
+}
+
+async function moverTamanhoPizza(chave, direcao){
+  const idx = TAMANHOS_PIZZA.findIndex(t => t.chave === chave);
+  const vizinho = TAMANHOS_PIZZA[idx + direcao];
+  if(!vizinho) return;
+  const atual = TAMANHOS_PIZZA[idx];
+  const ordemAtual = atual.ordem, ordemVizinho = vizinho.ordem;
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabaseClient.from('tamanhos_pizza').update({ ordem: ordemVizinho }).eq('chave', atual.chave),
+    supabaseClient.from('tamanhos_pizza').update({ ordem: ordemAtual }).eq('chave', vizinho.chave),
+  ]);
+  if(e1 || e2){ alert('Não foi possível reordenar.'); console.error(e1, e2); return; }
+  atual.ordem = ordemVizinho; vizinho.ordem = ordemAtual;
+  TAMANHOS_PIZZA.sort((a,b) => a.ordem - b.ordem);
+  renderTamanhosPizzaPainel();
+  renderGrade('pizza');
+}
+
 function cardProdutoHTML(p, isPizza, isCombo){
+  const irmaosCategoria = produtos.filter(x => x.category === p.category);
+  const indiceNaCategoria = irmaosCategoria.findIndex(x => x.id === p.id);
+  const totalNaCategoria = irmaosCategoria.length;
+  const tamanhosAtivos = TAMANHOS_PIZZA.filter(t => t.ativo);
   const precosHTML = isPizza ? `
     <div class="linha-precos">
-      <div class="campo"><label>M</label><input type="number" step="0.01" id="preco-M-${p.id}" value="${precoPizza(p,'M')}"></div>
-      <div class="campo"><label>G</label><input type="number" step="0.01" id="preco-G-${p.id}" value="${precoPizza(p,'G')}"></div>
-      <div class="campo"><label>GG</label><input type="number" step="0.01" id="preco-GG-${p.id}" value="${precoPizza(p,'GG')}"></div>
+      ${tamanhosAtivos.map(t => `<div class="campo"><label>${t.rotulo}</label><input type="number" step="0.01" id="preco-${t.chave}-${p.id}" value="${precoPizza(p,t.chave)}"></div>`).join('')}
     </div>
   ` : `
     <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco-unico-${p.id}" value="${precoUnico(p)}"></div>
@@ -299,9 +427,7 @@ function cardProdutoHTML(p, isPizza, isCombo){
 
   const promoPrecosHTML = isPizza ? `
     <div class="linha-precos">
-      <div class="campo"><label>M</label><input type="number" step="0.01" id="promo-M-${p.id}" value="${promoPizza(p,'M')}"></div>
-      <div class="campo"><label>G</label><input type="number" step="0.01" id="promo-G-${p.id}" value="${promoPizza(p,'G')}"></div>
-      <div class="campo"><label>GG</label><input type="number" step="0.01" id="promo-GG-${p.id}" value="${promoPizza(p,'GG')}"></div>
+      ${tamanhosAtivos.map(t => `<div class="campo"><label>${t.rotulo}</label><input type="number" step="0.01" id="promo-${t.chave}-${p.id}" value="${promoPizza(p,t.chave)}"></div>`).join('')}
     </div>
   ` : `
     <div class="campo"><label>Preço promocional (R$)</label><input type="number" step="0.01" id="promo-unico-${p.id}" value="${promoUnico(p)}"></div>
@@ -354,7 +480,11 @@ function cardProdutoHTML(p, isPizza, isCombo){
         </div>
       </div>
 
-      <div class="campo"><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
+      <div class="campo" style="display:flex; align-items:flex-end; gap:8px;">
+        <div><label>Ordem no cardápio</label><input type="number" id="ordem-${p.id}" value="${p.sort_order!==null && p.sort_order!==undefined ? p.sort_order : ''}" style="max-width:90px;"></div>
+        <button type="button" class="btn-salvar" style="max-width:44px; padding:8px 0;" onclick="moverProdutoOrdem(${p.id}, -1)" ${indiceNaCategoria===0?'disabled':''} title="Mover pra cima">↑</button>
+        <button type="button" class="btn-salvar" style="max-width:44px; padding:8px 0;" onclick="moverProdutoOrdem(${p.id}, 1)" ${indiceNaCategoria===totalNaCategoria-1?'disabled':''} title="Mover pra baixo">↓</button>
+      </div>
 
       <details class="promo">
         <summary>🏷️ Preço promocional (opcional)</summary>
@@ -384,13 +514,14 @@ function alternarCampoEstoque(id){
 
 function montarPrecos(id, isPizza){
   if(isPizza){
-    const m = parseFloat(document.getElementById(`preco-M-${id}`).value);
-    const g = parseFloat(document.getElementById(`preco-G-${id}`).value);
-    const gg = parseFloat(document.getElementById(`preco-GG-${id}`).value);
-    const obj = {};
-    if(!isNaN(m)) obj.M = m;
-    if(!isNaN(g)) obj.G = g;
-    if(!isNaN(gg)) obj.GG = gg;
+    const p = produtos.find(x => x.id === id);
+    const obj = { ...(p && p.prices ? p.prices : {}) }; // preserva preços de tamanhos desativados/ocultos
+    TAMANHOS_PIZZA.filter(t => t.ativo).forEach(t => {
+      const campo = document.getElementById(`preco-${t.chave}-${id}`);
+      if(!campo) return;
+      const v = parseFloat(campo.value);
+      if(!isNaN(v)) obj[t.chave] = v; else delete obj[t.chave];
+    });
     return obj;
   } else {
     const v = parseFloat(document.getElementById(`preco-unico-${id}`).value);
@@ -400,18 +531,60 @@ function montarPrecos(id, isPizza){
 
 function montarPromoPrecos(id, isPizza){
   if(isPizza){
-    const m = parseFloat(document.getElementById(`promo-M-${id}`).value);
-    const g = parseFloat(document.getElementById(`promo-G-${id}`).value);
-    const gg = parseFloat(document.getElementById(`promo-GG-${id}`).value);
-    const obj = {};
-    if(!isNaN(m)) obj.M = m;
-    if(!isNaN(g)) obj.G = g;
-    if(!isNaN(gg)) obj.GG = gg;
+    const p = produtos.find(x => x.id === id);
+    const obj = { ...(p && p.promo_prices ? p.promo_prices : {}) };
+    TAMANHOS_PIZZA.filter(t => t.ativo).forEach(t => {
+      const campo = document.getElementById(`promo-${t.chave}-${id}`);
+      if(!campo) return;
+      const v = parseFloat(campo.value);
+      if(!isNaN(v)) obj[t.chave] = v; else delete obj[t.chave];
+    });
     return obj;
   } else {
     const v = parseFloat(document.getElementById(`promo-unico-${id}`).value);
     return isNaN(v) ? {} : { unico: v };
   }
+}
+
+async function moverProdutoOrdem(id, direcao){
+  const p = produtos.find(x => x.id === id);
+  if(!p) return;
+  const itensCategoria = produtos.filter(x => x.category === p.category);
+  const idx = itensCategoria.findIndex(x => x.id === id);
+  const vizinho = itensCategoria[idx + direcao];
+  if(!vizinho) return;
+
+  // Normaliza: se algum produto da categoria nunca teve "ordem" definida (null),
+  // preenche com a posição atual antes de trocar — assim funciona mesmo em
+  // categorias onde ninguém nunca mexeu nesse campo.
+  const semOrdem = itensCategoria.filter(item => item.sort_order === null || item.sort_order === undefined);
+  if(semOrdem.length){
+    await Promise.all(itensCategoria.map((item, i) => {
+      if(item.sort_order === null || item.sort_order === undefined){
+        item.sort_order = i;
+        return supabaseClient.from('products').update({ sort_order: i }).eq('id', item.id);
+      }
+      return Promise.resolve();
+    }));
+  }
+
+  const ordemAtual = p.sort_order, ordemVizinho = vizinho.sort_order;
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabaseClient.from('products').update({ sort_order: ordemVizinho }).eq('id', p.id),
+    supabaseClient.from('products').update({ sort_order: ordemAtual }).eq('id', vizinho.id),
+  ]);
+  if(e1 || e2){
+    alert('Não foi possível reordenar.\n\nErro: ' + ((e1||e2).message || JSON.stringify(e1||e2)));
+    console.error(e1, e2);
+    return;
+  }
+  p.sort_order = ordemVizinho;
+  vizinho.sort_order = ordemAtual;
+  produtos.sort((a,b) => {
+    if(a.category !== b.category) return a.category < b.category ? -1 : 1;
+    return (a.sort_order||0) - (b.sort_order||0);
+  });
+  renderGrade(p.category);
 }
 
 async function salvarProduto(id){
