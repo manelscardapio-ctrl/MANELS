@@ -170,6 +170,7 @@ const CATEGORIAS = [
   { key:'esfiha',   label:'Esfihas' },
   { key:'bebida',   label:'Bebidas' },
   { key:'borda',    label:'Bordas Recheadas' },
+  { key:'capas',    label:'🖼️ Capas do Site' },
   { key:'config',   label:'⚙️ Configurações' },
   { key:'stats',    label:'📊 Estatísticas' },
   { key:'avaliacoes', label:'⭐ Avaliações' },
@@ -264,16 +265,18 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  CATEGORIAS.forEach(c => { if(c.key !== 'config' && c.key !== 'stats' && c.key !== 'avaliacoes' && c.key !== 'carrossel') renderGrade(c.key); });
+  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'carrossel', 'capas'];
+  CATEGORIAS.forEach(c => { if(!CHAVES_SEM_GRADE_PRODUTO.includes(c.key)) renderGrade(c.key); });
   renderConfiguracoes();
   renderEstatisticas();
   renderAvaliacoes();
   renderCarrosselAdmin();
   renderTamanhosPizzaPainel();
+  renderCapasGrid();
 }
 
 function renderGrade(catKey){
@@ -768,69 +771,103 @@ function renderConfiguracoes(){
       <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarAvisoEspera()">💾 Salvar Aviso</button>
       <div class="salvo-ok" id="salvo-espera"></div>
 
-      <h3 style="margin-top:28px;">🖼️ Fotos de Capa das Seções</h3>
-      <p style="font-size:.8rem; opacity:.8;">Aparecem no card de cada categoria na página inicial do site.</p>
-      <div id="capas-secoes-lista">Carregando…</div>
+      <p style="font-size:.8rem; opacity:.75; margin-top:28px;">🖼️ As fotos de capa das seções do site agora ficam na aba <b>"Capas do Site"</b>, ali em cima.</p>
     </div>
   `;
-  carregarCapasSecoes();
 }
 
+/* ==================== CAPAS DAS SEÇÕES (página inicial do cardápio) ====================
+   Guarda a URL de cada foto na tabela "secoes_capas" (categoria -> imagem_url), que é o
+   que o index.html (cardápio) já lê em aplicarCapasSecoes(). Cada categoria tem um card
+   com preview + upload, no mesmo estilo visual dos cards de produto. */
 const LABELS_CAPAS = {
   pizza: '🍕 Pizzas', calzone: '🥟 Calzones', brotinho: '🍫 Brotinho Doce',
   esfiha: '🔺 Esfihas', bebida: '🥤 Bebidas', combo: '🎉 Promoções'
 };
 
-async function carregarCapasSecoes(){
-  const el = document.getElementById('capas-secoes-lista');
-  if(!el) return;
+let capasSecoes = {}; // categoria -> { categoria, imagem_url }
+
+async function renderCapasGrid(){
+  const grade = document.getElementById('grade-capas');
+  if(!grade) return;
+  grade.innerHTML = '<p class="stat-empty">Carregando…</p>';
+
   const { data, error } = await supabaseClient.from('secoes_capas').select('*');
   if(error){
-    el.innerHTML = `⚠️ Não consegui carregar. Verifique se a tabela "secoes_capas" existe.<br><code>${error.message||''}</code>`;
-    return;
-  }
-  const porCategoria = {};
-  (data||[]).forEach(r => porCategoria[r.categoria] = r);
-
-  el.innerHTML = Object.keys(LABELS_CAPAS).map(cat => {
-    const r = porCategoria[cat] || { categoria: cat, imagem_url: null };
-    return `
-      <div style="display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.05); border-radius:8px; padding:10px; margin-bottom:8px;">
-        ${r.imagem_url ? `<img src="${r.imagem_url}" style="width:90px; height:60px; object-fit:cover; border-radius:6px;">` : `<div style="width:90px; height:60px; border-radius:6px; background:rgba(255,255,255,.08); display:flex; align-items:center; justify-content:center; font-size:22px;">🖼️</div>`}
-        <div style="flex:1;">
-          <div style="font-weight:600; margin-bottom:4px;">${LABELS_CAPAS[cat]}</div>
-          <input type="file" accept="image/*" onchange="uploadCapaSecao('${cat}', this)">
-        </div>
+    grade.innerHTML = `
+      <div class="aviso-config show" style="grid-column:1/-1;">
+        <b>⚠️ Não consegui carregar as capas.</b><br>
+        Verifique se a tabela <b>secoes_capas</b> existe no Supabase e tem política de <b>SELECT</b> liberada pro seu usuário.<br><br>
+        Erro técnico: <code>${error.message || JSON.stringify(error)}</code>
       </div>
     `;
-  }).join('');
+    return;
+  }
+
+  capasSecoes = {};
+  (data || []).forEach(r => { capasSecoes[r.categoria] = r; });
+
+  grade.innerHTML = `
+    <div style="grid-column:1/-1; font-size:.82rem; opacity:.85; margin-bottom:4px; line-height:1.5;">
+      Essas fotos aparecem no lugar dos emojis, nos cards de cada seção da página inicial do cardápio.
+      Toque numa foto (ou no quadro vazio) pra enviar — a nova substitui a antiga na hora.
+    </div>
+  ` + Object.keys(LABELS_CAPAS).map(cat => cardCapaHTML(cat)).join('');
+}
+
+function cardCapaHTML(cat){
+  const r = capasSecoes[cat] || { categoria: cat, imagem_url: null };
+  return `
+    <div class="produto" id="card-capa-${cat}">
+      <input type="file" id="arquivo-capa-${cat}" accept="image/*" onchange="uploadCapaSecao('${cat}', this)">
+      <div class="foto-wrap" onclick="document.getElementById('arquivo-capa-${cat}').click()">
+        ${r.imagem_url ? `<img src="${r.imagem_url}" id="img-capa-${cat}">` : `<div class="foto-vazia" id="img-capa-${cat}">Sem foto —<br>toque pra enviar</div>`}
+        <div class="foto-overlay">📷 Trocar foto</div>
+      </div>
+      <div class="campo"><label>Seção</label><div style="font-weight:bold; font-size:.95rem;">${LABELS_CAPAS[cat]}</div></div>
+    </div>
+  `;
 }
 
 async function uploadCapaSecao(categoria, inputEl){
   const arquivo = inputEl.files[0];
   if(!arquivo) return;
+
+  const imgEl = document.getElementById(`img-capa-${categoria}`);
+  const textoOriginal = imgEl.outerHTML;
+  imgEl.outerHTML = `<div class="foto-vazia" id="img-capa-${categoria}">Enviando…</div>`;
+
   const caminho = `capas/${categoria}-${Date.now()}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
   const { error: erroUpload } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(caminho, arquivo, { upsert:true });
   if(erroUpload){
-    alert('Não foi possível enviar a foto.\n\nErro: ' + (erroUpload.message || JSON.stringify(erroUpload)));
+    alert('Não foi possível enviar a foto.\n\nErro do Supabase: ' + (erroUpload.message || JSON.stringify(erroUpload)) +
+      `\n\nVerifique se existe um bucket PÚBLICO chamado "${STORAGE_BUCKET}" no Storage do Supabase.`);
     console.error(erroUpload);
+    document.getElementById(`img-capa-${categoria}`).outerHTML = textoOriginal;
     return;
   }
+
   const { data: publicData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(caminho);
   const url = publicData.publicUrl;
+
   const { data, error } = await supabaseClient.from('secoes_capas')
     .upsert({ categoria, imagem_url: url, atualizado_em: new Date().toISOString() }, { onConflict: 'categoria' })
     .select();
   if(error){
-    alert('A foto foi enviada, mas não consegui salvar.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    alert('A foto foi enviada, mas não consegui salvar.\n\nErro do Supabase: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "secoes_capas" tem política de INSERT/UPDATE liberada pro seu usuário no Supabase.');
     console.error(error);
+    document.getElementById(`img-capa-${categoria}`).outerHTML = textoOriginal;
     return;
   }
   if(!data || data.length === 0){
-    alert('A foto NÃO foi salva (0 linhas afetadas). Verifique sua sessão/permissão.');
+    alert('A foto foi enviada, mas NÃO foi salva no banco (0 linhas afetadas). Verifique sua sessão/permissão — tente sair e entrar de novo no painel.');
+    document.getElementById(`img-capa-${categoria}`).outerHTML = textoOriginal;
     return;
   }
-  carregarCapasSecoes();
+
+  capasSecoes[categoria] = data[0];
+  document.getElementById(`img-capa-${categoria}`).outerHTML = `<img src="${url}" id="img-capa-${categoria}">`;
 }
 
 function alternarDiaFechado(dia){
