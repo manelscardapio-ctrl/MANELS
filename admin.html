@@ -173,6 +173,7 @@ const CATEGORIAS = [
   { key:'config',   label:'⚙️ Configurações' },
   { key:'stats',    label:'📊 Estatísticas' },
   { key:'avaliacoes', label:'⭐ Avaliações' },
+  { key:'carrossel', label:'🎠 Carrossel' },
 ];
 
 let produtos = []; // todos os produtos, de todas as categorias
@@ -251,14 +252,15 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  CATEGORIAS.forEach(c => { if(c.key !== 'config' && c.key !== 'stats' && c.key !== 'avaliacoes') renderGrade(c.key); });
+  CATEGORIAS.forEach(c => { if(c.key !== 'config' && c.key !== 'stats' && c.key !== 'avaliacoes' && c.key !== 'carrossel') renderGrade(c.key); });
   renderConfiguracoes();
   renderEstatisticas();
   renderAvaliacoes();
+  renderCarrosselAdmin();
 }
 
 function renderGrade(catKey){
@@ -592,8 +594,70 @@ function renderConfiguracoes(){
       <div class="campo" style="margin-top:6px;"><label>Texto do aviso</label><input type="text" id="espera-texto" value="${(configGeral.tempo_espera_texto||'').replace(/"/g,'&quot;')}" placeholder="Ex: Tempo estimado hoje: 40-60 min"></div>
       <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarAvisoEspera()">💾 Salvar Aviso</button>
       <div class="salvo-ok" id="salvo-espera"></div>
+
+      <h3 style="margin-top:28px;">🖼️ Fotos de Capa das Seções</h3>
+      <p style="font-size:.8rem; opacity:.8;">Aparecem no card de cada categoria na página inicial do site.</p>
+      <div id="capas-secoes-lista">Carregando…</div>
     </div>
   `;
+  carregarCapasSecoes();
+}
+
+const LABELS_CAPAS = {
+  pizza: '🍕 Pizzas', calzone: '🥟 Calzones', brotinho: '🍫 Brotinho Doce',
+  esfiha: '🔺 Esfihas', bebida: '🥤 Bebidas', combo: '🎉 Promoções'
+};
+
+async function carregarCapasSecoes(){
+  const el = document.getElementById('capas-secoes-lista');
+  if(!el) return;
+  const { data, error } = await supabaseClient.from('secoes_capas').select('*');
+  if(error){
+    el.innerHTML = `⚠️ Não consegui carregar. Verifique se a tabela "secoes_capas" existe.<br><code>${error.message||''}</code>`;
+    return;
+  }
+  const porCategoria = {};
+  (data||[]).forEach(r => porCategoria[r.categoria] = r);
+
+  el.innerHTML = Object.keys(LABELS_CAPAS).map(cat => {
+    const r = porCategoria[cat] || { categoria: cat, imagem_url: null };
+    return `
+      <div style="display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.05); border-radius:8px; padding:10px; margin-bottom:8px;">
+        ${r.imagem_url ? `<img src="${r.imagem_url}" style="width:90px; height:60px; object-fit:cover; border-radius:6px;">` : `<div style="width:90px; height:60px; border-radius:6px; background:rgba(255,255,255,.08); display:flex; align-items:center; justify-content:center; font-size:22px;">🖼️</div>`}
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">${LABELS_CAPAS[cat]}</div>
+          <input type="file" accept="image/*" onchange="uploadCapaSecao('${cat}', this)">
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function uploadCapaSecao(categoria, inputEl){
+  const arquivo = inputEl.files[0];
+  if(!arquivo) return;
+  const caminho = `capas/${categoria}-${Date.now()}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const { error: erroUpload } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(caminho, arquivo, { upsert:true });
+  if(erroUpload){
+    alert('Não foi possível enviar a foto.\n\nErro: ' + (erroUpload.message || JSON.stringify(erroUpload)));
+    console.error(erroUpload);
+    return;
+  }
+  const { data: publicData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(caminho);
+  const url = publicData.publicUrl;
+  const { data, error } = await supabaseClient.from('secoes_capas')
+    .upsert({ categoria, imagem_url: url, atualizado_em: new Date().toISOString() }, { onConflict: 'categoria' })
+    .select();
+  if(error){
+    alert('A foto foi enviada, mas não consegui salvar.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('A foto NÃO foi salva (0 linhas afetadas). Verifique sua sessão/permissão.');
+    return;
+  }
+  carregarCapasSecoes();
 }
 
 function alternarDiaFechado(dia){
@@ -1184,6 +1248,166 @@ async function renderAvaliacoes(){
     <p style="opacity:.8; margin-top:-6px;">Pontos ganhos por avaliações feitas com login do Google (1 ponto por avaliação).</p>
     ${pontosHTML}
   `;
+}
+
+let slidesCarrossel = [];
+
+async function renderCarrosselAdmin(){
+  const el = document.getElementById('config-carrossel');
+  if(!el) return;
+  el.innerHTML = '<p>Carregando slides…</p>';
+
+  const { data, error } = await supabaseClient.from('carrossel_slides').select('*').order('ordem', { ascending:true });
+  if(error){
+    el.innerHTML = `
+      <b>⚠️ Não consegui carregar o carrossel.</b><br>
+      Verifique se a tabela <b>carrossel_slides</b> existe e tem RLS liberado pro seu usuário.<br><br>
+      Erro técnico: <code>${error.message || JSON.stringify(error)}</code>
+    `;
+    return;
+  }
+  slidesCarrossel = data || [];
+  desenharListaSlides();
+}
+
+function desenharListaSlides(){
+  const el = document.getElementById('config-carrossel');
+  if(!el) return;
+
+  const OPCOES_MODAL = [
+    ['', 'Não abre nada (só um banner)'],
+    ['combos', 'Abrir Promoções'],
+    ['pizzas', 'Abrir Pizzas'],
+    ['calzones', 'Abrir Calzones'],
+    ['brotinho', 'Abrir Brotinho Doce'],
+    ['esfihas', 'Abrir Esfihas'],
+    ['bebidas', 'Abrir Bebidas'],
+  ];
+
+  const linhas = slidesCarrossel.map((s, i) => `
+    <div class="slide-card" style="background:rgba(255,255,255,.05); border-radius:10px; padding:14px; margin-bottom:12px; display:flex; gap:14px; flex-wrap:wrap;">
+      <div style="flex:0 0 120px;">
+        ${s.imagem_url ? `<img src="${s.imagem_url}" style="width:120px; height:80px; object-fit:cover; border-radius:8px;">` : `<div style="width:120px; height:80px; border-radius:8px; background:rgba(255,255,255,.08); display:flex; align-items:center; justify-content:center; font-size:24px;">🎠</div>`}
+        <input type="file" accept="image/*" style="margin-top:6px; font-size:11px; max-width:120px;" onchange="uploadSlideImagem(${s.id}, this)">
+      </div>
+      <div style="flex:1 1 260px; display:flex; flex-direction:column; gap:6px;">
+        <input type="text" placeholder="Título" value="${(s.titulo||'').replace(/"/g,'&quot;')}" id="slide-titulo-${s.id}" style="padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        <input type="text" placeholder="Subtítulo (opcional)" value="${(s.subtitulo||'').replace(/"/g,'&quot;')}" id="slide-subtitulo-${s.id}" style="padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        <input type="text" placeholder="Preço (texto livre, ex: A partir de R$ 38,00)" value="${(s.preco_texto||'').replace(/"/g,'&quot;')}" id="slide-preco-${s.id}" style="padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+        <select id="slide-modal-${s.id}" style="padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+          ${OPCOES_MODAL.map(([v,l]) => `<option value="${v}" ${s.abre_modal===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+        <label style="font-size:12.5px; display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="slide-ativo-${s.id}" ${s.ativo?'checked':''}> Ativo (aparece no site)
+        </label>
+      </div>
+      <div style="flex:0 0 100%; display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+        <button class="btn-salvar" style="max-width:120px;" onclick="salvarSlide(${s.id})">💾 Salvar</button>
+        <button class="btn-salvar" style="max-width:110px; background:var(--rust);" onclick="moverSlide(${s.id}, -1)" ${i===0?'disabled':''}>↑ Subir</button>
+        <button class="btn-salvar" style="max-width:110px; background:var(--rust);" onclick="moverSlide(${s.id}, 1)" ${i===slidesCarrossel.length-1?'disabled':''}>↓ Descer</button>
+        <button class="btn-salvar" style="max-width:110px; background:#7C3B1D;" onclick="excluirSlide(${s.id})">🗑️ Excluir</button>
+      </div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <h3 style="margin-top:0;">🎠 Carrossel de Promoções</h3>
+    <p style="opacity:.8; margin-top:-6px;">
+      Slides que aparecem no topo do site. Se não criar nenhum aqui, o carrossel mostra
+      automaticamente os produtos cadastrados em "Promoções".
+    </p>
+    <button class="btn-salvar" style="max-width:200px; margin-bottom:16px;" onclick="adicionarSlide()">➕ Novo slide</button>
+    ${slidesCarrossel.length ? linhas : '<p style="opacity:.7;">Nenhum slide manual criado ainda.</p>'}
+  `;
+}
+
+async function adicionarSlide(){
+  const maiorOrdem = slidesCarrossel.reduce((m,s) => Math.max(m, s.ordem||0), 0);
+  const { data, error } = await supabaseClient.from('carrossel_slides').insert({
+    titulo: 'Novo slide', subtitulo: '', preco_texto: '', imagem_url: null,
+    abre_modal: null, ordem: maiorOrdem + 1, ativo: true
+  }).select();
+  if(error){
+    alert('Não foi possível criar o slide.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  slidesCarrossel.push(data[0]);
+  desenharListaSlides();
+}
+
+async function salvarSlide(id){
+  const payload = {
+    titulo: document.getElementById(`slide-titulo-${id}`).value.trim() || 'Sem título',
+    subtitulo: document.getElementById(`slide-subtitulo-${id}`).value.trim(),
+    preco_texto: document.getElementById(`slide-preco-${id}`).value.trim(),
+    abre_modal: document.getElementById(`slide-modal-${id}`).value || null,
+    ativo: document.getElementById(`slide-ativo-${id}`).checked,
+  };
+  const { data, error } = await supabaseClient.from('carrossel_slides').update(payload).eq('id', id).select();
+  if(error){
+    alert('Não foi possível salvar o slide.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('O slide NÃO foi salvo (0 linhas afetadas). Tente sair e entrar de novo no painel.');
+    return;
+  }
+  const idx = slidesCarrossel.findIndex(s => s.id === id);
+  if(idx >= 0) slidesCarrossel[idx] = data[0];
+  alert('Slide salvo! ✅');
+}
+
+async function excluirSlide(id){
+  if(!confirm('Excluir esse slide do carrossel?')) return;
+  const { error } = await supabaseClient.from('carrossel_slides').delete().eq('id', id);
+  if(error){
+    alert('Não foi possível excluir.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  slidesCarrossel = slidesCarrossel.filter(s => s.id !== id);
+  desenharListaSlides();
+}
+
+async function moverSlide(id, direcao){
+  const idx = slidesCarrossel.findIndex(s => s.id === id);
+  const vizinho = slidesCarrossel[idx + direcao];
+  if(!vizinho) return;
+  const atual = slidesCarrossel[idx];
+  const ordemAtual = atual.ordem, ordemVizinho = vizinho.ordem;
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabaseClient.from('carrossel_slides').update({ ordem: ordemVizinho }).eq('id', atual.id),
+    supabaseClient.from('carrossel_slides').update({ ordem: ordemAtual }).eq('id', vizinho.id),
+  ]);
+  if(e1 || e2){ alert('Não foi possível reordenar.'); console.error(e1, e2); return; }
+  atual.ordem = ordemVizinho; vizinho.ordem = ordemAtual;
+  slidesCarrossel.sort((a,b) => a.ordem - b.ordem);
+  desenharListaSlides();
+}
+
+async function uploadSlideImagem(id, inputEl){
+  const arquivo = inputEl.files[0];
+  if(!arquivo) return;
+  const caminho = `carrossel/${Date.now()}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const { error: erroUpload } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(caminho, arquivo, { upsert:true });
+  if(erroUpload){
+    alert('Não foi possível enviar a foto.\n\nErro: ' + (erroUpload.message || JSON.stringify(erroUpload)));
+    console.error(erroUpload);
+    return;
+  }
+  const { data: publicData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(caminho);
+  const url = publicData.publicUrl;
+  const { data, error } = await supabaseClient.from('carrossel_slides').update({ imagem_url: url }).eq('id', id).select();
+  if(error){
+    alert('A foto foi enviada, mas não consegui salvar no slide.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  const idx = slidesCarrossel.findIndex(s => s.id === id);
+  if(idx >= 0) slidesCarrossel[idx] = data[0];
+  desenharListaSlides();
 }
 
 async function renderEstatisticas(){
