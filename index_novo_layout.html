@@ -316,38 +316,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
   </div>
 
   <div class="grid-title">Pizzas — escolha o tamanho</div>
-  <div class="product-grid">
-    <div class="p-card" onclick="openPizzaCard('M')">
-      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
-      <div class="p-body">
-        <span class="p-eyebrow">Pizza</span>
-        <div class="p-name">Média</div>
-        <span class="p-desc">30 cm · ideal para 1–2 pessoas.</span>
-        <div class="p-price">a partir de <small id="price-hint-M">—</small></div>
-        <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('M')">Escolher pizza</button>
-      </div>
-    </div>
-    <div class="p-card" onclick="openPizzaCard('G')">
-      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
-      <div class="p-body">
-        <span class="p-eyebrow">Pizza</span>
-        <div class="p-name">Grande</div>
-        <span class="p-desc">35 cm · ideal para compartilhar.</span>
-        <div class="p-price">a partir de <small id="price-hint-G">—</small></div>
-        <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('G')">Escolher pizza</button>
-      </div>
-    </div>
-    <div class="p-card" onclick="openPizzaCard('GG')">
-      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
-      <div class="p-body">
-        <span class="p-eyebrow">Pizza</span>
-        <div class="p-name">Família</div>
-        <span class="p-desc">40 cm · até 3 sabores.</span>
-        <div class="p-price">a partir de <small id="price-hint-GG">—</small></div>
-        <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('GG')">Escolher pizza</button>
-      </div>
-    </div>
-  </div>
+  <div class="product-grid" id="pizza-home-cards"></div>
 
   <div class="grid-title">Calzones, Brotinho Doce e Esfihas</div>
   <div class="product-grid">
@@ -462,11 +431,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 
     <div class="panel">
       <span class="field-label">1. Escolha o tamanho</span>
-      <div class="btn-row" id="pizza-size-row">
-        <button class="size-btn active" data-size="M" onclick="selectPizzaSize('M')"><span class="sz-name">Média</span><span class="sz-meta">30 cm</span></button>
-        <button class="size-btn" data-size="G" onclick="selectPizzaSize('G')"><span class="sz-name">Grande</span><span class="sz-meta">35 cm</span></button>
-        <button class="size-btn" data-size="GG" onclick="selectPizzaSize('GG')"><span class="sz-name">Família</span><span class="sz-meta">40 cm</span></button>
-      </div>
+      <div class="btn-row" id="pizza-size-row"></div>
 
       <span class="field-label">2. Inteira, meio a meio, ou 3 sabores?</span>
       <div class="btn-row" id="pizza-style-row">
@@ -805,10 +770,10 @@ function openPizzaCard(size){
   openModal('pizzas');
 }
 function updatePriceHints(){
-  ['M','G','GG'].forEach(size => {
-    const el = document.getElementById('price-hint-' + size);
+  TAMANHOS_PIZZA.forEach(t => {
+    const el = document.getElementById('price-hint-' + t.chave);
     if(!el) return;
-    const prices = Object.values(priceMapForSize(size)).filter(v => typeof v === 'number');
+    const prices = Object.values(priceMapForSize(t.chave)).filter(v => typeof v === 'number');
     if(prices.length) el.textContent = brl(Math.min(...prices));
   });
 }
@@ -989,7 +954,7 @@ function validarCardapio(menu){
       const preco = itens[nome];
       if(cat === 'pizzas'){
         if(!preco || typeof preco !== 'object') return false;
-        const valores = ['M','G','GG'].map(t => preco[t]).filter(v => v !== undefined);
+        const valores = Object.values(preco).filter(v => v !== undefined);
         if(valores.length === 0 || valores.some(v => typeof v !== 'number' || !isFinite(v) || v <= 0)) return false;
       } else {
         if(typeof preco !== 'number' || !isFinite(preco) || preco <= 0) return false;
@@ -1376,11 +1341,45 @@ async function entrarComGoogleIndex(){
     alert('Não foi possível iniciar o login: conexão com o servidor indisponível no momento.');
     return;
   }
+  salvarCarrinhoAntesDoLogin();
   const { error } = await supabaseClient.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
   if(error){
     console.error('Erro ao entrar com Google:', error);
     alert('Não foi possível entrar com o Google.\n\nErro: ' + (error.message || JSON.stringify(error)) +
       '\n\nIsso geralmente significa que o login com Google não está habilitado no Supabase, ou que esta URL não está na lista de "Redirect URLs" autorizadas.');
+  }
+}
+
+// O login com Google faz o navegador sair da página inteira (pro Google) e voltar
+// depois — isso recarrega o site do zero e apagaria o carrinho, já que ele só vive
+// na memória da página. Por isso salvamos ele aqui antes de sair, e restauramos
+// assim que a página carrega de novo (ver restaurarCarrinhoAposLogin).
+const CARRINHO_PRE_LOGIN_KEY = 'manels_carrinho_pre_login';
+function salvarCarrinhoAntesDoLogin(){
+  try{
+    if(cart.length === 0) return;
+    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod }));
+  } catch(e){
+    console.error('Não foi possível guardar o carrinho antes do login:', e);
+  }
+}
+function restaurarCarrinhoAposLogin(){
+  try{
+    const bruto = localStorage.getItem(CARRINHO_PRE_LOGIN_KEY);
+    if(!bruto) return;
+    localStorage.removeItem(CARRINHO_PRE_LOGIN_KEY); // uso único — não deixa "grudado" pra sempre
+    const dados = JSON.parse(bruto);
+    if(Array.isArray(dados.cart) && dados.cart.length){
+      cart = dados.cart;
+      cartIdCounter = dados.cartIdCounter || (cart.length + 1);
+      if(dados.fulfillment) fulfillment = dados.fulfillment;
+      if(dados.paymentMethod) paymentMethod = dados.paymentMethod;
+      renderCart();
+      // A pessoa estava no checkout quando saiu pra logar — volta direto pra lá.
+      setTimeout(() => openCheckout(), 300);
+    }
+  } catch(e){
+    console.error('Não foi possível restaurar o carrinho após o login:', e);
   }
 }
 async function sairDoLogin(){
@@ -1570,9 +1569,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   carregarConfigGeral().then(mostrarAvisoTempoEspera);
   verificarLoginIndex();
   aplicarCapasSecoes();
+  await carregarTamanhosPizza();
 
   document.getElementById('combos').style.display = 'none';
   document.getElementById('nav-combos').style.display = 'none';
+  restaurarCarrinhoAposLogin();
   renderCart();
 
   // IMPORTANTE: primeiro busca o cardápio atual no Supabase (fonte oficial).
@@ -1627,6 +1628,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 function pizzaFlavorNames(){ return Object.keys(MENU.pizzas); }
 let pizzaState = { size:'M', style:1, qty:1, flavors:[pizzaFlavorNames()[0]] };
 let pizzaCrust = null; // null = sem borda, ou o nome da borda escolhida (ex: "Cheddar")
+let TAMANHOS_PIZZA = []; // [{chave, rotulo, medida, max_sabores, ordem, ativo}], carregado do banco
+
+async function carregarTamanhosPizza(){
+  try{
+    const { data, error } = await supabaseClient.from('tamanhos_pizza').select('*').eq('ativo', true).order('ordem', { ascending:true });
+    if(error || !data || data.length === 0) throw error || new Error('vazio');
+    TAMANHOS_PIZZA = data;
+  } catch(e){
+    console.error('Não foi possível carregar os tamanhos de pizza, usando padrão M/G/GG:', e);
+    TAMANHOS_PIZZA = [
+      { chave:'M', rotulo:'Média', medida:'30 cm', max_sabores:2, ordem:1, ativo:true },
+      { chave:'G', rotulo:'Grande', medida:'35 cm', max_sabores:2, ordem:2, ativo:true },
+      { chave:'GG', rotulo:'Família', medida:'40 cm', max_sabores:3, ordem:3, ativo:true },
+    ];
+  }
+  if(!TAMANHOS_PIZZA.some(t => t.chave === pizzaState.size)){
+    pizzaState.size = TAMANHOS_PIZZA[0].chave;
+  }
+  renderPizzaSizeRow();
+  renderPizzaHomeCards();
+}
+
+function renderPizzaSizeRow(){
+  const row = document.getElementById('pizza-size-row');
+  if(!row) return;
+  row.innerHTML = TAMANHOS_PIZZA.map(t => `
+    <button class="size-btn${t.chave===pizzaState.size?' active':''}" data-size="${t.chave}" onclick="selectPizzaSize('${t.chave}')">
+      <span class="sz-name">${t.rotulo}</span>${t.medida ? `<span class="sz-meta">${t.medida}</span>` : ''}
+    </button>
+  `).join('');
+}
+
+function renderPizzaHomeCards(){
+  const wrap = document.getElementById('pizza-home-cards');
+  if(!wrap) return;
+  wrap.innerHTML = TAMANHOS_PIZZA.map(t => `
+    <div class="p-card" onclick="openPizzaCard('${t.chave}')">
+      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
+      <div class="p-body">
+        <span class="p-eyebrow">Pizza</span>
+        <div class="p-name">${t.rotulo}</div>
+        <span class="p-desc">${t.medida ? t.medida + ' · ' : ''}${t.max_sabores >= 3 ? 'até 3 sabores.' : t.max_sabores === 2 ? 'ideal para meio a meio.' : 'sabor único.'}</span>
+        <div class="p-price">a partir de <small id="price-hint-${t.chave}">—</small></div>
+        <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('${t.chave}')">Escolher pizza</button>
+      </div>
+    </div>
+  `).join('');
+  aplicarCapasSecoes();
+  updatePriceHints();
+}
 
 function renderPizzaCrustOptions(){
   const section = document.getElementById('crust-section');
@@ -1660,7 +1711,9 @@ function selectPizzaSize(size){
   pizzaState.size = size;
   document.querySelectorAll('#pizza-size-row .size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
   const btn3 = document.getElementById('pizza-style-3');
-  if(size !== 'GG'){
+  const tamanhoInfo = TAMANHOS_PIZZA.find(t => t.chave === size);
+  const permite3Sabores = tamanhoInfo && tamanhoInfo.max_sabores >= 3;
+  if(!permite3Sabores){
     btn3.disabled = true;
     if(pizzaState.style === 3){ selectPizzaStyle(2); return; }
   } else {
@@ -1672,11 +1725,14 @@ function selectPizzaSize(size){
 const PIZZA_STYLE_HINTS = {
   1: 'Pizza inteira: 1 sabor só, do início ao fim.',
   2: 'Meio a meio: escolha 2 sabores diferentes, um para cada metade. O preço é a média dos dois sabores escolhidos.',
-  3: '3 sabores: escolha 3 sabores diferentes, um para cada terço da pizza (disponível só no tamanho GG). O preço é a média dos três sabores escolhidos.'
+  3: '3 sabores: escolha 3 sabores diferentes, um para cada terço da pizza (disponível só nos tamanhos maiores). O preço é a média dos três sabores escolhidos.'
 };
 
 function selectPizzaStyle(n){
-  if(n === 3 && pizzaState.size !== 'GG') return;
+  if(n === 3){
+    const tamanhoInfo = TAMANHOS_PIZZA.find(t => t.chave === pizzaState.size);
+    if(!tamanhoInfo || tamanhoInfo.max_sabores < 3) return;
+  }
   pizzaState.style = n;
   pizzaState.flavors = (n === 1) ? [pizzaFlavorNames()[0]] : [];
   document.querySelectorAll('#pizza-style-row .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.style) === n));
@@ -2216,25 +2272,22 @@ function mostrarToastAdicionado(){
   if(!toast){
     toast = document.createElement('div');
     toast.id = 'toast-adicionado';
-    toast.style.cssText = 'position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(16px); background:var(--ink); color:#fff; padding:.75rem 1.15rem; border-radius:999px; font-weight:700; font-size:13.5px; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,.28); opacity:0; transition:opacity .25s ease, transform .25s ease; white-space:nowrap; pointer-events:none;';
+    toast.style.cssText = 'position:fixed; left:0; right:0; top:0; transform:translateY(-100%); background:var(--forest); color:#fff; padding:1rem 1.2rem; font-weight:800; font-size:15px; text-align:center; z-index:500; box-shadow:0 6px 20px rgba(0,0,0,.28); transition:transform .28s cubic-bezier(.34,1.56,.64,1); pointer-events:none; letter-spacing:.01em;';
     document.body.appendChild(toast);
   }
-  toast.textContent = '✅ Adicionado ao carrinho!';
+  toast.textContent = '✅ Item adicionado ao carrinho!';
   clearTimeout(toast._timeoutId);
   // reinicia a transição mesmo em cliques seguidos
   toast.style.transition = 'none';
-  toast.style.opacity = '0';
-  toast.style.transform = 'translateX(-50%) translateY(16px)';
+  toast.style.transform = 'translateY(-100%)';
   void toast.offsetWidth;
-  toast.style.transition = 'opacity .25s ease, transform .25s ease';
+  toast.style.transition = 'transform .28s cubic-bezier(.34,1.56,.64,1)';
   requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toast.style.transform = 'translateY(0)';
   });
   toast._timeoutId = setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(-50%) translateY(16px)';
-  }, 2200);
+    toast.style.transform = 'translateY(-100%)';
+  }, 2400);
 }
 
 /* ==================== CHECKOUT ==================== */
