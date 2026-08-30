@@ -87,7 +87,8 @@ a{color:inherit;}
 .product-grid{display:grid; grid-template-columns:1fr 1fr; gap:.7rem;}
 .p-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;}
 .p-card:active{transform:scale(.98);}
-.p-card .p-media{height:104px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative;}
+.p-card .p-media{height:104px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; overflow:hidden; background-size:cover; background-position:center;}
+.p-card .p-media.tem-foto{font-size:0;}
 .p-card .p-body{padding:.7rem .8rem .85rem;}
 .p-card .p-eyebrow{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent-dark);}
 .p-card .p-name{font-family:'Fraunces',serif; font-weight:700; font-size:15px; margin:.15rem 0 .2rem; line-height:1.2;}
@@ -317,7 +318,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
   <div class="grid-title">Pizzas — escolha o tamanho</div>
   <div class="product-grid">
     <div class="p-card" onclick="openPizzaCard('M')">
-      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
+      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Média</div>
@@ -327,7 +328,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openPizzaCard('G')">
-      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
+      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Grande</div>
@@ -337,7 +338,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openPizzaCard('GG')">
-      <div class="p-media" style="background:var(--accent-soft);">🍕</div>
+      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">Família</div>
@@ -351,7 +352,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
   <div class="grid-title">Calzones, Brotinho Doce e Esfihas</div>
   <div class="product-grid">
     <div class="p-card" onclick="openModal('calzones')">
-      <div class="p-media" style="background:#EAF3EC;">🥟</div>
+      <div class="p-media" data-categoria="calzone" style="background:#EAF3EC;">🥟</div>
       <div class="p-body">
         <span class="p-eyebrow">Calzone</span>
         <div class="p-name">Calzones</div>
@@ -361,7 +362,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openModal('brotinho')">
-      <div class="p-media" style="background:#F3E7DA;">🍫</div>
+      <div class="p-media" data-categoria="brotinho" style="background:#F3E7DA;">🍫</div>
       <div class="p-body">
         <span class="p-eyebrow">Doce</span>
         <div class="p-name">Brotinho Doce</div>
@@ -371,7 +372,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
     </div>
     <div class="p-card" onclick="openModal('esfihas')">
-      <div class="p-media" style="background:#FBEAD9;">🔺</div>
+      <div class="p-media" data-categoria="esfiha" style="background:#FBEAD9;">🔺</div>
       <div class="p-body">
         <span class="p-eyebrow">Combo</span>
         <div class="p-name">Esfihas</div>
@@ -385,7 +386,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
   <div class="grid-title">Bebidas</div>
   <div class="product-grid">
     <div class="p-card" onclick="openModal('bebidas')">
-      <div class="p-media" style="background:#E7EEF6;">🥤</div>
+      <div class="p-media" data-categoria="bebida" style="background:#E7EEF6;">🥤</div>
       <div class="p-body">
         <span class="p-eyebrow">Bebida</span>
         <div class="p-name">Bebidas</div>
@@ -1157,11 +1158,43 @@ function mostrarAvisoCardapio(mensagemHtml){
 
 /* ==================== CARROSSEL DE PROMOÇÕES ==================== */
 let carrosselTimer = null;
-function renderCarrossel(comboKeys){
+async function renderCarrossel(comboKeys){
   const wrap = document.getElementById('carrossel-wrap');
   const secao = document.getElementById('carrossel-secao');
   if(!wrap || !secao) return;
 
+  // 1) Tenta usar slides personalizados cadastrados no admin.
+  let slidesManuais = [];
+  try{
+    const { data, error } = await supabaseClient
+      .from('carrossel_slides')
+      .select('*')
+      .eq('ativo', true)
+      .order('ordem', { ascending:true });
+    if(!error && data) slidesManuais = data;
+  } catch(e){
+    console.error('Falha ao buscar slides do carrossel:', e);
+  }
+
+  if(slidesManuais.length){
+    secao.style.display = '';
+    wrap.innerHTML = slidesManuais.map(s => `
+      <div class="carrossel-slide" onclick="${s.abre_modal ? `openModal('${s.abre_modal}')` : ''}">
+        ${s.imagem_url ? `<img src="${s.imagem_url}" alt="${(s.titulo||'').replace(/"/g,'&quot;')}">` : `<div class="carrossel-slide-fallback">🍕</div>`}
+        <div class="carrossel-slide-info">
+          <div class="carrossel-slide-nome">${s.titulo || ''}</div>
+          ${s.subtitulo ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:.2rem;">${s.subtitulo}</div>` : ''}
+          ${s.preco_texto ? `<div class="carrossel-slide-preco">${s.preco_texto}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+    renderCarrosselDots(slidesManuais.length);
+    wrap.scrollTo({ left: 0 });
+    iniciarAutoplayCarrossel();
+    return;
+  }
+
+  // 2) Sem slides manuais: volta pro comportamento automático (produtos de Promoções).
   if(!comboKeys || comboKeys.length === 0){
     secao.style.display = 'none';
     if(carrosselTimer){ clearInterval(carrosselTimer); carrosselTimer = null; }
@@ -1403,6 +1436,23 @@ async function salvarPerfilCliente(){
   } catch(e){ console.error('Não foi possível salvar o perfil do cliente:', e); }
 }
 
+/* ==================== FOTOS DE CAPA DAS SEÇÕES ==================== */
+async function aplicarCapasSecoes(){
+  try{
+    const { data, error } = await supabaseClient.from('secoes_capas').select('categoria, imagem_url');
+    if(error || !data) return; // sem tabela ainda, ou erro de rede — mantém o visual padrão (emoji)
+    data.forEach(row => {
+      if(!row.imagem_url) return;
+      document.querySelectorAll(`[data-categoria="${row.categoria}"]`).forEach(el => {
+        el.style.backgroundImage = `url('${row.imagem_url}')`;
+        el.classList.add('tem-foto');
+      });
+    });
+  } catch(e){
+    console.error('Não foi possível carregar as fotos de capa das seções:', e);
+  }
+}
+
 /* ==================== HORÁRIO DE FUNCIONAMENTO ==================== */
 // Horário configurável pelo admin (tabela horario_funcionamento, 1 linha por dia da
 // semana: 0=domingo ... 6=sábado). Se não der pra carregar do banco, cai num horário
@@ -1519,6 +1569,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   carregarHorarioFuncionamento().then(checkStoreHours);
   carregarConfigGeral().then(mostrarAvisoTempoEspera);
   verificarLoginIndex();
+  aplicarCapasSecoes();
 
   document.getElementById('combos').style.display = 'none';
   document.getElementById('nav-combos').style.display = 'none';
