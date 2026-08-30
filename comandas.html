@@ -596,7 +596,7 @@ function exportarExcel(){
 function iniciar(){
   carregarPedidosAtivos();
   carregarHistorico();
-  carregarMenuBuilder();
+  carregarTamanhosPizzaBuilder().then(carregarMenuBuilder);
 
   setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); renderizarResumoDia(); }, 20000);
   setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso
@@ -627,7 +627,17 @@ const MAIONESE_PRICE = 1.00;
 const DELIVERY_FEE = 3.00;
 const FREE_DELIVERY_THRESHOLD = 15.00;
 const ESFIHA_MIN_QTY = 5;
-const TAMANHO_LABEL = { M:'Média', G:'Grande', GG:'Família' };
+let TAMANHOS_PIZZA = []; // [{chave, rotulo, medida, max_sabores, ordem, ativo}], carregado do banco
+function rotuloTamanho(chave){
+  const t = TAMANHOS_PIZZA.find(x => x.chave === chave);
+  return t ? t.rotulo : (chave || '');
+}
+
+async function carregarTamanhosPizzaBuilder(){
+  const { data, error } = await supabaseClient.from('tamanhos_pizza').select('*').order('ordem', { ascending:true });
+  if(error){ console.error('Erro ao carregar tamanhos de pizza:', error); TAMANHOS_PIZZA = []; return; }
+  TAMANHOS_PIZZA = data || [];
+}
 
 let builderCart = [];
 let builderEditingId = null;      // null = pedido novo
@@ -715,7 +725,7 @@ function reconstruirCartDeItens(itens){
       sabores.forEach(f => unit += (MENU.pizzas[f]?.[item.tamanho] || 0));
       unit = sabores.length ? unit / sabores.length : 0;
       if(item.borda) unit += (MENU.bordas[item.borda] || 0);
-      const tamanhoLabel = TAMANHO_LABEL[item.tamanho] || item.tamanho || '';
+      const tamanhoLabel = rotuloTamanho(item.tamanho) || item.tamanho || '';
       return { type:'pizza', qty:item.quantidade, size:item.tamanho, flavors:sabores, crust:item.borda||null, unitPrice:unit, lineTotal:item.preco ?? unit*item.quantidade, label:`Pizza ${tamanhoLabel} (${sabores.length} sabor${sabores.length>1?'es':''})`, detail:'' };
     }
     if(item.categoria === 'esfiha'){
@@ -791,18 +801,20 @@ function renderBuilderFormItem(){
   const tipo = document.getElementById('builder-tipo-item').value;
   const el = document.getElementById('builder-form-item');
   if(tipo === 'pizza'){
+    const tamanhosAtivos = TAMANHOS_PIZZA.filter(t => t.ativo);
+    const existeTamanhoCom3Sabores = tamanhosAtivos.some(t => t.max_sabores >= 3);
     el.innerHTML = `
       <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
         <div class="campo-grupo">
           <label class="campo-lbl">Tamanho</label>
-          <select id="bp-tamanho" style="padding:6px;"><option value="M">Média</option><option value="G">Grande</option><option value="GG">Família</option></select>
+          <select id="bp-tamanho" style="padding:6px;">${tamanhosAtivos.map(t => `<option value="${t.chave}">${t.rotulo}</option>`).join('')}</select>
         </div>
         <div class="campo-grupo">
           <label class="campo-lbl">Quantos sabores</label>
           <select id="bp-estilo" onchange="renderBuilderPizzaSabores()" style="padding:6px;">
             <option value="1">Inteira (1 sabor)</option>
             <option value="2">Meio a meio (2 sabores)</option>
-            <option value="3">3 sabores (só Família)</option>
+            <option value="3" ${existeTamanhoCom3Sabores?'':'disabled'}>3 sabores${existeTamanhoCom3Sabores?'':' (nenhum tamanho ativo permite)'}</option>
           </select>
         </div>
         <div class="campo-grupo">
@@ -877,7 +889,17 @@ function renderBuilderPizzaSabores(){
   }
   wrap.innerHTML = html;
   const tamanhoSel = document.getElementById('bp-tamanho');
-  if(estilo === 3){ tamanhoSel.value = 'GG'; tamanhoSel.disabled = true; } else { tamanhoSel.disabled = false; }
+  const tamanhoAtual = TAMANHOS_PIZZA.find(t => t.chave === tamanhoSel.value);
+  if(estilo === 3){
+    // Se o tamanho selecionado não permite 3 sabores, troca pro primeiro que permite.
+    if(!tamanhoAtual || tamanhoAtual.max_sabores < 3){
+      const opcaoValida = TAMANHOS_PIZZA.find(t => t.ativo && t.max_sabores >= 3);
+      if(opcaoValida) tamanhoSel.value = opcaoValida.chave;
+    }
+    tamanhoSel.disabled = true;
+  } else {
+    tamanhoSel.disabled = false;
+  }
 }
 
 // ---------- estoque: checagem + confirmação manual do funcionário ----------
@@ -915,7 +937,7 @@ function adicionarBuilderPizza(){
   builderCart.push({
     type:'pizza', qty:qtd, size:tamanho, flavors:saboresSel, crust:bordaSel||null,
     unitPrice:unit, lineTotal:unit*qtd,
-    label:`Pizza ${TAMANHO_LABEL[tamanho]} (${saboresSel.length} sabor${saboresSel.length>1?'es':''})`, detail:''
+    label:`Pizza ${rotuloTamanho(tamanho)} (${saboresSel.length} sabor${saboresSel.length>1?'es':''})`, detail:''
   });
   renderBuilderCart();
 }
@@ -1220,7 +1242,7 @@ async function gerarLinkAvaliacao(pedidoId){
   const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
   try{
     await navigator.clipboard.writeText(url);
-    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por ate 3 horas:\n\n' + url);
+    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por 3 horas:\n\n' + url);
   } catch(e){
     prompt('Copie o link abaixo e cole no WhatsApp do cliente (vale por 3 horas):', url);
   }
