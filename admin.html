@@ -3,121 +3,201 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestão de Produtos — Manel's Pizzaria</title>
+<title>Painel — Manel's Pizzaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{ --dark-green:#2d4a3a; --terracotta:#c0622f; --beige:#f5e6d3; --red:#c0392b; --green-ok:#3a7d4a; }
-  *{box-sizing:border-box;}
-  body{ font-family:'Courier New', monospace; background:var(--dark-green); color:var(--beige); margin:0; padding:20px; min-height:100vh; }
+:root{
+  --pine:#1F3327; --pine-soft:#28402F; --terracotta:#C0622F; --terracotta-dark:#9C4C22;
+  --paper:#FBF7F1; --card:#FFFFFF; --ink:#241C14; --ink-soft:#6B5D4E;
+  --line:rgba(36,28,20,.10); --line-strong:rgba(36,28,20,.18);
+  --gold:#C99A4A; --ok:#3A7D4A; --danger:#C0392B;
+  --sidebar-w:236px; --radius:14px; --radius-sm:9px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{ font-family:'Work Sans',sans-serif; background:var(--paper); color:var(--ink); margin:0; -webkit-font-smoothing:antialiased; }
+h1,h2,h3,h4{ font-family:'Fraunces',serif; color:var(--ink); font-weight:700; margin:0; }
+button, input, select, textarea{ font-family:inherit; }
 
-  #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
-  #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
-  #tela-senha button{ font-family:inherit; font-size:.9rem; padding:10px 20px; border:none; border-radius:6px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
-  #tela-senha .erro-senha{ color:#f7b0a0; font-size:.85rem; min-height:1em; }
+/* ===== LOGIN ===== */
+#tela-senha{ position:fixed; inset:0; background:radial-gradient(circle at 20% 20%, var(--pine-soft), var(--pine) 70%); display:flex; align-items:center; justify-content:center; z-index:999; padding:20px; }
+.login-card{ background:var(--card); border-radius:20px; padding:38px 34px 30px; width:100%; max-width:320px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; gap:12px; text-align:center; }
+.login-card .login-emoji{ font-size:34px; }
+.login-card h1{ font-size:1.25rem; margin-bottom:2px; }
+.login-card p{ font-size:.8rem; color:var(--ink-soft); margin-top:-6px; margin-bottom:8px; }
+#tela-senha input{ font-size:.92rem; padding:11px 13px; border-radius:10px; border:1.5px solid var(--line-strong); width:100%; background:var(--paper); color:var(--ink); }
+#tela-senha input:focus{ outline:none; border-color:var(--terracotta); }
+#tela-senha button{ font-size:.9rem; padding:11px 20px; border:none; border-radius:10px; background:var(--terracotta); color:#fff; font-weight:700; cursor:pointer; margin-top:4px; }
+#tela-senha button:hover{ background:var(--terracotta-dark); }
+#tela-senha .erro-senha{ color:var(--danger); font-size:.8rem; min-height:1em; }
 
-  header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--terracotta); flex-wrap:wrap; gap:10px; }
-  h1{ margin:0; font-size:1.3rem; }
-  #status{ font-size:.8rem; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,.1); }
-  #status.ok{ color:#8fd19e; } #status.erro{ color:#e88; }
+/* ===== SHELL ===== */
+.admin-shell{ display:flex; min-height:100vh; }
 
-  .aviso-config{ background:rgba(224,90,58,.18); border:1px solid #e05a3a; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:.82rem; line-height:1.5; display:none; }
-  .aviso-config.show{ display:block; }
+/* ===== SIDEBAR ===== */
+.sidebar{ width:var(--sidebar-w); flex:0 0 auto; background:var(--pine); color:#EFE8DC; display:flex; flex-direction:column; position:fixed; top:0; bottom:0; left:0; z-index:80; transition:transform .2s ease; }
+.sidebar-brand{ display:flex; align-items:center; gap:10px; padding:20px 18px 16px; border-bottom:1px solid rgba(255,255,255,.1); }
+.sidebar-brand .emoji{ font-size:22px; }
+.sidebar-brand .txt{ line-height:1.15; }
+.sidebar-brand .txt b{ font-family:'Fraunces',serif; font-size:.98rem; display:block; }
+.sidebar-brand .txt span{ font-size:.68rem; opacity:.6; }
+.sidebar-close{ display:none; margin-left:auto; background:none; border:none; color:#EFE8DC; font-size:1.2rem; cursor:pointer; opacity:.7; }
 
-  .tabs{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-  .tab{ font-family:inherit; font-size:.85rem; padding:8px 16px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
-  .tab.active{ background:var(--terracotta); color:#fff; }
+.sidebar-nav{ flex:1; overflow-y:auto; padding:14px 10px 10px; }
+.nav-group{ margin-bottom:16px; }
+.nav-group-label{ font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.45; padding:0 10px; margin-bottom:6px; }
+.nav-item{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; font-size:.85rem; font-weight:600; padding:9px 10px; border:none; border-radius:9px; background:transparent; color:#EFE8DC; opacity:.82; cursor:pointer; position:relative; margin-bottom:2px; }
+.nav-item .ico{ font-size:1rem; width:18px; text-align:center; flex:0 0 auto; }
+.nav-item:hover{ background:rgba(255,255,255,.07); opacity:1; }
+.nav-item.active{ background:rgba(192,98,47,.22); color:#fff; opacity:1; }
+.nav-item.active::before{ content:''; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--terracotta); }
 
-  .categoria{ display:none; }
-  .categoria.active{ display:block; }
+.sidebar-foot{ padding:12px 16px 16px; border-top:1px solid rgba(255,255,255,.1); display:flex; align-items:center; gap:10px; }
+.sidebar-foot #status{ font-size:.7rem; padding:5px 10px; border-radius:20px; background:rgba(255,255,255,.08); flex:1; }
+.sidebar-foot #status.ok{ color:#8fd19e; } .sidebar-foot #status.erro{ color:#e88; }
+.sidebar-foot button{ font-size:.72rem; padding:6px 11px; border:none; border-radius:20px; background:rgba(255,255,255,.12); color:#EFE8DC; cursor:pointer; }
+.sidebar-foot button:hover{ background:rgba(255,255,255,.2); }
 
-  .grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; margin-bottom:18px; }
+.sidebar-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:70; }
 
-  .produto{ background:#fff; color:#222; border-radius:10px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,.25); display:flex; flex-direction:column; gap:8px; }
-  .produto.inativo{ opacity:.55; }
-  .produto .foto-wrap{ position:relative; width:100%; height:140px; border-radius:8px; overflow:hidden; background:#eee; cursor:pointer; }
-  .produto .foto-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .produto .foto-wrap .foto-vazia{ display:flex; align-items:center; justify-content:center; height:100%; color:#999; font-size:.75rem; text-align:center; padding:8px; }
-  .produto .foto-wrap .foto-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.75rem; opacity:0; transition:opacity .15s; }
-  .produto .foto-wrap:hover .foto-overlay{ opacity:1; }
-  .produto input[type=file]{ display:none; }
+/* ===== MAIN ===== */
+.main{ flex:1; margin-left:var(--sidebar-w); min-width:0; display:flex; flex-direction:column; }
+.topbar{ position:sticky; top:0; z-index:40; background:rgba(251,247,241,.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:16px 26px; display:flex; align-items:center; gap:12px; }
+.topbar h2{ font-size:1.15rem; flex:1; }
+.hamburger{ display:none; background:none; border:none; font-size:1.3rem; cursor:pointer; color:var(--ink); padding:2px 4px; }
+.content-wrap{ padding:22px 26px 60px; max-width:1180px; width:100%; }
 
-  .campo{ display:flex; flex-direction:column; gap:3px; }
-  .campo label{ font-size:.68rem; text-transform:uppercase; opacity:.7; font-weight:bold; }
-  .campo input[type=text], .campo input[type=number], .campo textarea{ font-family:inherit; font-size:.85rem; padding:7px 9px; border-radius:6px; border:1px solid #ccc; width:100%; }
-  .campo textarea{ resize:vertical; min-height:50px; }
+.aviso-config{ background:rgba(192,57,43,.08); border:1px solid rgba(192,57,43,.35); color:var(--ink); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:18px; font-size:.82rem; line-height:1.5; display:none; }
+.aviso-config.show{ display:block; }
 
-  .linha-precos{ display:flex; gap:6px; }
-  .linha-precos .campo{ flex:1; }
+.categoria{ display:none; }
+.categoria.active{ display:block; }
 
-  .campo-toggle{ display:flex; align-items:center; gap:8px; font-size:.82rem; }
-  .campo-toggle input{ width:16px; height:16px; }
+.grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; margin-bottom:18px; }
 
-  details.promo{ border:1px dashed #ccc; border-radius:6px; padding:8px; }
-  details.promo summary{ font-size:.78rem; font-weight:bold; cursor:pointer; color:var(--terracotta); }
-  details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.produto{ background:var(--card); color:var(--ink); border-radius:var(--radius); padding:14px; border:1px solid var(--line); box-shadow:0 1px 3px rgba(36,28,20,.05); display:flex; flex-direction:column; gap:9px; }
+.produto.inativo{ opacity:.5; }
+.produto .foto-wrap{ position:relative; width:100%; height:140px; border-radius:10px; overflow:hidden; background:var(--paper); cursor:pointer; border:1px solid var(--line); }
+.produto .foto-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
+.produto .foto-wrap .foto-vazia{ display:flex; align-items:center; justify-content:center; height:100%; color:var(--ink-soft); font-size:.75rem; text-align:center; padding:8px; }
+.produto .foto-wrap .foto-overlay{ position:absolute; inset:0; background:rgba(36,28,20,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.75rem; opacity:0; transition:opacity .15s; }
+.produto .foto-wrap:hover .foto-overlay{ opacity:1; }
+.produto input[type=file]{ display:none; }
 
-  .acoes-produto{ display:flex; gap:6px; margin-top:4px; }
-  .acoes-produto button{ flex:1; font-family:inherit; font-size:.78rem; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
-  .btn-salvar{ background:var(--green-ok); color:#fff; }
-  .btn-excluir{ background:var(--red); color:#fff; }
-  .salvo-ok{ font-size:.72rem; color:var(--green-ok); text-align:center; min-height:1em; }
+.campo{ display:flex; flex-direction:column; gap:4px; }
+.campo label{ font-size:.66rem; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:700; }
+.campo input[type=text], .campo input[type=number], .campo input[type=time], .campo textarea{ font-size:.86rem; padding:8px 10px; border-radius:8px; border:1.5px solid var(--line-strong); width:100%; background:var(--card); color:var(--ink); }
+.campo input:focus, .campo textarea:focus{ outline:none; border-color:var(--terracotta); }
+.campo textarea{ resize:vertical; min-height:50px; }
 
-  .stat-filtro-btn{ font-family:inherit; font-size:.8rem; padding:7px 12px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:transparent; color:#fff; cursor:pointer; }
-  .stat-filtro-btn.active{ background:var(--terracotta); border-color:var(--terracotta); font-weight:bold; }
-  .stat-card{ background:rgba(255,255,255,.08); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:3px; }
-  .stat-card .stat-label{ font-size:.72rem; opacity:.8; }
-  .stat-card .stat-value{ font-size:1.3rem; font-weight:bold; }
-  .stat-card .stat-sub{ font-size:.68rem; opacity:.65; }
-  .stat-comparativo{ font-size:.7rem; font-weight:bold; margin-top:2px; }
-  .stat-comparativo.up{ color:#7ee08a; }
-  .stat-comparativo.down{ color:#e07e7e; }
-  .stat-secao{ margin-top:24px; padding-top:18px; border-top:1px solid rgba(255,255,255,.12); }
-  .stat-secao h4{ margin:0 0 10px; font-size:.95rem; }
-  .stat-secao h5{ margin:0 0 4px; font-size:.8rem; opacity:.85; }
-  .stat-empty{ opacity:.65; font-size:.85rem; }
-  .stat-ranking-list{ list-style:none; padding:0; margin:0; font-size:.88rem; display:flex; flex-direction:column; gap:4px; }
-  .stat-ranking-list li{ display:flex; justify-content:space-between; background:rgba(255,255,255,.05); padding:5px 9px; border-radius:6px; }
-  .stat-legenda{ font-size:.75rem; opacity:.85; background:rgba(255,255,255,.05); padding:8px 10px; border-radius:8px; line-height:1.7; }
-  .stat-badge{ font-size:.7rem; font-weight:bold; padding:2px 7px; border-radius:999px; white-space:nowrap; }
-  .stat-badge.exato{ background:rgba(46,160,67,.25); color:#7ee08a; }
-  .stat-badge.aproximado{ background:rgba(210,153,34,.25); color:#e0b84a; }
-  .stat-bar-chart{ display:flex; align-items:flex-end; gap:6px; height:140px; overflow-x:auto; padding-bottom:4px; }
-  .stat-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:28px; }
-  .stat-bar{ width:18px; background:var(--terracotta); border-radius:4px 4px 0 0; min-height:4px; }
-  .stat-bar-label{ font-size:.6rem; opacity:.7; margin-top:4px; writing-mode:vertical-rl; transform:rotate(180deg); }
-  .stat-tabela{ width:100%; border-collapse:collapse; font-size:.8rem; }
-  .stat-tabela th{ text-align:left; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.2); opacity:.8; font-size:.72rem; }
-  .stat-tabela td{ padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.07); }
+.linha-precos{ display:flex; gap:6px; }
+.linha-precos .campo{ flex:1; }
 
-  .card-novo{ background:rgba(255,255,255,.08); border:2px dashed rgba(255,255,255,.35); border-radius:10px; padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:bold; text-align:center; }
-  .card-novo:hover{ background:rgba(255,255,255,.14); }
+.campo-toggle{ display:flex; align-items:center; gap:8px; font-size:.82rem; }
+.campo-toggle input{ width:16px; height:16px; accent-color:var(--terracotta); }
+
+details.promo{ border:1px dashed var(--line-strong); border-radius:9px; padding:9px 10px; }
+details.promo summary{ font-size:.78rem; font-weight:700; cursor:pointer; color:var(--terracotta-dark); }
+details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+
+.acoes-produto{ display:flex; gap:6px; margin-top:4px; }
+.acoes-produto button{ flex:1; font-size:.78rem; padding:9px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
+.btn-salvar{ background:var(--ok); color:#fff; }
+.btn-salvar:hover{ filter:brightness(1.08); }
+.btn-excluir{ background:var(--danger); color:#fff; }
+.btn-excluir:hover{ filter:brightness(1.08); }
+.salvo-ok{ font-size:.72rem; color:var(--ok); text-align:center; min-height:1em; font-weight:600; }
+
+.painel-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin-bottom:18px; }
+
+.stat-filtro-btn{ font-size:.8rem; padding:7px 14px; border:1.5px solid var(--line-strong); border-radius:999px; background:var(--card); color:var(--ink); cursor:pointer; }
+.stat-filtro-btn.active{ background:var(--terracotta); border-color:var(--terracotta); color:#fff; font-weight:700; }
+.stat-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px; display:flex; flex-direction:column; gap:3px; }
+.stat-card .stat-label{ font-size:.72rem; color:var(--ink-soft); }
+.stat-card .stat-value{ font-size:1.35rem; font-weight:800; font-family:'Fraunces',serif; }
+.stat-card .stat-sub{ font-size:.68rem; color:var(--ink-soft); }
+.stat-comparativo{ font-size:.7rem; font-weight:700; margin-top:2px; }
+.stat-comparativo.up{ color:var(--ok); }
+.stat-comparativo.down{ color:var(--danger); }
+.stat-secao{ margin-top:26px; padding-top:20px; border-top:1px solid var(--line); }
+.stat-secao h4{ margin:0 0 10px; font-size:1rem; }
+.stat-secao h5{ margin:0 0 4px; font-size:.8rem; color:var(--ink-soft); font-family:inherit; font-weight:700; }
+.stat-empty{ color:var(--ink-soft); font-size:.85rem; }
+.stat-ranking-list{ list-style:none; padding:0; margin:0; font-size:.88rem; display:flex; flex-direction:column; gap:4px; }
+.stat-ranking-list li{ display:flex; justify-content:space-between; background:var(--paper); padding:7px 10px; border-radius:8px; border:1px solid var(--line); }
+.stat-legenda{ font-size:.75rem; color:var(--ink-soft); background:var(--paper); padding:9px 11px; border-radius:9px; line-height:1.7; border:1px solid var(--line); }
+.stat-badge{ font-size:.7rem; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+.stat-badge.exato{ background:rgba(58,125,74,.14); color:var(--ok); }
+.stat-badge.aproximado{ background:rgba(201,154,74,.2); color:#8a6a1f; }
+.stat-bar-chart{ display:flex; align-items:flex-end; gap:6px; height:140px; overflow-x:auto; padding-bottom:4px; }
+.stat-bar-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:28px; }
+.stat-bar{ width:18px; background:var(--terracotta); border-radius:4px 4px 0 0; min-height:4px; }
+.stat-bar-label{ font-size:.6rem; color:var(--ink-soft); margin-top:4px; writing-mode:vertical-rl; transform:rotate(180deg); }
+.stat-tabela{ width:100%; border-collapse:collapse; font-size:.8rem; }
+.stat-tabela th{ text-align:left; padding:7px 9px; border-bottom:1.5px solid var(--line-strong); color:var(--ink-soft); font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
+.stat-tabela td{ padding:7px 9px; border-bottom:1px solid var(--line); }
+
+.card-novo{ background:var(--card); border:2px dashed var(--line-strong); border-radius:var(--radius); padding:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-height:120px; font-size:.9rem; font-weight:700; text-align:center; color:var(--ink-soft); }
+.card-novo:hover{ background:var(--paper); border-color:var(--terracotta); color:var(--terracotta-dark); }
+
+@media (max-width: 880px){
+  .sidebar{ transform:translateX(-100%); box-shadow:0 0 40px rgba(0,0,0,.3); }
+  .sidebar.open{ transform:translateX(0); }
+  .sidebar-close{ display:block; }
+  .sidebar-overlay.show{ display:block; }
+  .main{ margin-left:0; }
+  .hamburger{ display:block; }
+  .content-wrap{ padding:18px 16px 50px; }
+  .topbar{ padding:14px 16px; }
+}
 </style>
 </head>
 <body>
 
 <div id="tela-senha">
-  <h1>🍕 Gestão de Produtos</h1>
-  <input type="email" id="input-email" placeholder="E-mail" autocomplete="username" autofocus>
-  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
-  <button onclick="conferirSenha()">Entrar</button>
-  <div class="erro-senha" id="erro-senha"></div>
+  <div class="login-card">
+    <div class="login-emoji">🍕</div>
+    <h1>Painel Manel's</h1>
+    <p>Entre com sua conta de equipe</p>
+    <input type="email" id="input-email" placeholder="E-mail" autocomplete="username" autofocus>
+    <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
+    <button onclick="conferirSenha()">Entrar</button>
+    <div class="erro-senha" id="erro-senha"></div>
+  </div>
 </div>
 
 <div id="conteudo" style="display:none;">
-  <header>
-    <h1>🍕 Gestão de Produtos — Manel's</h1>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <div id="status">conectando…</div>
-      <button onclick="sairPainel()" style="font-family:inherit; font-size:.75rem; padding:6px 12px; border:none; border-radius:20px; background:rgba(255,255,255,.15); color:var(--beige); cursor:pointer;">Sair</button>
+  <div class="admin-shell">
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="emoji">🍕</span>
+        <div class="txt"><b>Manel's</b><span>Painel de gestão</span></div>
+        <button class="sidebar-close" onclick="toggleSidebar(false)">✕</button>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="sidebar-foot">
+        <div id="status">conectando…</div>
+        <button onclick="sairPainel()">Sair</button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="hamburger" onclick="toggleSidebar(true)">☰</button>
+        <h2 id="topbar-titulo">Painel</h2>
+      </header>
+      <div class="content-wrap">
+        <div class="aviso-config" id="aviso-config"></div>
+        <div id="categorias"></div>
+      </div>
     </div>
-  </header>
-
-  <div class="aviso-config" id="aviso-config"></div>
-
-  <div class="tabs" id="tabs"></div>
-
-  <div id="categorias"></div>
+  </div>
 </div>
+
 
 <script>
 async function conferirSenha(){
@@ -163,24 +243,31 @@ supabaseClient.auth.getSession().then(({ data: { session } }) => {
 });
 
 const CATEGORIAS = [
-  { key:'combo',    label:'Promoções' },
-  { key:'pizza',    label:'Pizzas' },
-  { key:'calzone',  label:'Calzones' },
-  { key:'brotinho', label:'Brotinho' },
-  { key:'esfiha',   label:'Esfihas' },
-  { key:'bebida',   label:'Bebidas' },
-  { key:'borda',    label:'Bordas Recheadas' },
-  { key:'capas',    label:'🖼️ Capas do Site' },
-  { key:'config',   label:'⚙️ Configurações' },
-  { key:'stats',    label:'📊 Estatísticas' },
-  { key:'avaliacoes', label:'⭐ Avaliações' },
-  { key:'carrossel', label:'🎠 Carrossel' },
+  { key:'combo',    label:'Promoções',        icon:'🎉', group:'Cardápio' },
+  { key:'pizza',    label:'Pizzas',           icon:'🍕', group:'Cardápio' },
+  { key:'calzone',  label:'Calzones',         icon:'🥟', group:'Cardápio' },
+  { key:'brotinho', label:'Brotinho',         icon:'🍫', group:'Cardápio' },
+  { key:'esfiha',   label:'Esfihas',          icon:'🔺', group:'Cardápio' },
+  { key:'bebida',   label:'Bebidas',          icon:'🥤', group:'Cardápio' },
+  { key:'borda',    label:'Bordas Recheadas', icon:'🧀', group:'Cardápio' },
+  { key:'capas',    label:'Capas do Site',    icon:'🖼️', group:'Site' },
+  { key:'carrossel',label:'Carrossel',        icon:'🎠', group:'Site' },
+  { key:'stats',    label:'Estatísticas',     icon:'📊', group:'Gestão' },
+  { key:'avaliacoes',label:'Avaliações',      icon:'⭐', group:'Gestão' },
+  { key:'config',   label:'Configurações',    icon:'⚙️', group:'Sistema' },
 ];
+const GRUPOS_ORDEM = ['Cardápio', 'Site', 'Gestão', 'Sistema'];
+
 
 let produtos = []; // todos os produtos, de todas as categorias
 let categoriaAtiva = 'combo';
 let horarios = []; // linhas da tabela horario_funcionamento
-let configGeral = { tempo_espera_ativo:false, tempo_espera_texto:'' };
+let configGeral = {
+  tempo_espera_ativo:false, tempo_espera_texto:'',
+  hero_entrega_texto:'🛵 Entrega em 35–50 min', hero_local_texto:'📍 Centro',
+  fechado_titulo:'🕒 Estamos fechados no momento', fechado_texto_extra:'',
+  whatsapp_numero:''
+};
 let TAMANHOS_PIZZA = []; // [{chave, rotulo, medida, max_sabores, ordem, ativo}]
 const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
@@ -208,6 +295,9 @@ async function carregarTamanhosPizza(){
 
 async function iniciar(){
   renderTabs();
+  const inicial = CATEGORIAS.find(c => c.key === categoriaAtiva);
+  const titulo = document.getElementById('topbar-titulo');
+  if(titulo && inicial) titulo.textContent = `${inicial.icon} ${inicial.label}`;
   await carregarTamanhosPizza();
   await Promise.all([carregarProdutos(), carregarConfiguracoes()]);
 }
@@ -228,16 +318,36 @@ async function carregarConfiguracoes(){
 }
 
 function renderTabs(){
-  const tabs = document.getElementById('tabs');
-  tabs.innerHTML = CATEGORIAS.map(c =>
-    `<button class="tab ${c.key===categoriaAtiva?'active':''}" onclick="mudarCategoria('${c.key}')">${c.label}</button>`
-  ).join('');
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = GRUPOS_ORDEM.map(grupo => {
+    const itens = CATEGORIAS.filter(c => c.group === grupo);
+    if(itens.length === 0) return '';
+    return `
+      <div class="nav-group">
+        <div class="nav-group-label">${grupo}</div>
+        ${itens.map(c => `
+          <button class="nav-item ${c.key===categoriaAtiva?'active':''}" onclick="mudarCategoria('${c.key}')">
+            <span class="ico">${c.icon}</span><span>${c.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
 }
 
 function mudarCategoria(key){
   categoriaAtiva = key;
   renderTabs();
   document.querySelectorAll('.categoria').forEach(el => el.classList.toggle('active', el.dataset.categoria === key));
+  const atual = CATEGORIAS.find(c => c.key === key);
+  const titulo = document.getElementById('topbar-titulo');
+  if(titulo && atual) titulo.textContent = `${atual.icon} ${atual.label}`;
+  toggleSidebar(false); // no celular, escolher um item fecha o menu lateral
+}
+
+function toggleSidebar(abrir){
+  document.getElementById('sidebar').classList.toggle('open', abrir);
+  document.getElementById('sidebar-overlay').classList.toggle('show', abrir);
 }
 
 async function carregarProdutos(){
@@ -319,8 +429,8 @@ function renderTamanhosPizzaPainel(){
       </label>
       <code style="font-size:11px; opacity:.6;">chave: ${t.chave}</code>
       <button class="btn-salvar" style="max-width:90px; padding:6px 10px;" onclick="salvarTamanhoPizza('${t.chave}')">💾</button>
-      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--rust);" onclick="moverTamanhoPizza('${t.chave}', -1)" ${i===0?'disabled':''}>↑</button>
-      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--rust);" onclick="moverTamanhoPizza('${t.chave}', 1)" ${i===TAMANHOS_PIZZA.length-1?'disabled':''}>↓</button>
+      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--gold);" onclick="moverTamanhoPizza('${t.chave}', -1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:var(--gold);" onclick="moverTamanhoPizza('${t.chave}', 1)" ${i===TAMANHOS_PIZZA.length-1?'disabled':''}>↓</button>
       <button class="btn-salvar" style="max-width:40px; padding:6px 10px; background:#7C3B1D;" onclick="excluirTamanhoPizza('${t.chave}')">🗑️</button>
     </div>
   `).join('');
@@ -771,7 +881,17 @@ function renderConfiguracoes(){
       <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarAvisoEspera()">💾 Salvar Aviso</button>
       <div class="salvo-ok" id="salvo-espera"></div>
 
-      <p style="font-size:.8rem; opacity:.75; margin-top:28px;">🖼️ As fotos de capa das seções do site agora ficam na aba <b>"Capas do Site"</b>, ali em cima.</p>
+      <h3 style="margin-top:28px;">🏠 Textos da Página Inicial</h3>
+      <p style="font-size:.8rem; opacity:.8;">Controla os selos no topo do site e o aviso que aparece quando a loja está fechada.</p>
+      <div class="campo"><label>Selo de entrega (deixe em branco pra esconder)</label><input type="text" id="home-hero-entrega" value="${(configGeral.hero_entrega_texto||'').replace(/"/g,'&quot;')}" placeholder="Ex: 🛵 Entrega em 35–50 min"></div>
+      <div class="campo" style="margin-top:6px;"><label>Selo de localização (deixe em branco pra esconder)</label><input type="text" id="home-hero-local" value="${(configGeral.hero_local_texto||'').replace(/"/g,'&quot;')}" placeholder="Ex: 📍 Centro"></div>
+      <div class="campo" style="margin-top:6px;"><label>Título do aviso "fechado"</label><input type="text" id="home-fechado-titulo" value="${(configGeral.fechado_titulo||'').replace(/"/g,'&quot;')}" placeholder="Ex: 🕒 Estamos fechados no momento"></div>
+      <div class="campo" style="margin-top:6px;"><label>Texto extra do aviso "fechado" (opcional — some se ficar em branco)</label><textarea id="home-fechado-extra" placeholder="Ex: pedimos pagamento adiantado ou sinal de 50% para confirmar.">${(configGeral.fechado_texto_extra||'')}</textarea></div>
+      <div class="campo" style="margin-top:6px;"><label>Número do WhatsApp (só números, com DDI+DDD, ex: 5588999999999)</label><input type="text" id="home-whatsapp" value="${(configGeral.whatsapp_numero||'').replace(/"/g,'&quot;')}" placeholder="5588992182784"></div>
+      <button class="btn-salvar" style="margin-top:8px; max-width:220px;" onclick="salvarTextosHome()">💾 Salvar Textos</button>
+      <div class="salvo-ok" id="salvo-home"></div>
+
+      <p style="font-size:.8rem; opacity:.75; margin-top:28px;">🖼️ As fotos de capa das seções do site ficam na aba <b>"Capas do Site"</b>, ali em cima.</p>
     </div>
   `;
 }
@@ -915,7 +1035,29 @@ async function salvarAvisoEspera(){
     console.error(error);
     return;
   }
-  configGeral = payload;
+  configGeral = { ...configGeral, ...payload };
+  aviso.textContent = '✅ Salvo!';
+  setTimeout(() => { aviso.textContent = ''; }, 2000);
+}
+
+async function salvarTextosHome(){
+  const payload = {
+    id: 1,
+    hero_entrega_texto: document.getElementById('home-hero-entrega').value.trim(),
+    hero_local_texto: document.getElementById('home-hero-local').value.trim(),
+    fechado_titulo: document.getElementById('home-fechado-titulo').value.trim(),
+    fechado_texto_extra: document.getElementById('home-fechado-extra').value.trim(),
+    whatsapp_numero: document.getElementById('home-whatsapp').value.trim().replace(/[^\d]/g,''),
+  };
+  const { error } = await supabaseClient.from('config_geral').upsert(payload, { onConflict: 'id' });
+  const aviso = document.getElementById('salvo-home');
+  if(error){
+    alert('Não foi possível salvar os textos.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nVerifique se a tabela "config_geral" tem as colunas hero_entrega_texto, hero_local_texto, fechado_titulo, fechado_texto_extra e whatsapp_numero — rode o SQL que te passei.');
+    console.error(error);
+    return;
+  }
+  configGeral = { ...configGeral, ...payload };
   aviso.textContent = '✅ Salvo!';
   setTimeout(() => { aviso.textContent = ''; }, 2000);
 }
@@ -1513,8 +1655,8 @@ function desenharListaSlides(){
       </div>
       <div style="flex:0 0 100%; display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
         <button class="btn-salvar" style="max-width:120px;" onclick="salvarSlide(${s.id})">💾 Salvar</button>
-        <button class="btn-salvar" style="max-width:110px; background:var(--rust);" onclick="moverSlide(${s.id}, -1)" ${i===0?'disabled':''}>↑ Subir</button>
-        <button class="btn-salvar" style="max-width:110px; background:var(--rust);" onclick="moverSlide(${s.id}, 1)" ${i===slidesCarrossel.length-1?'disabled':''}>↓ Descer</button>
+        <button class="btn-salvar" style="max-width:110px; background:var(--gold);" onclick="moverSlide(${s.id}, -1)" ${i===0?'disabled':''}>↑ Subir</button>
+        <button class="btn-salvar" style="max-width:110px; background:var(--gold);" onclick="moverSlide(${s.id}, 1)" ${i===slidesCarrossel.length-1?'disabled':''}>↓ Descer</button>
         <button class="btn-salvar" style="max-width:110px; background:#7C3B1D;" onclick="excluirSlide(${s.id})">🗑️ Excluir</button>
       </div>
     </div>
