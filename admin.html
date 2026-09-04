@@ -993,10 +993,22 @@ async function otimizarFotosExistentes(){
    Guarda a URL de cada foto na tabela "secoes_capas" (categoria -> imagem_url), que é o
    que o index.html (cardápio) já lê em aplicarCapasSecoes(). Cada categoria tem um card
    com preview + upload, no mesmo estilo visual dos cards de produto. */
-const LABELS_CAPAS = {
-  pizza: '🍕 Pizzas', calzone: '🥟 Calzones', brotinho: '🍫 Brotinho Doce',
+const LABELS_CAPAS_FIXAS = {
+  calzone: '🥟 Calzones', brotinho: '🍫 Brotinho Doce',
   esfiha: '🔺 Esfihas', bebida: '🥤 Bebidas', combo: '🎉 Promoções'
 };
+
+// Cada tamanho de pizza ativo (M, G, GG, ou o que você tiver cadastrado em
+// "Tamanhos de Pizza") ganha sua própria foto de capa, com a chave
+// "pizza_<tamanho>" — assim dá pra ter uma foto diferente pra cada tamanho.
+function getLabelsCapas(){
+  const labels = {};
+  TAMANHOS_PIZZA.filter(t => t.ativo).forEach(t => {
+    labels[`pizza_${t.chave}`] = `🍕 Pizza ${t.rotulo}`;
+  });
+  Object.assign(labels, LABELS_CAPAS_FIXAS);
+  return labels;
+}
 
 let capasSecoes = {}; // categoria -> { categoria, imagem_url }
 
@@ -1020,15 +1032,18 @@ async function renderCapasGrid(){
   capasSecoes = {};
   (data || []).forEach(r => { capasSecoes[r.categoria] = r; });
 
+  const labelsCapas = getLabelsCapas();
   grade.innerHTML = `
     <div style="grid-column:1/-1; font-size:.82rem; opacity:.85; margin-bottom:4px; line-height:1.5;">
       Essas fotos aparecem no lugar dos emojis, nos cards de cada seção da página inicial do cardápio.
       Toque numa foto (ou no quadro vazio) pra enviar — a nova substitui a antiga na hora.
+      Cada tamanho de pizza ativo tem a própria foto.
     </div>
-  ` + Object.keys(LABELS_CAPAS).map(cat => cardCapaHTML(cat)).join('');
+  ` + Object.keys(labelsCapas).map(cat => cardCapaHTML(cat, labelsCapas)).join('');
 }
 
-function cardCapaHTML(cat){
+function cardCapaHTML(cat, labelsCapas){
+  const labels = labelsCapas || getLabelsCapas();
   const r = capasSecoes[cat] || { categoria: cat, imagem_url: null };
   return `
     <div class="produto" id="card-capa-${cat}">
@@ -1037,7 +1052,7 @@ function cardCapaHTML(cat){
         ${r.imagem_url ? `<img src="${r.imagem_url}" id="img-capa-${cat}">` : `<div class="foto-vazia" id="img-capa-${cat}">Sem foto —<br>toque pra enviar</div>`}
         <div class="foto-overlay">📷 Trocar foto</div>
       </div>
-      <div class="campo"><label>Seção</label><div style="font-weight:bold; font-size:.95rem;">${LABELS_CAPAS[cat]}</div></div>
+      <div class="campo"><label>Seção</label><div style="font-weight:bold; font-size:.95rem;">${labels[cat] || cat}</div></div>
     </div>
   `;
 }
