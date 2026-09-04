@@ -814,14 +814,14 @@ function renderBuilderFormItem(){
       <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
         <div class="campo-grupo">
           <label class="campo-lbl">Tamanho</label>
-          <select id="bp-tamanho" style="padding:6px;">${tamanhosAtivos.map(t => `<option value="${t.chave}">${t.rotulo}</option>`).join('')}</select>
+          <select id="bp-tamanho" onchange="renderBuilderPizzaSabores()" style="padding:6px;">${tamanhosAtivos.map(t => `<option value="${t.chave}">${t.rotulo}</option>`).join('')}</select>
         </div>
         <div class="campo-grupo">
           <label class="campo-lbl">Quantos sabores</label>
           <select id="bp-estilo" onchange="renderBuilderPizzaSabores()" style="padding:6px;">
             <option value="1">Inteira (1 sabor)</option>
-            <option value="2">Meio a meio (2 sabores)</option>
-            <option value="3" ${existeTamanhoCom3Sabores?'':'disabled'}>3 sabores${existeTamanhoCom3Sabores?'':' (nenhum tamanho ativo permite)'}</option>
+            <option value="2" id="bp-opcao-2">Meio a meio (2 sabores)</option>
+            <option value="3" id="bp-opcao-3" ${existeTamanhoCom3Sabores?'':'disabled'}>3 sabores${existeTamanhoCom3Sabores?'':' (nenhum tamanho ativo permite)'}</option>
           </select>
         </div>
         <div class="campo-grupo">
@@ -888,15 +888,25 @@ function renderBuilderFormItem(){
 }
 
 function renderBuilderPizzaSabores(){
-  const estilo = parseInt(document.getElementById('bp-estilo').value, 10);
+  const estiloSel = document.getElementById('bp-estilo');
+  const tamanhoSel = document.getElementById('bp-tamanho');
+  const tamanhoAtual = TAMANHOS_PIZZA.find(t => t.chave === tamanhoSel.value);
+  const maxSaboresAtual = tamanhoAtual ? tamanhoAtual.max_sabores : 2;
+
+  // Trava a opção "2 sabores" se o tamanho escolhido só permite 1.
+  const opcao2 = document.getElementById('bp-opcao-2');
+  opcao2.disabled = maxSaboresAtual < 2;
+  if(maxSaboresAtual < 2 && parseInt(estiloSel.value, 10) > 1){
+    estiloSel.value = '1';
+  }
+
+  const estilo = parseInt(estiloSel.value, 10);
   const wrap = document.getElementById('bp-sabores-wrap');
   let html = '';
   for(let i = 0; i < estilo; i++){
     html += `<div class="campo-grupo"><label class="campo-lbl">${estilo>1?`Sabor ${i+1}`:'Sabor'}</label><select class="bp-sabor" data-slot="${i}" style="padding:6px;">${opcoesSelect(MENU.pizzas, 'pizzas')}</select></div>`;
   }
   wrap.innerHTML = html;
-  const tamanhoSel = document.getElementById('bp-tamanho');
-  const tamanhoAtual = TAMANHOS_PIZZA.find(t => t.chave === tamanhoSel.value);
   if(estilo === 3){
     // Se o tamanho selecionado não permite 3 sabores, troca pro primeiro que permite.
     if(!tamanhoAtual || tamanhoAtual.max_sabores < 3){
