@@ -34,7 +34,7 @@ a{color:inherit;}
 .topbar{position:sticky; top:0; z-index:60; background:rgba(250,250,247,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
 .topbar-inner{max-width:640px; margin:0 auto; padding:.8rem 1rem; display:flex; align-items:center; gap:.7rem;}
 .logo-badge{width:42px; height:42px; border-radius:50%; overflow:hidden; flex:0 0 auto; border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.06);}
-.logo-badge img{width:100%; height:100%; object-fit:cover; display:block;}
+.logo-badge img{width:100%; height:100%; object-fit:contain; display:block;}
 .brand-name{font-family:'Fraunces',serif; font-weight:700; font-size:16px; line-height:1.1;}
 .brand-tag{font-size:11px; color:var(--ink-soft);}
 .topbar-cart{margin-left:auto; width:40px; height:40px; border-radius:50%; background:var(--card); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative;}
@@ -68,7 +68,7 @@ a{color:inherit;}
 .carrossel-wrap{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px;}
 .carrossel-wrap::-webkit-scrollbar{display:none;}
 .carrossel-slide{flex:0 0 82%; max-width:320px; scroll-snap-align:start; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:pointer;}
-.carrossel-slide img{width:100%; height:140px; object-fit:cover; display:block;}
+.carrossel-slide img{width:100%; height:140px; object-fit:contain; display:block;}
 .carrossel-slide-fallback{width:100%; height:140px; display:flex; align-items:center; justify-content:center; font-size:46px; background:var(--accent-soft);}
 .carrossel-slide-info{padding:.65rem .85rem .8rem;}
 .carrossel-slide-nome{font-family:'Fraunces',serif; font-weight:700; font-size:14.5px;}
@@ -87,7 +87,7 @@ a{color:inherit;}
 .product-grid{display:grid; grid-template-columns:1fr 1fr; gap:.7rem;}
 .p-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;}
 .p-card:active{transform:scale(.98);}
-.p-card .p-media{height:104px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; overflow:hidden; background-size:cover; background-position:center;}
+.p-card .p-media{height:104px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; overflow:hidden; background-size:contain; background-position:center;}
 .p-card .p-media.tem-foto{font-size:0;}
 .p-card .p-body{padding:.7rem .8rem .85rem;}
 .p-card .p-eyebrow{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent-dark);}
@@ -140,7 +140,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .flavor-grid{display:flex; flex-direction:column; gap:.55rem; margin-bottom:.5rem;}
 .flavor-card{position:relative; display:flex; flex-direction:column; background:var(--card); border:1.5px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer; text-align:left; transition:all .15s; font-family:'Work Sans',sans-serif;}
 .flavor-card .fmedia{position:relative; width:100%; height:130px; background:var(--bg);}
-.flavor-card .fimg{width:100%; height:100%; object-fit:cover; display:block;}
+.flavor-card .fimg{width:100%; height:100%; object-fit:contain; display:block;}
 .flavor-card .fbody{padding:.6rem .8rem .75rem;}
 .flavor-card.no-media .fbody{padding-top:.8rem;}
 .flavor-card .fname{font-family:'Fraunces',serif; font-size:15px; font-weight:600; display:block; line-height:1.25; color:var(--ink);}
@@ -183,7 +183,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .crust-toggle input{width:18px; height:18px; accent-color:var(--accent);}
 .crust-toggle span{font-size:13.5px; color:var(--ink-soft);}
 .crust-toggle b{color:var(--accent-dark);}
-.crust-toggle img.thumb, .complement-toggle img.thumb{width:44px;height:44px;object-fit:cover;border-radius:9px;flex:0 0 auto;}
+.crust-toggle img.thumb, .complement-toggle img.thumb{width:44px;height:44px;object-fit:contain;border-radius:9px;flex:0 0 auto;}
 .complement-toggle{display:flex; align-items:center; gap:.6rem; background:var(--accent-soft); border:1px solid #D9B8A5; border-radius:10px; padding:.6rem .8rem; margin:.9rem 0; cursor:pointer;}
 .complement-toggle input{width:18px; height:18px; accent-color:var(--accent);}
 .complement-toggle span{font-size:13.5px; color:var(--ink-soft);}
@@ -266,6 +266,26 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .enviando-spinner{width:40px; height:40px; border:4px solid rgba(232,89,12,.18); border-top-color:var(--accent); border-radius:50%; margin:0 auto; animation:enviando-spin .8s linear infinite;}
 @keyframes enviando-spin{to{transform:rotate(360deg);}}
 </style>
+
+<style id="fix-fotos-sem-corte">
+/* CORREÇÃO DEFINITIVA — preservar a foto inteira */
+.p-card .p-media{
+  background-size:contain !important;
+  background-repeat:no-repeat !important;
+  background-position:center !important;
+}
+.carrossel-slide img,
+.flavor-card .fimg,
+.flavor-card img{
+  object-fit:contain !important;
+  object-position:center !important;
+}
+.carrossel-slide,
+.flavor-card .fmedia{
+  overflow:hidden;
+}
+</style>
+
 </head>
 <body>
 
