@@ -1665,7 +1665,7 @@ function renderPizzaHomeCards(){
   if(!wrap) return;
   wrap.innerHTML = TAMANHOS_PIZZA.map(t => `
     <div class="p-card" onclick="openPizzaCard('${t.chave}')">
-      <div class="p-media" data-categoria="pizza" style="background:var(--accent-soft);">🍕</div>
+      <div class="p-media" data-categoria="pizza_${t.chave}" style="background:var(--accent-soft);">🍕</div>
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">${t.rotulo}</div>
