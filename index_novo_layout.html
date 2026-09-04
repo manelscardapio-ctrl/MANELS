@@ -1566,6 +1566,7 @@ async function carregarConfigGeral(){
     const { data, error } = await supabaseClient.from('config_geral').select('*').eq('id',1).maybeSingle();
     if(error || !data) return;
     CONFIG_GERAL = data;
+    if(data.esfiha_min_qty) ESFIHA_MIN_QTY = data.esfiha_min_qty;
   } catch(e){
     console.error('Não foi possível carregar o aviso de tempo de espera:', e);
   }
@@ -1962,7 +1963,7 @@ function addBrotinhoToCart(){
 }
 
 /* ==================== ESFIHAS ==================== */
-const ESFIHA_MIN_QTY = 5;
+let ESFIHA_MIN_QTY = 5; // valor padrão — carregarConfigGeral() pode trocar
 let esfihaCounts = {};
 function renderEsfihaFlavors(){
   const container = document.getElementById('esfiha-flavors');
