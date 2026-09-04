@@ -597,6 +597,7 @@ function iniciar(){
   carregarPedidosAtivos();
   carregarHistorico();
   carregarTamanhosPizzaBuilder().then(carregarMenuBuilder);
+  carregarConfigGeralBuilder();
 
   setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); renderizarResumoDia(); }, 20000);
   setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso
@@ -626,7 +627,7 @@ const DISQUETES_PRICE = 1.00;
 const MAIONESE_PRICE = 1.00;
 const DELIVERY_FEE = 3.00;
 const FREE_DELIVERY_THRESHOLD = 15.00;
-const ESFIHA_MIN_QTY = 5;
+let ESFIHA_MIN_QTY = 5; // valor padrão — carregarConfigGeralBuilder() pode trocar
 let TAMANHOS_PIZZA = []; // [{chave, rotulo, medida, max_sabores, ordem, ativo}], carregado do banco
 function rotuloTamanho(chave){
   const t = TAMANHOS_PIZZA.find(x => x.chave === chave);
@@ -637,6 +638,12 @@ async function carregarTamanhosPizzaBuilder(){
   const { data, error } = await supabaseClient.from('tamanhos_pizza').select('*').order('ordem', { ascending:true });
   if(error){ console.error('Erro ao carregar tamanhos de pizza:', error); TAMANHOS_PIZZA = []; return; }
   TAMANHOS_PIZZA = data || [];
+}
+
+async function carregarConfigGeralBuilder(){
+  const { data, error } = await supabaseClient.from('config_geral').select('esfiha_min_qty').eq('id', 1).maybeSingle();
+  if(error || !data || !data.esfiha_min_qty) return; // mantém o padrão (5) se não carregar
+  ESFIHA_MIN_QTY = data.esfiha_min_qty;
 }
 
 let builderCart = [];
