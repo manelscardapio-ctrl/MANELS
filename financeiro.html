@@ -66,9 +66,13 @@ tr:last-child td{border-bottom:none;}
 .stat{background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:16px 18px;}
 .stat .num{font-family:'Fraunces',serif; font-size:26px; font-weight:700; color:var(--forest-dark);}
 .stat .lbl{font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
-.ficha-picker{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.ficha-picker{display:flex; flex-wrap:wrap; margin-bottom:16px;}
 .ficha-picker button{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:7px 15px; font-size:13px; cursor:pointer; font-family:'Work Sans',sans-serif;}
 .ficha-picker button.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+.ficha-grupo-titulo{flex-basis:100%; font-family:'Fraunces',serif; font-weight:700; font-size:15px; color:var(--forest-dark); margin:14px 0 6px; padding-bottom:4px; border-bottom:1.5px solid var(--line);}
+.ficha-grupo-titulo:first-child{margin-top:0;}
+.ficha-grupo-linha{display:flex; flex-wrap:wrap; gap:8px; align-items:center; width:100%; margin-bottom:6px;}
+.ficha-subgrupo-titulo{font-family:'Work Sans',sans-serif; font-size:11.5px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.03em; margin-right:2px;}
 .ing-row{display:grid; grid-template-columns:2fr 90px 70px 30px; gap:8px; align-items:center; margin-bottom:8px;}
 .ing-row.head{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:700;}
 .remove-x{color:var(--danger); cursor:pointer; text-align:center; font-weight:700; user-select:none;}
@@ -506,15 +510,56 @@ async function carregarFichas(){
   fichas = (data||[]).map(f => ({ ...f, itens: (f.fichas_tecnicas_itens||[]).map(i=>({ ingrediente_id:i.ingrediente_id, quantidade:i.quantidade, item_id:i.id })) }));
   desenharFichaPicker();
 }
+const ORDEM_CATEGORIA_FICHA = ['pizza','calzone','esfiha','brotinho','bebida','combo','outro'];
+const LABEL_CATEGORIA_FICHA = { pizza:'🍕 Pizzas', calzone:'🥟 Calzones', esfiha:'🥙 Esfihas', brotinho:'🍩 Brotinho', bebida:'🥤 Bebidas', combo:'🍽️ Combos', outro:'📦 Outros' };
+const ORDEM_TAMANHO_FICHA = { M:0, G:1, GG:2 };
+const LABEL_TAMANHO_FICHA = { M:'Média', G:'Grande', GG:'Família' };
+
 function desenharFichaPicker(){
   const wrap = document.getElementById('ficha-picker');
   wrap.innerHTML = '';
-  fichas.forEach(f=>{
-    const btn = document.createElement('button');
-    btn.textContent = f.nome_exibicao || `${f.categoria}${f.tamanho ? ' '+f.tamanho : ''} · ${f.sabor}`;
-    btn.className = f.id === fichaAtualId ? 'active' : '';
-    btn.addEventListener('click', ()=>abrirFicha(f.id));
-    wrap.appendChild(btn);
+
+  // agrupa por categoria, na ordem definida acima (categorias que não estão na
+  // lista — caso surjam no futuro — aparecem por último, em ordem alfabética)
+  const categorias = [...new Set(fichas.map(f => f.categoria))].sort((a,b)=>{
+    const ia = ORDEM_CATEGORIA_FICHA.indexOf(a), ib = ORDEM_CATEGORIA_FICHA.indexOf(b);
+    if(ia === -1 && ib === -1) return a.localeCompare(b, 'pt-BR');
+    if(ia === -1) return 1;
+    if(ib === -1) return -1;
+    return ia - ib;
+  });
+
+  categorias.forEach(cat => {
+    const titulo = document.createElement('div');
+    titulo.className = 'ficha-grupo-titulo';
+    titulo.textContent = LABEL_CATEGORIA_FICHA[cat] || cat;
+    wrap.appendChild(titulo);
+
+    const doGrupo = fichas.filter(f => f.categoria === cat).sort((a,b)=>{
+      const ta = ORDEM_TAMANHO_FICHA[a.tamanho] ?? 99, tb = ORDEM_TAMANHO_FICHA[b.tamanho] ?? 99;
+      if(ta !== tb) return ta - tb;
+      return (a.sabor||'').localeCompare(b.sabor||'', 'pt-BR');
+    });
+
+    const linha = document.createElement('div');
+    linha.className = 'ficha-grupo-linha';
+    let tamanhoAtual;
+    doGrupo.forEach(f => {
+      // dentro de pizza (que tem tamanho), insere um rotulozinho toda vez que o tamanho muda
+      if(f.tamanho !== undefined && f.tamanho !== tamanhoAtual){
+        tamanhoAtual = f.tamanho;
+        const subLabel = document.createElement('span');
+        subLabel.className = 'ficha-subgrupo-titulo';
+        subLabel.textContent = LABEL_TAMANHO_FICHA[f.tamanho] || f.tamanho || '';
+        linha.appendChild(subLabel);
+      }
+      const btn = document.createElement('button');
+      btn.textContent = f.sabor;
+      btn.className = f.id === fichaAtualId ? 'active' : '';
+      btn.addEventListener('click', ()=>abrirFicha(f.id));
+      linha.appendChild(btn);
+    });
+    wrap.appendChild(linha);
   });
 }
 function abrirFicha(id){
