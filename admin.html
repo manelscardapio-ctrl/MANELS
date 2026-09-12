@@ -343,6 +343,7 @@ function mudarCategoria(key){
   const titulo = document.getElementById('topbar-titulo');
   if(titulo && atual) titulo.textContent = `${atual.icon} ${atual.label}`;
   toggleSidebar(false); // no celular, escolher um item fecha o menu lateral
+  carregarAbaSobDemanda(key);
 }
 
 function toggleSidebar(abrir){
@@ -382,11 +383,22 @@ function renderCategorias(){
   const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'carrossel', 'capas'];
   CATEGORIAS.forEach(c => { if(!CHAVES_SEM_GRADE_PRODUTO.includes(c.key)) renderGrade(c.key); });
   renderConfiguracoes();
-  renderEstatisticas();
-  renderAvaliacoes();
-  renderCarrosselAdmin();
   renderTamanhosPizzaPainel();
-  renderCapasGrid();
+  carregarAbaSobDemanda(categoriaAtiva); // só busca dados da aba que já está aberta agora
+}
+
+// Estatísticas, Avaliações, Carrossel e Capas fazem consultas pesadas no banco
+// (a de Estatísticas sozinha pode puxar até 5.000 pedidos inteiros). Antes,
+// TODAS elas rodavam de novo a cada vez que a tela era redesenhada — mesmo
+// que você estivesse só editando um produto em outra aba. Agora só carregam
+// na primeira vez que você realmente abre aquela aba específica.
+const ABAS_CARREGADAS = {};
+function carregarAbaSobDemanda(key){
+  if(ABAS_CARREGADAS[key]) return; // já carregou antes nesta sessão — não busca de novo
+  if(key === 'stats'){ ABAS_CARREGADAS.stats = true; renderEstatisticas(); }
+  else if(key === 'avaliacoes'){ ABAS_CARREGADAS.avaliacoes = true; renderAvaliacoes(); }
+  else if(key === 'carrossel'){ ABAS_CARREGADAS.carrossel = true; renderCarrosselAdmin(); }
+  else if(key === 'capas'){ ABAS_CARREGADAS.capas = true; renderCapasGrid(); }
 }
 
 function renderGrade(catKey){
