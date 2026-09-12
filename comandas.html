@@ -128,7 +128,7 @@
         <label><input type="radio" name="builder-fulfillment" value="entrega" checked onchange="atualizarBuilderFulfillment()"> 🛵 Entrega</label>
         <label style="margin-left:14px;"><input type="radio" name="builder-fulfillment" value="retirada" onchange="atualizarBuilderFulfillment()"> 🏠 Retirada no balcão</label>
       </div>
-      <div class="campo-grupo" style="width:100%; margin-top:8px;"><label class="campo-lbl">Endereço de entrega</label><input type="text" id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="width:100%; padding:6px 8px;"></div>
+      <div class="campo-grupo" style="width:100%; margin-top:8px;"><label class="campo-lbl">Endereço de entrega</label><textarea id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="width:100%; padding:6px 8px; min-height:44px; font-family:inherit; resize:vertical;"></textarea></div>
       <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; font-size:.85rem;">
         <div class="campo-grupo">
           <label class="campo-lbl">Forma de pagamento</label>
@@ -742,14 +742,22 @@ function extrairMetaPedidoComandas(p){
   const texto = p.texto_comanda || '';
   const mCliente = texto.match(/👤 Cliente: (.+)/);
   const mTelefone = texto.match(/📞 Telefone: (.+)/);
-  const mEndereco = texto.match(/📍 Endereço: (.+)/);
+  // O endereço pode vir quebrado em várias linhas (rua, bairro, cidade, link do
+  // mapa...) — antes isso só pegava a primeira linha e cortava o resto. Agora
+  // pega tudo até a próxima seção conhecida (pagamento, separador, etc).
+  const mEndereco = texto.match(/📍 Endereço:\s*([\s\S]*?)(?:\n(?:💳|🛵|═{3,}|-{3,}|⚠️|PRODUTOS)|$)/);
   const mPagamento = texto.match(/💳 Pagamento: (.+)/);
+  // Observações também podem estar em dois formatos diferentes, dependendo de
+  // quando/como o pedido foi criado — checa os dois pra não perder nenhum.
+  const mObs = texto.match(/❗\*?OBS:?\*?\s*([\s\S]*?)(?:\n(?:═{3,}|-{3,})|$)/) ||
+               texto.match(/OBSERVAÇÕES GERAIS:\s*([\s\S]*?)(?:\n(?:═{3,}|-{3,})|$)/i);
   const entrega = /RETIRADA NO BALC[ÃA]O/i.test(texto) ? 'retirada' : (/📍 Endereço:/.test(texto) ? 'entrega' : null);
   return {
     cliente: mCliente ? mCliente[1].trim() : '',
     telefone: mTelefone ? mTelefone[1].trim() : '',
-    endereco: mEndereco ? mEndereco[1].trim() : '',
+    endereco: mEndereco ? mEndereco[1].replace(/\n/g, ' ').replace(/\s+/g,' ').trim() : '',
     pagamento: mPagamento ? mPagamento[1].trim() : 'Pix',
+    observacoes: mObs ? mObs[1].replace(/\n/g, ' ').replace(/\s+/g,' ').trim() : '',
     entrega
   };
 }
@@ -807,7 +815,7 @@ function abrirEditarPedido(id){
   document.getElementById('builder-endereco').value = meta.endereco;
   document.getElementById('builder-pagamento').value = meta.pagamento;
   document.querySelector(`input[name="builder-fulfillment"][value="${meta.entrega === 'retirada' ? 'retirada' : 'entrega'}"]`).checked = true;
-  document.getElementById('builder-obs').value = '';
+  document.getElementById('builder-obs').value = meta.observacoes;
   document.getElementById('builder-troco').value = '';
   document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
   const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
@@ -1287,11 +1295,12 @@ async function gerarLinkAvaliacao(pedidoId){
     return;
   }
   const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
+  const mensagem = `⭐ *Avalie e ganhe pontos!*\nClique e avalie nosso atendimento: ${url}`;
   try{
-    await navigator.clipboard.writeText(url);
-    alert('✅ Link copiado!\n\nCole no WhatsApp do cliente. Ele vale por 3 horas:\n\n' + url);
+    await navigator.clipboard.writeText(mensagem);
+    alert('✅ Mensagem copiada!\n\nJá vem pronta pra colar no WhatsApp do cliente. Vale por 3 horas:\n\n' + mensagem);
   } catch(e){
-    prompt('Copie o link abaixo e cole no WhatsApp do cliente (vale por 3 horas):', url);
+    prompt('Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 3 horas):', mensagem);
   }
 }
 </script>
