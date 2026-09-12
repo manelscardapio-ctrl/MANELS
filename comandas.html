@@ -599,15 +599,45 @@ function iniciar(){
   carregarTamanhosPizzaBuilder().then(carregarMenuBuilder);
   carregarConfigGeralBuilder();
 
-  setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); renderizarResumoDia(); }, 20000);
-  setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso
+  // Rede de segurança bem mais espaçada — o dia a dia roda em tempo real
+  // (abaixo). Isso aqui só cobre o caso raro de a conexão em tempo real
+  // cair sem avisar. Antes isso rodava a cada 20 segundos o dia inteiro,
+  // o que sozinho consumia boa parte da cota do Supabase.
+  setInterval(() => { if(modoAtual === 'novos') carregarPedidosAtivos(); }, 5 * 60 * 1000);
+  setInterval(() => { if(modoAtual === 'novos') renderizar(); }, 60000); // atualiza contador de atraso (não busca nada no banco)
 
   supabaseClient
     .channel('pedidos-realtime')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, payload => {
       if(!pedidosAtivos.some(p => p.id === payload.new.id)) pedidosAtivos.push(payload.new);
+      if(pedidosHistorico.some(p => p.id === payload.new.id)){
+        pedidosHistorico = pedidosHistorico.map(p => p.id === payload.new.id ? payload.new : p);
+      } else {
+        pedidosHistorico.unshift(payload.new);
+      }
       if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
       tocarAviso();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, payload => {
+      // Outro aparelho (ou você mesmo, em outra aba) mudou status, editou o
+      // texto, etc. — atualiza a cópia local sem precisar buscar tudo de novo.
+      const atualizarLista = lista => lista.map(p => p.id === payload.new.id ? payload.new : p);
+      if(STATUS_ATIVOS.includes(payload.new.status)){
+        pedidosAtivos = pedidosAtivos.some(p => p.id === payload.new.id)
+          ? atualizarLista(pedidosAtivos)
+          : [...pedidosAtivos, payload.new];
+      } else {
+        pedidosAtivos = pedidosAtivos.filter(p => p.id !== payload.new.id);
+      }
+      pedidosHistorico = pedidosHistorico.some(p => p.id === payload.new.id)
+        ? atualizarLista(pedidosHistorico)
+        : pedidosHistorico;
+      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'pedidos' }, payload => {
+      pedidosAtivos = pedidosAtivos.filter(p => p.id !== payload.old.id);
+      pedidosHistorico = pedidosHistorico.filter(p => p.id !== payload.old.id);
+      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
     })
     .subscribe(status => {
       if(status === 'SUBSCRIBED'){ statusEl.textContent = '🟢 conectado — aguardando pedidos'; statusEl.className = 'ok'; }
