@@ -971,10 +971,19 @@ async function otimizarFotosExistentes(){
   const status = document.getElementById('status-otimizar-fotos');
   const prefixoPublico = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/`;
 
+  // Busca direto do banco (não das variáveis capasSecoes/slidesCarrossel, que só
+  // são preenchidas quando você abre aquelas abas — buscando aqui de novo, a
+  // otimização pega tudo mesmo que você nunca tenha aberto Capas/Carrossel
+  // nesta sessão).
+  const [{ data: capasData }, { data: slidesData }] = await Promise.all([
+    supabaseClient.from('secoes_capas').select('imagem_url'),
+    supabaseClient.from('carrossel_slides').select('imagem_url')
+  ]);
+
   const urls = [];
   produtos.forEach(p => { if(p.image_url) urls.push(p.image_url); });
-  Object.values(capasSecoes || {}).forEach(c => { if(c.imagem_url) urls.push(c.imagem_url); });
-  (slidesCarrossel || []).forEach(s => { if(s.imagem_url) urls.push(s.imagem_url); });
+  (capasData || []).forEach(c => { if(c.imagem_url) urls.push(c.imagem_url); });
+  (slidesData || []).forEach(s => { if(s.imagem_url) urls.push(s.imagem_url); });
 
   const alvos = [...new Set(urls)].filter(u => u.startsWith(prefixoPublico));
   if(alvos.length === 0){
