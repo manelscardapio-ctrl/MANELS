@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Pedidos — Manel's Pizzaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -35,7 +37,9 @@
   .pedido{ background:#fff; color:#222; border-radius:10px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,.25); border-left:6px solid var(--terracotta); animation:novo .5s ease; display:flex; flex-direction:column; }
   .pedido.status-finalizado_pago{ border-left-color:#3a7d4a; }
   .pedido.status-em_andamento{ border-left-color:#3a72c0; }
-  .pedido.status-pendencia{ border-left-color:#c03a3a; }
+  .pedido.status-rota_entrega{ border-left-color:#6a3ac0; }
+  .pedido.status-pendencia{ border-left-color:#a9860a; }
+  .pedido.status-cancelado{ border-left-color:#888; }
   .pedido.atrasado{ box-shadow:0 0 0 3px #e05a3a; }
   @keyframes novo{ 0%{ transform:scale(1.03); box-shadow:0 0 0 6px rgba(192,98,47,.4);} 100%{ transform:scale(1); box-shadow:0 3px 10px rgba(0,0,0,.25);} }
   .pedido-topo{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
@@ -46,13 +50,12 @@
   select.status-select{ font-family:inherit; font-size:.78rem; padding:5px 8px; border-radius:12px; font-weight:bold; border:none; margin-bottom:8px; }
   .status-select.novo{ background:#fdecdc; color:var(--terracotta); }
   .status-select.em_andamento{ background:#dde9fb; color:#3a72c0; }
+  .status-select.rota_entrega{ background:#e0d6f5; color:#6a3ac0; }
   .status-select.finalizado_pago{ background:#e3f3e6; color:#3a7d4a; }
-  .status-select.pendencia{ background:#fbdada; color:#c03a3a; }
-  .status-select.impresso{ background:#eee; color:#666; }
+  .status-select.pendencia{ background:#fdf3d0; color:#a9860a; }
+  .status-select.cancelado{ background:#e6e6e6; color:#555; }
 
   textarea{ width:100%; font-family:'Courier New', monospace; font-size:.8rem; padding:8px; border-radius:6px; border:1px dashed #ccc; background:#fafafa; color:#222; min-height:160px; resize:vertical; margin-bottom:8px; flex:1; }
-  .campo-lbl{ display:block; font-size:.68rem; opacity:.65; margin-bottom:2px; font-weight:bold; text-transform:uppercase; letter-spacing:.02em; }
-  .campo-grupo{ display:inline-flex; flex-direction:column; margin:0 8px 8px 0; }
   .acoes{ display:flex; gap:6px; flex-wrap:wrap; }
   button.acao{ font-family:inherit; font-size:.78rem; padding:7px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
   .btn-imprimir{ background:var(--dark-green); color:#fff; }
@@ -65,6 +68,90 @@
   #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
   #tela-senha button{ font-family:inherit; font-size:.9rem; padding:10px 20px; border:none; border-radius:6px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
   #tela-senha .erro-senha{ color:#f7b0a0; font-size:.85rem; min-height:1em; }
+
+  /* ============================================================
+     MODAL DE CRIAR/EDITAR PEDIDO — mesma linguagem visual do site
+     (cores, tipografia e cartões usados no admin.html)
+     ============================================================ */
+  #builder-overlay{
+    --b-pine:#1F3327; --b-terracotta:#C0622F; --b-terracotta-dark:#9C4C22;
+    --b-paper:#FBF7F1; --b-card:#FFFFFF; --b-ink:#241C14; --b-ink-soft:#6B5D4E;
+    --b-line:rgba(36,28,20,.12); --b-line-strong:rgba(36,28,20,.20);
+    --b-gold:#C99A4A; --b-ok:#3A7D4A; --b-danger:#C0392B;
+    font-family:'Work Sans',sans-serif;
+  }
+  #builder-modal{
+    background:var(--b-paper) !important; color:var(--b-ink) !important;
+    max-width:760px !important; border-radius:20px !important; padding:0 !important;
+    font-family:'Work Sans',sans-serif !important; overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.4);
+  }
+  .b-topo{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--b-pine); color:#fff; padding:18px 24px;
+  }
+  .b-topo h2{ margin:0; font-family:'Fraunces',serif; font-weight:700; font-size:1.25rem; }
+  .b-topo button{ border:none; background:rgba(255,255,255,.12); color:#fff; width:32px; height:32px; border-radius:50%; font-size:1.1rem; cursor:pointer; line-height:1; }
+  .b-topo button:hover{ background:rgba(255,255,255,.22); }
+  .b-corpo{ padding:22px 24px; max-height:70vh; overflow-y:auto; }
+  .b-secao{ background:var(--b-card); border:1px solid var(--b-line); border-radius:14px; padding:16px 18px; margin-bottom:16px; }
+  .b-secao h4{ margin:0 0 12px; font-family:'Fraunces',serif; font-weight:700; font-size:1rem; color:var(--b-pine); display:flex; align-items:center; gap:8px; }
+  .b-linha{ display:flex; gap:12px; flex-wrap:wrap; }
+  .b-campo{ display:flex; flex-direction:column; gap:4px; margin-bottom:10px; flex:1; min-width:150px; }
+  .b-campo.full{ flex-basis:100%; }
+  .b-campo label{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--b-ink-soft); }
+  .b-campo input[type=text], .b-campo input[type=number], .b-campo input[type=tel],
+  .b-campo select, .b-campo textarea{
+    font-family:inherit; font-size:.92rem; padding:9px 11px; border-radius:9px;
+    border:1.5px solid var(--b-line-strong); background:var(--b-paper); color:var(--b-ink); width:100%;
+  }
+  .b-campo input:focus, .b-campo select:focus, .b-campo textarea:focus{ outline:none; border-color:var(--b-terracotta); background:#fff; }
+  .b-fulfillment{ display:flex; gap:16px; margin:2px 0 12px; }
+  .b-fulfillment label{ display:flex; align-items:center; gap:6px; font-size:.88rem; font-weight:600; cursor:pointer; }
+  .b-checkrow{ display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:.88rem; margin-top:4px; }
+  .b-checkrow label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+
+  .b-cart-linha{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:var(--b-paper); border:1px solid var(--b-line); border-radius:10px;
+    padding:9px 12px; margin-bottom:6px; font-size:.88rem;
+  }
+  .b-cart-linha b{ color:var(--b-terracotta-dark); white-space:nowrap; margin-left:10px; }
+  .b-cart-linha button{
+    border:none; background:var(--b-danger); color:#fff; border-radius:6px;
+    width:24px; height:24px; cursor:pointer; font-size:.85rem; line-height:1; margin-left:8px; flex:0 0 auto;
+  }
+  #builder-cart-vazio{ color:var(--b-ink-soft); font-size:.88rem; font-style:italic; margin:4px 0 0; }
+
+  .b-add-item select#builder-tipo-item{
+    font-family:inherit; font-size:.92rem; padding:9px 11px; border-radius:9px;
+    border:1.5px solid var(--b-line-strong); background:var(--b-paper); color:var(--b-ink);
+  }
+  #builder-form-item .campo-grupo{ display:inline-flex; flex-direction:column; margin:0 10px 10px 0; }
+  #builder-form-item .campo-lbl{ display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--b-ink-soft); margin-bottom:3px; }
+  #builder-form-item select, #builder-form-item input[type=text], #builder-form-item input[type=number]{
+    font-family:inherit; font-size:.9rem; padding:8px 10px; border-radius:8px; border:1.5px solid var(--b-line-strong); background:#fff; color:var(--b-ink);
+  }
+  #builder-form-item button.acao.btn-salvar{
+    font-family:inherit; font-weight:700; border:none; border-radius:9px; padding:9px 16px;
+    background:var(--b-terracotta); color:#fff; cursor:pointer; margin-top:6px;
+  }
+  #builder-form-item button.acao.btn-salvar:hover{ background:var(--b-terracotta-dark); }
+
+  .b-rodape{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+    padding:16px 24px; background:var(--b-card); border-top:1px solid var(--b-line);
+  }
+  .b-rodape .b-total{ font-family:'Fraunces',serif; font-weight:700; font-size:1.3rem; color:var(--b-pine); }
+  .b-rodape .b-total span{ color:var(--b-terracotta-dark); }
+  /* Mantém os nomes de classe originais (btn-ok / btn-salvar) porque o JS
+     usa "#builder-modal .btn-salvar" pra achar o botão e trocar o texto
+     dele pra "Salvando..." — só o visual muda aqui, dentro do modal. */
+  #builder-modal .acoes{ display:flex; gap:10px; }
+  #builder-modal .btn-ok{ font-family:inherit; font-weight:700; border:none; border-radius:10px; padding:11px 20px; background:var(--b-line-strong); color:var(--b-ink); cursor:pointer; }
+  #builder-modal .btn-salvar{ font-family:inherit; font-weight:700; border:none; border-radius:10px; padding:11px 22px; background:var(--b-terracotta); color:#fff; cursor:pointer; font-size:.95rem; }
+  #builder-modal .btn-salvar:hover{ background:var(--b-terracotta-dark); }
+  #builder-modal .btn-salvar:disabled{ opacity:.6; cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -112,63 +199,65 @@
 </div>
 
 <div id="builder-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:900; overflow:auto; padding:20px;">
-  <div id="builder-modal" style="background:#fff; color:#222; max-width:720px; margin:0 auto; border-radius:12px; padding:20px; font-family:'Courier New', monospace;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:2px solid #eee; padding-bottom:10px;">
-      <h2 id="builder-titulo" style="margin:0; font-size:1.1rem;">➕ Novo Pedido</h2>
-      <button onclick="fecharBuilder()" style="border:none; background:none; font-size:1.5rem; cursor:pointer; line-height:1;">✕</button>
+  <div id="builder-modal">
+    <div class="b-topo">
+      <h2 id="builder-titulo">➕ Novo Pedido</h2>
+      <button onclick="fecharBuilder()">✕</button>
     </div>
 
-    <div style="margin-bottom:16px;">
-      <h4 style="margin:0 0 8px;">👤 Cliente</h4>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <div class="campo-grupo" style="flex:1; min-width:140px;"><label class="campo-lbl">Nome do cliente</label><input type="text" id="builder-nome" placeholder="Ex: Maria Silva" style="width:100%; padding:6px 8px;"></div>
-        <div class="campo-grupo" style="flex:1; min-width:140px;"><label class="campo-lbl">Telefone (WhatsApp)</label><input type="text" id="builder-telefone" placeholder="Ex: (88) 99999-9999" style="width:100%; padding:6px 8px;"></div>
+    <div class="b-corpo">
+      <div class="b-secao">
+        <h4>👤 Dados do Cliente</h4>
+        <div class="b-linha">
+          <div class="b-campo"><label>Nome do cliente</label><input type="text" id="builder-nome" placeholder="Ex: Maria Silva"></div>
+          <div class="b-campo"><label>Telefone (WhatsApp)</label><input type="text" id="builder-telefone" placeholder="Ex: (88) 99999-9999"></div>
+        </div>
+        <div class="b-fulfillment">
+          <label><input type="radio" name="builder-fulfillment" value="entrega" checked onchange="atualizarBuilderFulfillment()"> 🛵 Entrega</label>
+          <label><input type="radio" name="builder-fulfillment" value="retirada" onchange="atualizarBuilderFulfillment()"> 🏠 Retirada no balcão</label>
+        </div>
+        <div class="b-campo full"><label>Endereço de entrega</label><textarea id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="min-height:52px;"></textarea></div>
+        <div class="b-linha">
+          <div class="b-campo">
+            <label>Forma de pagamento</label>
+            <select id="builder-pagamento" onchange="atualizarBuilderTroco()">
+              <option>Pix</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option>
+            </select>
+          </div>
+          <div class="b-campo" id="builder-troco-wrap" style="display:none;"><label>Troco para</label><input type="text" id="builder-troco" placeholder="R$"></div>
+        </div>
+        <div class="b-campo full"><label>Observação geral do pedido</label><input type="text" id="builder-obs" placeholder="Opcional — ex: sem cebola, tocar interfone"></div>
+        <div class="b-checkrow">
+          <label><input type="checkbox" id="builder-ketchup"> Ketchup grátis</label>
+          <label>Maionese temperada (1ª grátis): <input type="number" id="builder-maionese" value="0" min="0" style="width:55px;" oninput="renderBuilderCart()"></label>
+        </div>
       </div>
-      <div style="margin-top:8px; font-size:.85rem;">
-        <label><input type="radio" name="builder-fulfillment" value="entrega" checked onchange="atualizarBuilderFulfillment()"> 🛵 Entrega</label>
-        <label style="margin-left:14px;"><input type="radio" name="builder-fulfillment" value="retirada" onchange="atualizarBuilderFulfillment()"> 🏠 Retirada no balcão</label>
+
+      <div class="b-secao">
+        <h4>🛒 Itens do Pedido</h4>
+        <div id="builder-cart-lista"></div>
+        <p id="builder-cart-vazio">Nenhum item ainda.</p>
       </div>
-      <div class="campo-grupo" style="width:100%; margin-top:8px;"><label class="campo-lbl">Endereço de entrega</label><textarea id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="width:100%; padding:6px 8px; min-height:44px; font-family:inherit; resize:vertical;"></textarea></div>
-      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; font-size:.85rem;">
-        <div class="campo-grupo">
-          <label class="campo-lbl">Forma de pagamento</label>
-          <select id="builder-pagamento" onchange="atualizarBuilderTroco()" style="padding:6px;">
-            <option>Pix</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option>
+
+      <div class="b-secao b-add-item">
+        <h4>➕ Adicionar Item</h4>
+        <div class="b-campo" style="max-width:260px;">
+          <label>Tipo de item</label>
+          <select id="builder-tipo-item" onchange="renderBuilderFormItem()">
+            <option value="pizza">🍕 Pizza</option>
+            <option value="calzone">🥟 Calzone</option>
+            <option value="brotinho">🍩 Brotinho Doce</option>
+            <option value="esfiha">🥙 Combo de Esfihas</option>
+            <option value="bebida">🥤 Bebida</option>
+            <option value="combo">🍽️ Combo/Promoção</option>
           </select>
         </div>
-        <span id="builder-troco-wrap" style="display:none;">
-          Troco pra: <input type="text" id="builder-troco" placeholder="R$" style="width:90px; padding:6px;">
-        </span>
-      </div>
-      <input type="text" id="builder-obs" placeholder="Observação geral do pedido (opcional)" style="width:100%; margin-top:8px; padding:6px 8px;">
-      <div style="margin-top:8px; font-size:.85rem;">
-        <label><input type="checkbox" id="builder-ketchup"> Ketchup grátis</label>
-        <label style="margin-left:14px;">Maionese temperada (unidades, a 1ª é grátis): <input type="number" id="builder-maionese" value="0" min="0" style="width:55px;" oninput="renderBuilderCart()"></label>
+        <div id="builder-form-item" style="margin-top:6px;"></div>
       </div>
     </div>
 
-    <div style="margin-bottom:16px; border-top:1px dashed #ccc; padding-top:12px;">
-      <h4 style="margin:0 0 8px;">🛒 Itens do pedido</h4>
-      <div id="builder-cart-lista"></div>
-      <p id="builder-cart-vazio" style="opacity:.6; font-size:.85rem;">Nenhum item ainda.</p>
-    </div>
-
-    <div style="margin-bottom:16px; border-top:1px dashed #ccc; padding-top:12px;">
-      <h4 style="margin:0 0 8px;">➕ Adicionar item</h4>
-      <label class="campo-lbl">Tipo de item</label>
-      <select id="builder-tipo-item" onchange="renderBuilderFormItem()" style="padding:6px;">
-        <option value="pizza">🍕 Pizza</option>
-        <option value="calzone">🥟 Calzone</option>
-        <option value="brotinho">🍩 Brotinho Doce</option>
-        <option value="esfiha">🥙 Combo de Esfihas</option>
-        <option value="bebida">🥤 Bebida</option>
-        <option value="combo">🍽️ Combo/Promoção</option>
-      </select>
-      <div id="builder-form-item" style="margin-top:10px; font-size:.85rem;"></div>
-    </div>
-
-    <div style="border-top:2px solid #333; padding-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-      <b style="font-size:1.05rem;">Total: <span id="builder-total">R$ 0,00</span></b>
+    <div class="b-rodape">
+      <div class="b-total">Total: <span id="builder-total">R$ 0,00</span></div>
       <div class="acoes">
         <button class="acao btn-ok" onclick="fecharBuilder()">Cancelar</button>
         <button class="acao btn-salvar" onclick="salvarBuilder()">💾 Salvar Pedido</button>
@@ -218,12 +307,12 @@ supabaseClient.auth.getSession().then(({ data: { session } }) => {
 const STATUS_LABELS = {
   novo: '🟠 Recebido',
   em_andamento: '🔵 Em andamento',
-  finalizado_pago: '🟢 Finalizado e pago',
-  pendencia: '🔴 Pendência',
-  impresso: '⚪ Impresso',
-  feito_sem_impressao: '⚪ Feito (sem impressão)'
+  rota_entrega: '🚚 Rota de entrega',
+  finalizado_pago: '🟢 Pago e finalizado',
+  pendencia: '🟡 Pendente',
+  cancelado: '⚫ Cancelado'
 };
-const STATUS_ATIVOS = ['novo','em_andamento','pendencia','impresso'];
+const STATUS_ATIVOS = ['novo','em_andamento','rota_entrega','pendencia'];
 const MINUTOS_ATRASO = 15;
 
 const statusEl = document.getElementById('status');
@@ -464,7 +553,7 @@ async function mudarStatus(id, novoStatus){
   // Marca a hora exata em que o pedido foi impresso e em que foi finalizado —
   // usado no admin pra calcular o tempo médio de preparo. Só marca na primeira
   // vez (não sobrescreve se o status for alternado de um lado pro outro depois).
-  if(novoStatus === 'impresso' && item && !item.impresso_em){
+  if(novoStatus === 'em_andamento' && item && !item.impresso_em){
     payload.impresso_em = new Date().toISOString();
   }
   if(novoStatus === 'finalizado_pago' && item && !item.finalizado_em){
@@ -563,7 +652,7 @@ function imprimirPedido(id){
   const texto = textarea ? textarea.value : (encontrarPedido(id)||{}).texto_comanda || '';
   imprimirTextoBruto(texto);
   const item = encontrarPedido(id);
-  if(item && item.status === 'novo'){ mudarStatus(id, 'impresso'); }
+  if(item && item.status === 'novo'){ mudarStatus(id, 'em_andamento'); }
 }
 
 function imprimirTodosPendentes(){
@@ -838,7 +927,7 @@ function atualizarBuilderFulfillment(){
 }
 function atualizarBuilderTroco(){
   const forma = document.getElementById('builder-pagamento').value;
-  document.getElementById('builder-troco-wrap').style.display = forma === 'Dinheiro' ? 'inline' : 'none';
+  document.getElementById('builder-troco-wrap').style.display = forma === 'Dinheiro' ? 'flex' : 'none';
 }
 
 // ---------- formulário de adicionar item, por tipo ----------
@@ -1073,9 +1162,9 @@ function renderBuilderCart(){
   } else {
     vazio.style.display = 'none';
     lista.innerHTML = builderCart.map((item, idx) => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#f5f5f5; padding:6px 10px; border-radius:6px; margin-bottom:4px; font-size:.85rem; gap:8px;">
+      <div class="b-cart-linha">
         <span>${item.qty}x ${item.label}${item.detail ? ` — ${item.detail}` : ''}${item.crust ? ` + Borda ${item.crust}` : ''}</span>
-        <span style="white-space:nowrap;">${brlB(item.lineTotal)} <button onclick="removerBuilderItem(${idx})" style="margin-left:8px; border:none; background:#c03a3a; color:#fff; border-radius:4px; padding:2px 8px; cursor:pointer;">✕</button></span>
+        <span style="white-space:nowrap; display:flex; align-items:center;">${brlB(item.lineTotal)}<button onclick="removerBuilderItem(${idx})">✕</button></span>
       </div>
     `).join('');
   }
