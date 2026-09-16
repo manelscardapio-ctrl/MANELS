@@ -1348,7 +1348,7 @@ async function salvarBuilder(){
       await aplicarDeltaEstoque(baixasAntigas, +1);
       await aplicarDeltaEstoque(baixasNovas, -1);
     } else {
-      const { error } = await supabaseClient.from('pedidos').insert({ status:'novo', total, texto_comanda: texto, itens: novosItens });
+      const { error } = await supabaseClient.from('pedidos').insert({ status:'novo', total, texto_comanda: texto, itens: novosItens, origem: 'atendente' });
       if(error) throw error;
       await aplicarDeltaEstoque(baixasNovas, -1);
     }
