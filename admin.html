@@ -432,6 +432,7 @@ function renderTamanhosPizzaPainel(){
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:rgba(255,255,255,.05); border-radius:8px; padding:10px; margin-bottom:8px;">
       <input type="text" value="${(t.rotulo||'').replace(/"/g,'&quot;')}" placeholder="Rótulo (ex: Média)" id="tam-rotulo-${t.chave}" style="width:110px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
       <input type="text" value="${(t.medida||'').replace(/"/g,'&quot;')}" placeholder="Medida (ex: 30 cm)" id="tam-medida-${t.chave}" style="width:100px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
+      <input type="text" value="${(t.descricao||'').replace(/"/g,'&quot;')}" placeholder="Descrição (ex: 6 fatias (serve 2-3 pessoas))" id="tam-descricao-${t.chave}" style="flex:1; min-width:220px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
       <label style="font-size:12px; display:flex; align-items:center; gap:4px;">Até
         <input type="number" min="1" max="4" value="${t.max_sabores}" id="tam-maxsab-${t.chave}" style="width:48px; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
         sabor(es)
@@ -473,7 +474,7 @@ async function criarTamanhoPizza(){
 
   const maiorOrdem = TAMANHOS_PIZZA.reduce((m,t) => Math.max(m, t.ordem||0), 0);
   const { data, error } = await supabaseClient.from('tamanhos_pizza').insert({
-    chave, rotulo, medida: '', max_sabores: 2, ordem: maiorOrdem + 1, ativo: true
+    chave, rotulo, medida: '', descricao: '', max_sabores: 2, ordem: maiorOrdem + 1, ativo: true
   }).select();
   if(error){
     alert('Não foi possível criar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
@@ -491,12 +492,14 @@ async function salvarTamanhoPizza(chave){
   const payload = {
     rotulo: document.getElementById(`tam-rotulo-${chave}`).value.trim(),
     medida: document.getElementById(`tam-medida-${chave}`).value.trim(),
+    descricao: document.getElementById(`tam-descricao-${chave}`).value.trim(),
     max_sabores: parseInt(document.getElementById(`tam-maxsab-${chave}`).value, 10) || 1,
     ativo: document.getElementById(`tam-ativo-${chave}`).checked,
   };
   const { data, error } = await supabaseClient.from('tamanhos_pizza').update(payload).eq('chave', chave).select();
   if(error){
-    alert('Não foi possível salvar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    alert('Não foi possível salvar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)) +
+      '\n\nSe o erro mencionar a coluna "descricao", rode no SQL Editor do Supabase:\nALTER TABLE tamanhos_pizza ADD COLUMN IF NOT EXISTS descricao text;');
     console.error(error);
     return;
   }
