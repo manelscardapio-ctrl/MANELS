@@ -2655,7 +2655,7 @@ function enviarComandaParaPainelUmaVez(textoComanda, total, itens, timeoutMs){
         'Authorization': `Bearer ${PEDIDOS_SUPABASE_ANON_KEY}`,
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ status: 'novo', total: total, texto_comanda: textoComanda, itens: itens }),
+      body: JSON.stringify({ status: 'novo', total: total, texto_comanda: textoComanda, itens: itens, origem: 'cliente' }),
       keepalive: true,
       signal: controller.signal
     }).then(res => {
