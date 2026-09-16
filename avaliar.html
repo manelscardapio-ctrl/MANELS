@@ -42,6 +42,11 @@
     width:100%; margin-top:10px; padding:10px; border-radius:10px; border:1px solid var(--line);
     font-family:inherit; font-size:.9rem; min-height:90px; resize:vertical; background:#fff;
   }
+  .bloco-categoria{ margin-top:18px; text-align:left; }
+  .bloco-categoria.oculto{ display:none; }
+  .bloco-categoria p{ margin:0 0 4px; font-size:.85rem; font-weight:bold; color:var(--ink); }
+  .estrelas-categoria{ font-size:1.7rem; display:flex; justify-content:center; gap:6px; margin:4px 0; }
+  .obrigatorio{ color:var(--rust); }
   .aviso{ background:#fdecea; color:#7d2b20; border-radius:10px; padding:12px; font-size:.85rem; margin-top:10px; }
   .sucesso{ background:#e6f3ea; color:var(--forest-dark); border-radius:10px; padding:16px; font-size:.9rem; }
   .oculto{ display:none; }
@@ -73,14 +78,52 @@
 
   <div id="estado-avaliar" class="oculto">
     <p>Olá, <b id="nome-usuario"></b>! O que achou do seu pedido #<span id="numero-pedido"></span>?</p>
-    <div class="estrelas" id="estrelas">
+    <div class="estrelas" id="estrelas" data-categoria="geral">
       <span class="estrela" data-valor="1">★</span>
       <span class="estrela" data-valor="2">★</span>
       <span class="estrela" data-valor="3">★</span>
       <span class="estrela" data-valor="4">★</span>
       <span class="estrela" data-valor="5">★</span>
     </div>
-    <textarea id="comentario" placeholder="Quer contar mais alguma coisa? (opcional)"></textarea>
+
+    <div class="bloco-categoria oculto" id="bloco-atendimento">
+      <p>Como foi o nosso atendimento?</p>
+      <div class="estrelas-categoria" data-categoria="atendimento">
+        <span class="estrela" data-valor="1">★</span>
+        <span class="estrela" data-valor="2">★</span>
+        <span class="estrela" data-valor="3">★</span>
+        <span class="estrela" data-valor="4">★</span>
+        <span class="estrela" data-valor="5">★</span>
+      </div>
+    </div>
+
+    <div class="bloco-categoria oculto" id="bloco-qualidade">
+      <p>E a qualidade do produto?</p>
+      <div class="estrelas-categoria" data-categoria="qualidade">
+        <span class="estrela" data-valor="1">★</span>
+        <span class="estrela" data-valor="2">★</span>
+        <span class="estrela" data-valor="3">★</span>
+        <span class="estrela" data-valor="4">★</span>
+        <span class="estrela" data-valor="5">★</span>
+      </div>
+    </div>
+
+    <div class="bloco-categoria oculto" id="bloco-entrega">
+      <p>E a rapidez da entrega?</p>
+      <div class="estrelas-categoria" data-categoria="entrega">
+        <span class="estrela" data-valor="1">★</span>
+        <span class="estrela" data-valor="2">★</span>
+        <span class="estrela" data-valor="3">★</span>
+        <span class="estrela" data-valor="4">★</span>
+        <span class="estrela" data-valor="5">★</span>
+      </div>
+    </div>
+
+    <div class="bloco-categoria oculto" id="bloco-comentario">
+      <p>Quer nos contar mais alguma coisa? <span class="obrigatorio">*</span></p>
+      <textarea id="comentario" placeholder="Escreva seu comentário..."></textarea>
+    </div>
+
     <button class="btn" id="btn-enviar" onclick="enviarAvaliacao()" disabled>Enviar avaliação</button>
   </div>
 
@@ -105,7 +148,7 @@ const token = params.get('token');
 
 let linkAtual = null;
 let pedidoAtual = null;
-let notaSelecionada = 0;
+const notas = { geral: 0, atendimento: 0, qualidade: 0, entrega: 0 };
 
 function mostrarEstado(id){
   ['estado-carregando','estado-invalido','estado-login','estado-avaliar','estado-sucesso'].forEach(e => {
@@ -169,18 +212,37 @@ function mostrarTelaAvaliar(user){
   mostrarEstado('estado-avaliar');
 }
 
-document.getElementById('estrelas').addEventListener('click', (e) => {
-  const estrela = e.target.closest('.estrela');
-  if(!estrela) return;
-  notaSelecionada = parseInt(estrela.dataset.valor, 10);
-  document.querySelectorAll('.estrela').forEach(el => {
-    el.classList.toggle('ativa', parseInt(el.dataset.valor,10) <= notaSelecionada);
+// Ordem do fluxo progressivo: cada categoria só aparece depois que a anterior é avaliada.
+const ORDEM_CATEGORIAS = ['geral', 'atendimento', 'qualidade', 'entrega'];
+const PROXIMO_BLOCO = { geral: 'bloco-atendimento', atendimento: 'bloco-qualidade', qualidade: 'bloco-entrega', entrega: 'bloco-comentario' };
+
+function atualizarBotaoEnviar(){
+  const todasNotasDadas = ORDEM_CATEGORIAS.every(cat => notas[cat] > 0);
+  const comentario = document.getElementById('comentario').value.trim();
+  document.getElementById('btn-enviar').disabled = !(todasNotasDadas && comentario.length > 0);
+}
+
+document.querySelectorAll('.estrelas, .estrelas-categoria').forEach(grupo => {
+  grupo.addEventListener('click', (e) => {
+    const estrela = e.target.closest('.estrela');
+    if(!estrela) return;
+    const categoria = grupo.dataset.categoria;
+    notas[categoria] = parseInt(estrela.dataset.valor, 10);
+    grupo.querySelectorAll('.estrela').forEach(el => {
+      el.classList.toggle('ativa', parseInt(el.dataset.valor,10) <= notas[categoria]);
+    });
+    const proximoId = PROXIMO_BLOCO[categoria];
+    if(proximoId) document.getElementById(proximoId).classList.remove('oculto');
+    atualizarBotaoEnviar();
   });
-  document.getElementById('btn-enviar').disabled = false;
 });
 
+document.getElementById('comentario').addEventListener('input', atualizarBotaoEnviar);
+
 async function enviarAvaliacao(){
-  if(notaSelecionada === 0) return;
+  const comentario = document.getElementById('comentario').value.trim();
+  const todasNotasDadas = ORDEM_CATEGORIAS.every(cat => notas[cat] > 0);
+  if(!todasNotasDadas || !comentario) return;
   const botao = document.getElementById('btn-enviar');
   botao.disabled = true;
   botao.textContent = 'Enviando...';
@@ -188,7 +250,6 @@ async function enviarAvaliacao(){
   const { data: { user } } = await supabaseClient.auth.getUser();
   if(!user){ mostrarEstado('estado-login'); return; }
 
-  const comentario = document.getElementById('comentario').value.trim();
   const nome = user.user_metadata?.full_name || user.user_metadata?.name || '';
   const email = user.email || '';
 
@@ -198,8 +259,11 @@ async function enviarAvaliacao(){
       cliente_uid: user.id,
       cliente_nome: nome,
       cliente_email: email,
-      nota: notaSelecionada,
-      comentario: comentario || null
+      nota: notas.geral,
+      nota_atendimento: notas.atendimento,
+      nota_qualidade: notas.qualidade,
+      nota_entrega: notas.entrega,
+      comentario: comentario
     });
     if(erroAvaliacao) throw erroAvaliacao;
 
