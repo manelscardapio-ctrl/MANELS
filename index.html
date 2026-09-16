@@ -324,8 +324,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     <h1>Escolha o seu pedido</h1>
     <p>Sabores nordestinos feitos na hora. Toque num item, monte do seu jeito — no final, o pedido vai prontinho pro nosso WhatsApp.</p>
     <div class="hero-meta">
-      <span class="hero-meta-item">🛵 Entrega em 35–50 min</span>
-      <span class="hero-meta-item">📍 Centro</span>
+      <span class="hero-meta-item" id="hero-entrega-badge">🛵 Entrega em 35–50 min</span>
+      <span class="hero-meta-item" id="hero-local-badge">📍 Centro</span>
     </div>
   </header>
 
@@ -345,7 +345,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div class="p-body">
         <span class="p-eyebrow">Calzone</span>
         <div class="p-name">Calzones</div>
-        <span class="p-desc">Tamanho único, recheado na hora.</span>
+        <span class="p-desc">4 fatias (serve até 2 pessoas)</span>
         <div class="p-price">ver sabores</div>
         <button class="p-btn" onclick="event.stopPropagation(); openModal('calzones')">Ver sabores</button>
       </div>
@@ -1582,13 +1582,33 @@ function mostrarAvisoTempoEspera(){
     el.style.display = 'none';
   }
 }
+function aplicarSelosHero(){
+  const entregaEl = document.getElementById('hero-entrega-badge');
+  const localEl = document.getElementById('hero-local-badge');
+  if(entregaEl){
+    if(CONFIG_GERAL.hero_entrega_texto){
+      entregaEl.textContent = CONFIG_GERAL.hero_entrega_texto;
+      entregaEl.style.display = '';
+    } else {
+      entregaEl.style.display = 'none';
+    }
+  }
+  if(localEl){
+    if(CONFIG_GERAL.hero_local_texto){
+      localEl.textContent = CONFIG_GERAL.hero_local_texto;
+      localEl.style.display = '';
+    } else {
+      localEl.style.display = 'none';
+    }
+  }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Horário e aviso de espera carregam em paralelo com o resto, mas com um horário
   // de segurança já disponível de imediato — checkStoreHours() nunca fica esperando.
   checkStoreHours();
   carregarHorarioFuncionamento().then(checkStoreHours);
-  carregarConfigGeral().then(mostrarAvisoTempoEspera);
+  carregarConfigGeral().then(() => { mostrarAvisoTempoEspera(); aplicarSelosHero(); });
   verificarLoginIndex();
   aplicarCapasSecoes();
   await carregarTamanhosPizza();
@@ -1660,9 +1680,9 @@ async function carregarTamanhosPizza(){
   } catch(e){
     console.error('Não foi possível carregar os tamanhos de pizza, usando padrão M/G/GG:', e);
     TAMANHOS_PIZZA = [
-      { chave:'M', rotulo:'Média', medida:'30 cm', max_sabores:2, ordem:1, ativo:true },
-      { chave:'G', rotulo:'Grande', medida:'35 cm', max_sabores:2, ordem:2, ativo:true },
-      { chave:'GG', rotulo:'Família', medida:'40 cm', max_sabores:3, ordem:3, ativo:true },
+      { chave:'M', rotulo:'Média', medida:'30 cm', descricao:'6 fatias (serve 2-3 pessoas)', max_sabores:2, ordem:1, ativo:true },
+      { chave:'G', rotulo:'Grande', medida:'35 cm', descricao:'8 fatias (serve 3-4 pessoas)', max_sabores:2, ordem:2, ativo:true },
+      { chave:'GG', rotulo:'Família', medida:'40 cm', descricao:'12 fatias (serve até 5-6 pessoas)', max_sabores:3, ordem:3, ativo:true },
     ];
   }
   if(!TAMANHOS_PIZZA.some(t => t.chave === pizzaState.size)){
@@ -1691,7 +1711,7 @@ function renderPizzaHomeCards(){
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">${t.rotulo}</div>
-        <span class="p-desc">${t.medida ? t.medida + ' · ' : ''}${t.max_sabores >= 3 ? 'até 3 sabores.' : t.max_sabores === 2 ? 'ideal para meio a meio.' : 'sabor único.'}</span>
+        <span class="p-desc">${t.descricao ? t.descricao : (t.medida ? t.medida + ' · ' : '') + (t.max_sabores >= 3 ? 'até 3 sabores.' : t.max_sabores === 2 ? 'ideal para meio a meio.' : 'sabor único.')}</span>
         <div class="p-price">a partir de <small id="price-hint-${t.chave}">—</small></div>
         <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('${t.chave}')">Escolher pizza</button>
       </div>
