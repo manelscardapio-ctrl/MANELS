@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Motoboy — Manel's Pizzaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --dark-green:#2d4a3a; --terracotta:#c0622f; --beige:#f5e6d3; }
+  *{box-sizing:border-box;}
+  body{ font-family:'Work Sans', sans-serif; background:var(--dark-green); color:var(--beige); margin:0; padding:16px; min-height:100vh; }
+
+  #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
+  #tela-senha input{ font-family:inherit; font-size:1.05rem; padding:12px 14px; border-radius:8px; border:none; width:240px; text-align:center; }
+  #tela-senha button{ font-family:inherit; font-size:1rem; padding:12px 22px; border:none; border-radius:8px; background:var(--terracotta); color:#fff; font-weight:bold; cursor:pointer; }
+  #tela-senha .erro-senha{ color:#f7b0a0; font-size:.9rem; min-height:1em; }
+
+  header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid var(--terracotta); flex-wrap:wrap; gap:10px; }
+  h1{ margin:0; font-size:1.25rem; }
+  #status{ font-size:.8rem; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,.1); }
+  #status.ok{ color:#8fd19e; } #status.erro{ color:#e88; }
+  .btn-topo{ font-family:inherit; font-size:.85rem; padding:8px 14px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.15); color:var(--beige); }
+
+  #resumo-dia{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .cartao-resumo{ background:rgba(255,255,255,.1); border-radius:10px; padding:10px 18px; min-width:120px; }
+  .cartao-resumo .num{ font-size:1.5rem; font-weight:bold; }
+  .cartao-resumo .lbl{ font-size:.72rem; opacity:.8; text-transform:uppercase; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .tab{ font-family:inherit; font-size:.9rem; padding:10px 18px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
+  .tab.active{ background:var(--terracotta); color:#fff; }
+
+  .barra-hist{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+  .barra-hist input[type=date]{ font-family:inherit; padding:10px 12px; border-radius:8px; border:none; font-size:.9rem; }
+  #hist-status{ font-size:.8rem; opacity:.85; }
+
+  .data-cabecalho{ font-size:.9rem; font-weight:bold; opacity:.85; margin:12px 0 6px 2px; border-bottom:1px dashed rgba(255,255,255,.3); padding-bottom:4px; }
+
+  .lista-pastas{ display:flex; flex-direction:column; gap:10px; }
+  .pasta{ background:#fff; color:#222; border-radius:12px; padding:14px 16px; box-shadow:0 3px 10px rgba(0,0,0,.25); border-left:8px solid var(--terracotta); cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pasta:active{ transform:scale(.99); }
+  .pasta.status-finalizado_pago{ border-left-color:#3a7d4a; opacity:.75; }
+  .pasta.status-em_andamento{ border-left-color:#3a72c0; }
+  .pasta.status-rota_entrega{ border-left-color:#6a3ac0; }
+  .pasta.status-pendencia{ border-left-color:#a9860a; }
+  .pasta.status-cancelado{ border-left-color:#888; opacity:.6; }
+  .pasta-info{ display:flex; flex-direction:column; gap:3px; }
+  .pasta-nome{ font-size:1.1rem; font-weight:bold; }
+  .pasta-meta{ font-size:.8rem; color:#666; display:flex; gap:8px; flex-wrap:wrap; }
+  .selo{ font-size:.72rem; font-weight:bold; padding:3px 9px; border-radius:12px; white-space:nowrap; }
+  .selo-entrega{ background:#e0d6f5; color:#6a3ac0; }
+  .selo-retirada{ background:#fdecdc; color:var(--terracotta); }
+  .selo-status.novo{ background:#fdecdc; color:var(--terracotta); }
+  .selo-status.em_andamento{ background:#dde9fb; color:#3a72c0; }
+  .selo-status.rota_entrega{ background:#e0d6f5; color:#6a3ac0; }
+  .selo-status.finalizado_pago{ background:#e3f3e6; color:#3a7d4a; }
+  .selo-status.pendencia{ background:#fdf3d0; color:#a9860a; }
+  .selo-status.cancelado{ background:#e6e6e6; color:#555; }
+  .pasta-total{ font-weight:bold; color:var(--terracotta); font-size:1.15rem; white-space:nowrap; }
+  #vazio{ text-align:center; opacity:.7; padding:30px 0; }
+
+  #overlay-detalhe{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:900; overflow:auto; padding:16px; }
+  #modal-detalhe{ background:#fff; color:#222; max-width:480px; margin:0 auto; border-radius:16px; overflow:hidden; }
+  .d-topo{ background:var(--terracotta); color:#fff; padding:16px 18px; display:flex; justify-content:space-between; align-items:center; }
+  .d-topo h2{ margin:0; font-size:1.15rem; }
+  .d-topo button{ background:none; border:none; color:#fff; font-size:1.3rem; cursor:pointer; }
+  .d-corpo{ padding:18px; display:flex; flex-direction:column; gap:16px; }
+  .d-bloco p{ margin:0; }
+  .d-rotulo{ font-size:.72rem; text-transform:uppercase; font-weight:bold; color:#888; margin-bottom:3px; }
+  .d-valor{ font-size:1.05rem; }
+  .d-links{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .d-links a{ text-decoration:none; background:#f0f0f0; color:#222; font-size:.85rem; font-weight:bold; padding:8px 14px; border-radius:20px; }
+  .d-itens{ background:#fafafa; border-radius:10px; padding:10px 14px; font-size:.9rem; line-height:1.5; white-space:pre-wrap; }
+  .d-total{ font-size:1.4rem; font-weight:bold; color:var(--terracotta); text-align:center; }
+  .d-status-atual{ text-align:center; font-weight:bold; }
+  #btn-finalizar{ font-family:inherit; font-size:1.05rem; padding:16px; border:none; border-radius:12px; background:#3a7d4a; color:#fff; font-weight:bold; cursor:pointer; }
+  #btn-finalizar:disabled{ background:#ccc; cursor:default; }
+  #ja-finalizado{ text-align:center; color:#3a7d4a; font-weight:bold; padding:10px; background:#e3f3e6; border-radius:10px; }
+</style>
+</head>
+<body>
+
+<div id="tela-senha">
+  <h2>🛵 Painel do Motoboy</h2>
+  <input type="email" id="input-email" placeholder="E-mail" autocomplete="username" autofocus>
+  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
+  <button onclick="conferirSenha()">Entrar</button>
+  <div class="erro-senha" id="erro-senha"></div>
+</div>
+
+<div id="conteudo" style="display:none;">
+  <header>
+    <h1>🛵 Painel do Motoboy</h1>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span id="status">conectando...</span>
+      <button onclick="sairPainel()" class="btn-topo">Sair</button>
+    </div>
+  </header>
+
+  <div id="resumo-dia"></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-hoje" onclick="mudarAba('hoje')">📥 Hoje</button>
+    <button class="tab" id="tab-historico" onclick="mudarAba('historico')">🕘 Histórico</button>
+  </div>
+
+  <div class="barra-hist" id="barra-hist" style="display:none;">
+    <input type="date" id="hist-data">
+    <button class="btn-topo" onclick="buscarHistoricoPorDia()">📅 Ver esse dia</button>
+    <span id="hist-status"></span>
+  </div>
+
+  <div id="lista-container"></div>
+  <div id="vazio" style="display:none;">Nenhum pedido encontrado.</div>
+</div>
+
+<div id="overlay-detalhe" onclick="if(event.target===this) fecharDetalhe()">
+  <div id="modal-detalhe">
+    <div class="d-topo">
+      <h2 id="d-nome">Pedido</h2>
+      <button onclick="fecharDetalhe()">✕</button>
+    </div>
+    <div class="d-corpo">
+      <div class="d-bloco">
+        <div class="d-rotulo">Telefone</div>
+        <p class="d-valor" id="d-telefone">—</p>
+        <div class="d-links" id="d-links-contato"></div>
+      </div>
+      <div class="d-bloco">
+        <div class="d-rotulo" id="d-rotulo-destino">Endereço</div>
+        <p class="d-valor" id="d-endereco">—</p>
+        <div class="d-links" id="d-links-mapa"></div>
+      </div>
+      <div class="d-bloco">
+        <div class="d-rotulo">Itens do pedido</div>
+        <div class="d-itens" id="d-itens">—</div>
+      </div>
+      <div class="d-bloco">
+        <div class="d-rotulo">Pagamento</div>
+        <p class="d-valor" id="d-pagamento">—</p>
+      </div>
+      <div class="d-total" id="d-total">R$ 0,00</div>
+      <div class="d-status-atual" id="d-status-atual"></div>
+      <button id="btn-finalizar" onclick="finalizarPedidoAtual()">✅ Finalizado e pago</button>
+      <div id="ja-finalizado" style="display:none;">🟢 Esse pedido já está finalizado e pago.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wzmiqubfzlmglimmtkoz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_7";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const STATUS_LABELS = {
+  novo: '🟠 Recebido',
+  em_andamento: '🔵 Em preparo',
+  rota_entrega: '🚚 Na rota',
+  finalizado_pago: '🟢 Pago e finalizado',
+  pendencia: '🟡 Pendente',
+  cancelado: '⚫ Cancelado'
+};
+// Ordem de prioridade na lista: quem ainda precisa de ação do motoboy aparece primeiro.
+const ORDEM_STATUS = ['rota_entrega','em_andamento','novo','pendencia','finalizado_pago','cancelado'];
+
+const statusEl = document.getElementById('status');
+let modoAtual = 'hoje';
+let pedidosHoje = [];
+let pedidosHistorico = [];
+let pedidoSelecionadoId = null;
+
+// ===== LOGIN (mesma conta usada no painel de pedidos) =====
+async function conferirSenha(){
+  const email = document.getElementById('input-email').value.trim();
+  const senha = document.getElementById('input-senha').value;
+  const erroEl = document.getElementById('erro-senha');
+  erroEl.textContent = '';
+  if(!email || !senha){ erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+  if(error){
+    erroEl.textContent = error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message;
+    return;
+  }
+  document.getElementById('tela-senha').style.display = 'none';
+  document.getElementById('conteudo').style.display = 'block';
+  iniciar();
+}
+async function sairPainel(){
+  await supabaseClient.auth.signOut();
+  document.getElementById('conteudo').style.display = 'none';
+  document.getElementById('tela-senha').style.display = 'flex';
+  document.getElementById('input-senha').value = '';
+}
+document.getElementById('input-senha').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+document.getElementById('input-email').addEventListener('keydown', e => { if(e.key === 'Enter') conferirSenha(); });
+supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  if(session){
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('conteudo').style.display = 'block';
+    iniciar();
+  }
+});
+
+function iniciar(){
+  statusEl.textContent = '🟢 conectado';
+  statusEl.className = 'ok';
+  carregarHoje();
+}
+
+// ===== EXTRAÇÃO DE INFORMAÇÕES DE DENTRO DO TEXTO DA COMANDA =====
+// (não existem colunas separadas no banco pra nome/telefone/endereço — tudo
+// vem embutido no texto_comanda, então extraímos daqui pra exibir de forma
+// mais legível pro motoboy do que o texto corrido da comanda.)
+function extrairCampo(texto, regex){ const m = (texto||'').match(regex); return m ? m[1].trim() : ''; }
+function extrairNomeCliente(texto){ return extrairCampo(texto, /👤 Cliente:\s*([^\n]+)/); }
+function extrairTelefone(texto){ return extrairCampo(texto, /📞 Telefone:\s*([^\n]+)/); }
+function extrairPagamento(texto){ return extrairCampo(texto, /💳 Pagamento:\s*([^\n]+)/); }
+function extrairMapa(texto){ return extrairCampo(texto, /🗺️ Mapa:\s*(\S+)/); }
+function extrairTrocoLinha(texto){ return extrairCampo(texto, /💵 ([^\n]+)/); }
+function ehRetirada(texto){ return (texto||'').includes('RETIRADA NO BALCÃO'); }
+
+function extrairEndereco(texto){
+  const linhas = (texto||'').split('\n');
+  const idx = linhas.findIndex(l => l.trim().startsWith('📍 Endereço:'));
+  if(idx === -1) return '';
+  let resultado = linhas[idx].replace('📍 Endereço:', '').trim();
+  for(let i = idx + 1; i < linhas.length; i++){
+    const l = linhas[i].trim();
+    if(!l || /^(🗺️|🛵|💳|💵|💰|=)/.test(l)) break;
+    resultado += ' ' + l;
+  }
+  return resultado.trim();
+}
+
+function extrairItens(texto){
+  const linhas = (texto||'').split('\n');
+  const inicio = linhas.findIndex(l => l.includes('PARA O PIZZAIOLO'));
+  const fim = linhas.findIndex(l => l.includes('PARA O MOTOBOY'));
+  if(inicio === -1 || fim === -1) return '(itens não encontrados na comanda)';
+  const bloco = linhas.slice(inicio + 1, fim).filter(l => l.trim() && !/^=+$/.test(l.trim()));
+  return bloco.join('\n') || '(sem itens)';
+}
+
+function extrairTotal(texto){
+  const m = (texto||'').match(/TOTAL A COBRAR:\s*R\$\s*([\d.,]+)/i);
+  if(!m) return null;
+  const num = parseFloat(m[1].replace(/\./g,'').replace(',', '.'));
+  return isNaN(num) ? null : num;
+}
+
+function soDigitos(s){ return (s||'').replace(/\D/g,''); }
+
+function formatarHora(iso){ return new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); }
+function formatarDataLonga(iso){ return new Date(iso).toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'}); }
+function chaveDia(iso){ return new Date(iso).toDateString(); }
+
+// ===== CARREGAR PEDIDOS =====
+async function carregarHoje(){
+  const hojeStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' }); // YYYY-MM-DD
+  const inicio = `${hojeStr}T00:00:00-03:00`;
+  const [ano, mes, dia] = hojeStr.split('-').map(Number);
+  const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
+  const fim = `${proximoDia.toISOString().slice(0,10)}T00:00:00-03:00`;
+  const { data, error } = await supabaseClient.from('pedidos').select('*')
+    .gte('created_at', inicio).lt('created_at', fim)
+    .order('created_at', { ascending: true });
+  if(error){ statusEl.textContent = 'erro ao carregar'; statusEl.className = 'erro'; console.error(error); return; }
+  pedidosHoje = data || [];
+  const cardResumo = pedidosHoje.filter(p => p.status !== 'cancelado' && p.status !== 'finalizado_pago').length;
+  document.getElementById('resumo-dia').innerHTML = `
+    <div class="cartao-resumo"><div class="num">${cardResumo}</div><div class="lbl">Ainda por entregar/retirar</div></div>
+    <div class="cartao-resumo"><div class="num">${pedidosHoje.length}</div><div class="lbl">Pedidos hoje</div></div>
+  `;
+  if(modoAtual === 'hoje') renderizar();
+}
+
+async function buscarHistoricoPorDia(){
+  const valor = document.getElementById('hist-data').value;
+  const histStatusEl = document.getElementById('hist-status');
+  if(!valor){ histStatusEl.textContent = 'Escolha uma data primeiro.'; return; }
+  histStatusEl.textContent = 'Buscando...';
+  const inicio = `${valor}T00:00:00-03:00`;
+  const [ano, mes, dia] = valor.split('-').map(Number);
+  const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
+  const fim = `${proximoDia.toISOString().slice(0,10)}T00:00:00-03:00`;
+  const { data, error } = await supabaseClient.from('pedidos').select('*')
+    .gte('created_at', inicio).lt('created_at', fim)
+    .order('created_at', { ascending: true });
+  if(error){ console.error(error); histStatusEl.textContent = 'Erro ao buscar.'; return; }
+  pedidosHistorico = data || [];
+  const [y,m,d] = valor.split('-');
+  histStatusEl.textContent = `${pedidosHistorico.length} pedido(s) em ${d}/${m}/${y}.`;
+  renderizar();
+}
+
+function mudarAba(aba){
+  modoAtual = aba;
+  document.getElementById('tab-hoje').classList.toggle('active', aba === 'hoje');
+  document.getElementById('tab-historico').classList.toggle('active', aba === 'historico');
+  document.getElementById('barra-hist').style.display = aba === 'historico' ? 'flex' : 'none';
+  if(aba === 'historico' && pedidosHistorico.length === 0){
+    document.getElementById('hist-status').textContent = 'Escolha uma data acima.';
+  }
+  renderizar();
+}
+
+// ===== RENDERIZAR AS "PASTAS" =====
+function renderizar(){
+  const lista = modoAtual === 'hoje' ? pedidosHoje : pedidosHistorico;
+  const listaEl = document.getElementById('lista-container');
+  const vazioEl = document.getElementById('vazio');
+  listaEl.innerHTML = '';
+
+  if(lista.length === 0){
+    vazioEl.style.display = 'block';
+    vazioEl.textContent = modoAtual === 'hoje' ? 'Nenhum pedido hoje ainda.' : 'Nenhum pedido encontrado.';
+    return;
+  }
+  vazioEl.style.display = 'none';
+
+  const ordenada = [...lista].sort((a,b) => {
+    const dif = ORDEM_STATUS.indexOf(a.status) - ORDEM_STATUS.indexOf(b.status);
+    if(dif !== 0) return dif;
+    return new Date(a.created_at) - new Date(b.created_at);
+  });
+
+  const grade = document.createElement('div');
+  grade.className = 'lista-pastas';
+
+  ordenada.forEach(p => {
+    const nome = extrairNomeCliente(p.texto_comanda) || 'Cliente sem nome';
+    const retirada = ehRetirada(p.texto_comanda);
+    const total = p.total || extrairTotal(p.texto_comanda) || 0;
+    const pasta = document.createElement('div');
+    pasta.className = 'pasta status-' + p.status;
+    pasta.onclick = () => abrirDetalhe(p.id);
+    pasta.innerHTML = `
+      <div class="pasta-info">
+        <div class="pasta-nome">${nome}</div>
+        <div class="pasta-meta">
+          <span class="selo ${retirada ? 'selo-retirada' : 'selo-entrega'}">${retirada ? '🏠 Retirada' : '🛵 Entrega'}</span>
+          <span class="selo selo-status ${p.status}">${STATUS_LABELS[p.status] || p.status}</span>
+          <span>🕒 ${formatarHora(p.created_at)}</span>
+        </div>
+      </div>
+      <div class="pasta-total">R$ ${total.toFixed(2).replace('.',',')}</div>
+    `;
+    grade.appendChild(pasta);
+  });
+
+  listaEl.appendChild(grade);
+}
+
+// ===== DETALHE DO PEDIDO =====
+function encontrarPedido(id){
+  return pedidosHoje.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id);
+}
+
+function abrirDetalhe(id){
+  const p = encontrarPedido(id);
+  if(!p) return;
+  pedidoSelecionadoId = id;
+  const texto = p.texto_comanda;
+  const retirada = ehRetirada(texto);
+  const telefone = extrairTelefone(texto);
+  const digitos = soDigitos(telefone);
+
+  document.getElementById('d-nome').textContent = extrairNomeCliente(texto) || 'Pedido';
+  document.getElementById('d-telefone').textContent = telefone || '—';
+
+  const linksContato = document.getElementById('d-links-contato');
+  linksContato.innerHTML = '';
+  if(digitos){
+    linksContato.innerHTML = `
+      <a href="tel:${digitos}">📞 Ligar</a>
+      <a href="https://wa.me/55${digitos}" target="_blank" rel="noopener">💬 WhatsApp</a>
+    `;
+  }
+
+  document.getElementById('d-rotulo-destino').textContent = retirada ? 'Retirada' : 'Endereço';
+  const linksMapa = document.getElementById('d-links-mapa');
+  linksMapa.innerHTML = '';
+  if(retirada){
+    document.getElementById('d-endereco').textContent = '🏠 Cliente vai retirar no balcão — não precisa de entrega.';
+  } else {
+    const endereco = extrairEndereco(texto);
+    document.getElementById('d-endereco').textContent = endereco || '—';
+    const mapaLink = extrairMapa(texto) || (endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}` : '');
+    if(mapaLink){
+      linksMapa.innerHTML = `<a href="${mapaLink}" target="_blank" rel="noopener">🗺️ Abrir no mapa</a>`;
+    }
+  }
+
+  document.getElementById('d-itens').textContent = extrairItens(texto);
+
+  const pagamento = extrairPagamento(texto);
+  const trocoLinha = extrairTrocoLinha(texto);
+  document.getElementById('d-pagamento').textContent = pagamento + (trocoLinha ? ' — ' + trocoLinha : '');
+
+  const total = p.total || extrairTotal(texto) || 0;
+  document.getElementById('d-total').textContent = 'R$ ' + total.toFixed(2).replace('.',',');
+
+  document.getElementById('d-status-atual').textContent = 'Status atual: ' + (STATUS_LABELS[p.status] || p.status);
+
+  const jaFinalizado = p.status === 'finalizado_pago' || p.status === 'cancelado';
+  document.getElementById('btn-finalizar').style.display = jaFinalizado ? 'none' : 'block';
+  document.getElementById('ja-finalizado').style.display = jaFinalizado ? 'block' : 'none';
+
+  document.getElementById('overlay-detalhe').style.display = 'block';
+}
+
+function fecharDetalhe(){
+  document.getElementById('overlay-detalhe').style.display = 'none';
+  pedidoSelecionadoId = null;
+}
+
+async function finalizarPedidoAtual(){
+  if(!pedidoSelecionadoId) return;
+  const p = encontrarPedido(pedidoSelecionadoId);
+  const botao = document.getElementById('btn-finalizar');
+  botao.disabled = true;
+  botao.textContent = 'Atualizando...';
+
+  const payload = { status: 'finalizado_pago' };
+  if(p && !p.finalizado_em) payload.finalizado_em = new Date().toISOString();
+
+  const { data, error } = await supabaseClient.from('pedidos').update(payload).eq('id', pedidoSelecionadoId).select();
+  botao.disabled = false;
+  botao.textContent = '✅ Finalizado e pago';
+
+  if(error){
+    alert('Não foi possível atualizar o pedido.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    console.error(error);
+    return;
+  }
+  if(!data || data.length === 0){
+    alert('O status não foi alterado. Tente sair e entrar de novo no painel.');
+    return;
+  }
+  if(p) Object.assign(p, payload);
+  fecharDetalhe();
+  renderizar();
+  carregarHoje();
+}
+</script>
+</body>
+</html>
