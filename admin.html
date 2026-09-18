@@ -432,7 +432,6 @@ function renderTamanhosPizzaPainel(){
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:rgba(255,255,255,.05); border-radius:8px; padding:10px; margin-bottom:8px;">
       <input type="text" value="${(t.rotulo||'').replace(/"/g,'&quot;')}" placeholder="Rótulo (ex: Média)" id="tam-rotulo-${t.chave}" style="width:110px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
       <input type="text" value="${(t.medida||'').replace(/"/g,'&quot;')}" placeholder="Medida (ex: 30 cm)" id="tam-medida-${t.chave}" style="width:100px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
-      <input type="text" value="${(t.descricao||'').replace(/"/g,'&quot;')}" placeholder="Descrição (ex: 6 fatias (serve 2-3 pessoas))" id="tam-descricao-${t.chave}" style="flex:1; min-width:220px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
       <label style="font-size:12px; display:flex; align-items:center; gap:4px;">Até
         <input type="number" min="1" max="4" value="${t.max_sabores}" id="tam-maxsab-${t.chave}" style="width:48px; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); color:inherit;">
         sabor(es)
@@ -474,7 +473,7 @@ async function criarTamanhoPizza(){
 
   const maiorOrdem = TAMANHOS_PIZZA.reduce((m,t) => Math.max(m, t.ordem||0), 0);
   const { data, error } = await supabaseClient.from('tamanhos_pizza').insert({
-    chave, rotulo, medida: '', descricao: '', max_sabores: 2, ordem: maiorOrdem + 1, ativo: true
+    chave, rotulo, medida: '', max_sabores: 2, ordem: maiorOrdem + 1, ativo: true
   }).select();
   if(error){
     alert('Não foi possível criar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
@@ -492,14 +491,12 @@ async function salvarTamanhoPizza(chave){
   const payload = {
     rotulo: document.getElementById(`tam-rotulo-${chave}`).value.trim(),
     medida: document.getElementById(`tam-medida-${chave}`).value.trim(),
-    descricao: document.getElementById(`tam-descricao-${chave}`).value.trim(),
     max_sabores: parseInt(document.getElementById(`tam-maxsab-${chave}`).value, 10) || 1,
     ativo: document.getElementById(`tam-ativo-${chave}`).checked,
   };
   const { data, error } = await supabaseClient.from('tamanhos_pizza').update(payload).eq('chave', chave).select();
   if(error){
-    alert('Não foi possível salvar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)) +
-      '\n\nSe o erro mencionar a coluna "descricao", rode no SQL Editor do Supabase:\nALTER TABLE tamanhos_pizza ADD COLUMN IF NOT EXISTS descricao text;');
+    alert('Não foi possível salvar o tamanho.\n\nErro: ' + (error.message || JSON.stringify(error)));
     console.error(error);
     return;
   }
@@ -1352,6 +1349,27 @@ function dataDoPedidoNoPeriodo(createdAt, periodo){
 // Extrai informações extras do pedido a partir do texto da comanda: se é
 // entrega ou retirada, qual foi a forma de pagamento, e se os itens vieram
 // estruturados (exato) ou foram interpretados do texto (aproximado).
+// Formas de pagamento chegam com nomes diferentes dependendo de quem fez o pedido
+// (index.html usa PIX/Débito/Crédito, comandas.html usa Pix/Cartão de Débito/Cartão de Crédito).
+// Padroniza pra um único rótulo, senão a análise conta como formas de pagamento distintas.
+function normalizarPagamento(raw){
+  if(!raw) return raw;
+  const s = raw.trim().toLowerCase();
+  if(s === 'pix') return 'Pix';
+  if(s.includes('débito') || s.includes('debito')) return 'Cartão de Débito';
+  if(s.includes('crédito') || s.includes('credito')) return 'Cartão de Crédito';
+  if(s === 'dinheiro') return 'Dinheiro';
+  return raw.trim();
+}
+
+// Nomes de sabor/produto (esfiha, pizza, bebida, calzone) variam de digitação
+// (ex.: "carne de sol" vs "Carne de Sol") e isso fragmentava o ranking em
+// entradas separadas. Padroniza em Título Caso antes de usar como chave.
+function normalizarNomeProduto(raw){
+  return (raw||'').replace(/\s+/g,' ').trim().toLowerCase()
+    .replace(/(^|\s|-)\S/g, c => c.toUpperCase());
+}
+
 function extrairMetaPedido(pedido){
   const texto = pedido.texto_comanda || '';
   const exato = !!(pedido.itens && Array.isArray(pedido.itens) && pedido.itens.length > 0);
@@ -1360,7 +1378,7 @@ function extrairMetaPedido(pedido){
   else if(/📍\s*Endereço:/.test(texto)) entrega = 'entrega';
   let pagamento = null;
   const mPag = texto.match(/💳\s*Pagamento:\s*(.+)/);
-  if(mPag) pagamento = mPag[1].trim();
+  if(mPag) pagamento = normalizarPagamento(mPag[1].trim());
   let cliente = null;
   const mCliente = texto.match(/👤\s*Cliente:\s*(.+)/);
   if(mCliente) cliente = mCliente[1].trim();
@@ -1370,7 +1388,22 @@ function extrairMetaPedido(pedido){
   const totalExtraido = extrairTotalCobrar(texto);
   let minutosPreparo = null;
   if(pedido.impresso_em && pedido.finalizado_em){
-    minutosPreparo = (new Date(pedido.finalizado_em) - new Date(pedido.impresso_em)) / 60000;
+    let inicioPreparo = new Date(pedido.impresso_em);
+    // Encomenda antecipada: o cliente pediu antes de abrir (ex.: 15h pra um funcionamento
+    // que começa às 18h). A cozinha só pode começar a preparar na abertura, então o tempo
+    // de preparo conta a partir da abertura do dia — não do horário em que o pedido chegou —
+    // senão essa espera "de fora do horário" infla a média de tempo de preparo.
+    if(/ENCOMENDA ANTECIPADA/i.test(texto)){
+      const diaSemana = new Date(pedido.created_at).getDay();
+      const horaAbertura = horarioDoDia(diaSemana).hora_abertura;
+      if(horaAbertura){
+        const [h, m] = horaAbertura.split(':').map(Number);
+        const abertura = new Date(pedido.created_at);
+        abertura.setHours(h, m || 0, 0, 0);
+        if(abertura > inicioPreparo) inicioPreparo = abertura;
+      }
+    }
+    minutosPreparo = (new Date(pedido.finalizado_em) - inicioPreparo) / 60000;
     if(minutosPreparo < 0) minutosPreparo = null; // dado inconsistente, ignora
   }
   return { exato, entrega, pagamento, cliente, telefone, minutosPreparo, total: totalExtraido !== null ? totalExtraido : (pedido.total || 0) };
@@ -1417,7 +1450,9 @@ function calcularEstatisticas(pedidosFiltrados){
     }
 
     const d = new Date(p.created_at);
-    const diaKey = d.toISOString().slice(0,10);
+    // Usa data local (mesmo fuso que d.getHours()/d.getDay() já usam abaixo) em vez de
+    // d.toISOString(), que é UTC e jogava pedidos feitos a partir das 21h pro dia seguinte.
+    const diaKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     faturamentoPorDia[diaKey] = (faturamentoPorDia[diaKey]||0) + meta.total;
 
     const hora = d.getHours();
@@ -1458,28 +1493,32 @@ function calcularEstatisticas(pedidosFiltrados){
       if(item.categoria === 'pizza'){
         unidadesVendidas += qty;
         (item.sabores || []).forEach(s => {
-          pizzaSabores[s] = (pizzaSabores[s]||0) + qty;
-          produtosRanking[`${s} (Pizza)`] = (produtosRanking[`${s} (Pizza)`]||0) + qty;
+          const sNorm = normalizarNomeProduto(s);
+          pizzaSabores[sNorm] = (pizzaSabores[sNorm]||0) + qty;
+          produtosRanking[`${sNorm} (Pizza)`] = (produtosRanking[`${sNorm} (Pizza)`]||0) + qty;
         });
         if(item.tamanho) pizzaTamanhos[item.tamanho] = (pizzaTamanhos[item.tamanho]||0) + qty;
       } else if(item.categoria === 'esfiha'){
         const sabores = item.sabores || {};
         Object.keys(sabores).forEach(s => {
           const q = sabores[s];
-          esfihaSabores[s] = (esfihaSabores[s]||0) + q;
-          produtosRanking[`${s} (Esfiha)`] = (produtosRanking[`${s} (Esfiha)`]||0) + q;
+          const sNorm = normalizarNomeProduto(s);
+          esfihaSabores[sNorm] = (esfihaSabores[sNorm]||0) + q;
+          produtosRanking[`${sNorm} (Esfiha)`] = (produtosRanking[`${sNorm} (Esfiha)`]||0) + q;
           unidadesVendidas += q;
         });
       } else if(item.categoria === 'bebida'){
-        bebidaRanking[item.nome] = (bebidaRanking[item.nome]||0) + qty;
-        produtosRanking[`${item.nome} (Bebida)`] = (produtosRanking[`${item.nome} (Bebida)`]||0) + qty;
+        const nomeNorm = normalizarNomeProduto(item.nome);
+        bebidaRanking[nomeNorm] = (bebidaRanking[nomeNorm]||0) + qty;
+        produtosRanking[`${nomeNorm} (Bebida)`] = (produtosRanking[`${nomeNorm} (Bebida)`]||0) + qty;
         unidadesVendidas += qty;
       } else if(item.categoria === 'calzone'){
-        calzoneRanking[item.sabor] = (calzoneRanking[item.sabor]||0) + qty;
-        produtosRanking[`${item.sabor} (Calzone)`] = (produtosRanking[`${item.sabor} (Calzone)`]||0) + qty;
+        const saborNorm = normalizarNomeProduto(item.sabor);
+        calzoneRanking[saborNorm] = (calzoneRanking[saborNorm]||0) + qty;
+        produtosRanking[`${saborNorm} (Calzone)`] = (produtosRanking[`${saborNorm} (Calzone)`]||0) + qty;
         unidadesVendidas += qty;
       } else {
-        const nome = item.nome || 'Item';
+        const nome = normalizarNomeProduto(item.nome || 'Item');
         const categoriaLabel = item.categoria ? ` (${item.categoria[0].toUpperCase()}${item.categoria.slice(1)})` : '';
         produtosRanking[`${nome}${categoriaLabel}`] = (produtosRanking[`${nome}${categoriaLabel}`]||0) + qty;
         unidadesVendidas += qty;
@@ -1990,7 +2029,7 @@ async function renderEstatisticas(){
 
       <div class="stat-secao">
         <h4>⏱️ Tempo médio de preparo</h4>
-        <p class="stat-sub" style="display:block; margin-bottom:8px;">do momento em que o pedido foi impresso até ser marcado como finalizado, no comandas.html</p>
+        <p class="stat-sub" style="display:block; margin-bottom:8px;">do momento em que o pedido foi impresso até ser marcado como finalizado, no comandas.html (em encomendas antecipadas, conta a partir da abertura, não de quando o pedido chegou)</p>
         <div class="stat-card" style="max-width:220px;">
           <span class="stat-value">${formatarMinutos(s.tempoMedioPreparo)}</span>
           <span class="stat-sub">${s.countComTempoPreparo} pedido${s.countComTempoPreparo===1?'':'s'} com esse dado — só conta a partir de quando essa atualização entrou no comandas.html</span>
