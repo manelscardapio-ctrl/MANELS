@@ -254,6 +254,7 @@ const CATEGORIAS = [
   { key:'carrossel',label:'Carrossel',        icon:'🎠', group:'Site' },
   { key:'stats',    label:'Estatísticas',     icon:'📊', group:'Gestão' },
   { key:'avaliacoes',label:'Avaliações',      icon:'⭐', group:'Gestão' },
+  { key:'motoboy',  label:'Motoboy ao vivo',  icon:'📍', group:'Gestão' },
   { key:'config',   label:'Configurações',    icon:'⚙️', group:'Sistema' },
 ];
 const GRUPOS_ORDEM = ['Cardápio', 'Site', 'Gestão', 'Sistema'];
@@ -376,11 +377,11 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'motoboy' ? '<div id="config-motoboy"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'carrossel', 'capas'];
+  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'motoboy', 'carrossel', 'capas'];
   CATEGORIAS.forEach(c => { if(!CHAVES_SEM_GRADE_PRODUTO.includes(c.key)) renderGrade(c.key); });
   renderConfiguracoes();
   renderTamanhosPizzaPainel();
@@ -397,6 +398,7 @@ function carregarAbaSobDemanda(key){
   if(ABAS_CARREGADAS[key]) return; // já carregou antes nesta sessão — não busca de novo
   if(key === 'stats'){ ABAS_CARREGADAS.stats = true; renderEstatisticas(); }
   else if(key === 'avaliacoes'){ ABAS_CARREGADAS.avaliacoes = true; renderAvaliacoes(); }
+  else if(key === 'motoboy'){ ABAS_CARREGADAS.motoboy = true; iniciarMotoboyAoVivo(); }
   else if(key === 'carrossel'){ ABAS_CARREGADAS.carrossel = true; renderCarrosselAdmin(); }
   else if(key === 'capas'){ ABAS_CARREGADAS.capas = true; renderCapasGrid(); }
 }
@@ -1743,6 +1745,36 @@ function tabelaPedidosHTML(lista){
   `;
 }
 
+// ===== FILTROS DA ABA DE AVALIAÇÕES =====
+let avaliacoesCache = [];
+let avalPeriodo = 'tudo';       // hoje | semana | mes | tudo | custom
+let avalDataIni = '', avalDataFim = '';
+let avalEstrela = 'todas';      // todas | 5 | 4 | 3 | 2 | 1
+let avalComentario = 'todas';   // todas | com | sem
+let avalOrdenar = 'recentes';   // recentes | maior | menor
+
+function dataAvaliacaoNoPeriodo(dataStr, periodo){
+  if(!dataStr) return periodo === 'tudo';
+  const d = new Date(dataStr);
+  const agora = new Date();
+  if(periodo === 'hoje') return d.toDateString() === agora.toDateString();
+  if(periodo === 'semana'){
+    const inicioSemana = new Date(agora);
+    inicioSemana.setDate(agora.getDate() - agora.getDay());
+    inicioSemana.setHours(0,0,0,0);
+    return d >= inicioSemana;
+  }
+  if(periodo === 'mes') return d.getFullYear() === agora.getFullYear() && d.getMonth() === agora.getMonth();
+  if(periodo === 'custom'){
+    if(!avalDataIni || !avalDataFim) return true;
+    const ini = new Date(avalDataIni + 'T00:00:00');
+    const fim = new Date(avalDataFim + 'T23:59:59');
+    return d >= ini && d <= fim;
+  }
+  return true; // 'tudo'
+}
+function dataDaAvaliacao(a){ return a.created_at || a.criado_em || a.data || a.avaliado_em || null; }
+
 async function renderAvaliacoes(){
   const el = document.getElementById('config-avaliacoes');
   if(!el) return;
@@ -1763,28 +1795,8 @@ async function renderAvaliacoes(){
     return;
   }
 
-  const listaAvaliacoes = avaliacoes || [];
+  avaliacoesCache = avaliacoes || [];
   const listaPontos = pontos || [];
-
-  const mediaNota = listaAvaliacoes.length
-    ? (listaAvaliacoes.reduce((s,a)=>s+(a.nota||0),0) / listaAvaliacoes.length).toFixed(1)
-    : '—';
-
-  const estrelas = n => '⭐'.repeat(Math.max(0, Math.min(5, Math.round(n||0)))) + '☆'.repeat(5 - Math.max(0, Math.min(5, Math.round(n||0))));
-
-  const avaliacoesHTML = listaAvaliacoes.length ? listaAvaliacoes.map(a => `
-    <div style="background:rgba(255,255,255,.05); border-radius:8px; padding:10px 14px; margin-bottom:8px;">
-      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-        <b>${(a.cliente_nome||'Cliente').replace(/</g,'&lt;')}</b>
-        <span>${estrelas(a.nota)} <span style="opacity:.7;">(${a.nota ?? '?'})</span></span>
-      </div>
-      ${a.comentario ? `<div style="margin-top:6px; opacity:.9;">"${a.comentario.replace(/</g,'&lt;')}"</div>` : '<div style="margin-top:6px; opacity:.5; font-size:.85rem;">Sem comentário escrito.</div>'}
-      <div style="margin-top:6px; font-size:.75rem; opacity:.6;">
-        ${(() => { const d = a.created_at || a.criado_em || a.data || a.avaliado_em; return d ? new Date(d).toLocaleString('pt-BR') : ''; })()} · Pedido #${a.pedido_id ?? '?'}
-      </div>
-    </div>
-  `).join('') : '<p style="opacity:.7;">Nenhuma avaliação recebida ainda.</p>';
-
   const pontosHTML = listaPontos.length ? `
     <ol class="stat-ranking-list">
       ${listaPontos.map(p => `<li><span>${(p.cliente_nome||p.cliente_email||'Cliente').replace(/</g,'&lt;')}</span><b>${p.pontos ?? 0} pt${(p.pontos===1)?'':'s'}</b></li>`).join('')}
@@ -1793,12 +1805,172 @@ async function renderAvaliacoes(){
 
   el.innerHTML = `
     <h3 style="margin-top:0;">⭐ Avaliações dos clientes</h3>
-    <p style="opacity:.8; margin-top:-6px;">${listaAvaliacoes.length} avaliação(ões) recebida(s) · nota média: <b>${mediaNota}</b> ⭐</p>
-    <div style="max-height:480px; overflow-y:auto; margin-bottom:24px;">${avaliacoesHTML}</div>
+    <div id="avaliacoes-filtros"></div>
+    <div id="avaliacoes-lista-container"></div>
 
     <h3>🏆 Ranking de pontos de fidelidade</h3>
     <p style="opacity:.8; margin-top:-6px;">Pontos ganhos por avaliações feitas com login do Google (1 ponto por avaliação).</p>
     ${pontosHTML}
+  `;
+  renderizarListaAvaliacoes();
+}
+
+function mudarPeriodoAval(p){ avalPeriodo = p; renderizarListaAvaliacoes(); }
+function mudarEstrelaAval(e){ avalEstrela = e; renderizarListaAvaliacoes(); }
+function mudarComentarioAval(c){ avalComentario = c; renderizarListaAvaliacoes(); }
+function mudarOrdenarAval(o){ avalOrdenar = o; renderizarListaAvaliacoes(); }
+function mudarCustomAval(campo, valor){
+  if(campo === 'ini') avalDataIni = valor; else avalDataFim = valor;
+  if(avalDataIni && avalDataFim) renderizarListaAvaliacoes();
+}
+
+function renderizarListaAvaliacoes(){
+  const filtroContainer = document.getElementById('avaliacoes-filtros');
+  const listaContainer = document.getElementById('avaliacoes-lista-container');
+  if(!filtroContainer || !listaContainer) return;
+
+  // Contagens consideram o período escolhido (pra dar noção do total de cada
+  // categoria mesmo enquanto o usuário troca o filtro de estrela/comentário).
+  const doPeriodo = avaliacoesCache.filter(a => dataAvaliacaoNoPeriodo(dataDaAvaliacao(a), avalPeriodo));
+  const contagemEstrela = {5:0,4:0,3:0,2:0,1:0};
+  let comComentario = 0, semComentario = 0;
+  doPeriodo.forEach(a => {
+    const n = Math.round(a.nota || 0);
+    if(contagemEstrela[n] !== undefined) contagemEstrela[n]++;
+    if(a.comentario && a.comentario.trim()) comComentario++; else semComentario++;
+  });
+
+  const periodos = [['tudo','Todo período'],['hoje','Hoje'],['semana','Esta semana'],['mes','Este mês'],['custom','Personalizado']];
+  const customRow = avalPeriodo === 'custom' ? `
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="date" value="${avalDataIni}" onchange="mudarCustomAval('ini', this.value)">
+      <span>até</span>
+      <input type="date" value="${avalDataFim}" onchange="mudarCustomAval('fim', this.value)">
+    </div>` : '';
+
+  filtroContainer.innerHTML = `
+    <div style="margin-bottom:6px;">
+      ${periodos.map(([key,label]) => `<button class="stat-filtro-btn${avalPeriodo===key?' active':''}" onclick="mudarPeriodoAval('${key}')">${label}</button>`).join('')}
+    </div>
+    ${customRow}
+    <div style="margin:10px 0 6px;">
+      <button class="stat-filtro-btn${avalEstrela==='todas'?' active':''}" onclick="mudarEstrelaAval('todas')">Todas as notas (${doPeriodo.length})</button>
+      ${[5,4,3,2,1].map(n => `<button class="stat-filtro-btn${avalEstrela==String(n)?' active':''}" onclick="mudarEstrelaAval('${n}')">${'⭐'.repeat(n)} (${contagemEstrela[n]})</button>`).join('')}
+    </div>
+    <div style="margin:6px 0 6px;">
+      <button class="stat-filtro-btn${avalComentario==='todas'?' active':''}" onclick="mudarComentarioAval('todas')">Todas</button>
+      <button class="stat-filtro-btn${avalComentario==='com'?' active':''}" onclick="mudarComentarioAval('com')">💬 Com comentário (${comComentario})</button>
+      <button class="stat-filtro-btn${avalComentario==='sem'?' active':''}" onclick="mudarComentarioAval('sem')">Sem comentário (${semComentario})</button>
+    </div>
+    <div style="margin:6px 0 14px;">
+      Ordenar por:
+      <button class="stat-filtro-btn${avalOrdenar==='recentes'?' active':''}" onclick="mudarOrdenarAval('recentes')">Mais recentes</button>
+      <button class="stat-filtro-btn${avalOrdenar==='maior'?' active':''}" onclick="mudarOrdenarAval('maior')">Maior nota</button>
+      <button class="stat-filtro-btn${avalOrdenar==='menor'?' active':''}" onclick="mudarOrdenarAval('menor')">Menor nota</button>
+    </div>
+  `;
+
+  let filtradas = doPeriodo.filter(a => {
+    if(avalEstrela !== 'todas' && Math.round(a.nota||0) !== Number(avalEstrela)) return false;
+    const temComentario = !!(a.comentario && a.comentario.trim());
+    if(avalComentario === 'com' && !temComentario) return false;
+    if(avalComentario === 'sem' && temComentario) return false;
+    return true;
+  });
+  if(avalOrdenar === 'maior') filtradas = filtradas.sort((a,b) => (b.nota||0) - (a.nota||0));
+  else if(avalOrdenar === 'menor') filtradas = filtradas.sort((a,b) => (a.nota||0) - (b.nota||0));
+  else filtradas = filtradas.sort((a,b) => new Date(dataDaAvaliacao(b)||0) - new Date(dataDaAvaliacao(a)||0));
+
+  const mediaNota = filtradas.length ? (filtradas.reduce((s,a)=>s+(a.nota||0),0) / filtradas.length).toFixed(1) : '—';
+  const estrelas = n => '⭐'.repeat(Math.max(0, Math.min(5, Math.round(n||0)))) + '☆'.repeat(5 - Math.max(0, Math.min(5, Math.round(n||0))));
+
+  const notaCategoriaHTML = a => {
+    const partes = [];
+    if(a.nota_atendimento) partes.push(`🙋 Atendimento ${estrelas(a.nota_atendimento)}`);
+    if(a.nota_qualidade) partes.push(`🍕 Qualidade ${estrelas(a.nota_qualidade)}`);
+    if(a.nota_entrega) partes.push(`🛵 Entrega ${estrelas(a.nota_entrega)}`);
+    return partes.length ? `<div style="margin-top:6px; font-size:.8rem; opacity:.8; display:flex; gap:12px; flex-wrap:wrap;">${partes.join('')}</div>` : '';
+  };
+
+  const avaliacoesHTML = filtradas.length ? filtradas.map(a => `
+    <div style="background:rgba(255,255,255,.05); border-radius:8px; padding:10px 14px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+        <b>${(a.cliente_nome||'Cliente').replace(/</g,'&lt;')}</b>
+        <span>${estrelas(a.nota)} <span style="opacity:.7;">(${a.nota ?? '?'})</span></span>
+      </div>
+      ${a.comentario ? `<div style="margin-top:6px; opacity:.9;">"${a.comentario.replace(/</g,'&lt;')}"</div>` : '<div style="margin-top:6px; opacity:.5; font-size:.85rem;">Sem comentário escrito.</div>'}
+      ${notaCategoriaHTML(a)}
+      <div style="margin-top:6px; font-size:.75rem; opacity:.6;">
+        ${(() => { const d = dataDaAvaliacao(a); return d ? new Date(d).toLocaleString('pt-BR') : ''; })()} · Pedido #${a.pedido_id ?? '?'}
+      </div>
+    </div>
+  `).join('') : '<p style="opacity:.7;">Nenhuma avaliação encontrada com esses filtros.</p>';
+
+  listaContainer.innerHTML = `
+    <p style="opacity:.8; margin-top:-6px;">${filtradas.length} avaliação(ões) · nota média: <b>${mediaNota}</b> ⭐</p>
+    <div style="max-height:480px; overflow-y:auto; margin-bottom:24px;">${avaliacoesHTML}</div>
+  `;
+}
+
+// ===== MOTOBOY AO VIVO =====
+let motoboyCanalRealtime = null;
+let motoboyUltimaLocalizacao = null;
+let motoboyIntervaloRelogio = null;
+
+async function iniciarMotoboyAoVivo(){
+  const { data, error } = await supabaseClient.from('localizacao_motoboy').select('*').eq('id', 1).maybeSingle();
+  if(error){
+    document.getElementById('config-motoboy').innerHTML = `
+      <b>⚠️ Não consegui carregar a localização do motoboy.</b><br>
+      Verifique se a tabela <b>localizacao_motoboy</b> existe e tem política de <b>SELECT</b> liberada pro seu usuário no Supabase.<br><br>
+      Erro técnico: <code>${error.message || JSON.stringify(error)}</code>
+    `;
+    return;
+  }
+  motoboyUltimaLocalizacao = data;
+  renderMotoboyAoVivo();
+
+  // Atualiza o "há quanto tempo" a cada 10s, mesmo sem chegar posição nova.
+  if(motoboyIntervaloRelogio) clearInterval(motoboyIntervaloRelogio);
+  motoboyIntervaloRelogio = setInterval(renderMotoboyAoVivo, 10000);
+
+  if(motoboyCanalRealtime) return; // já inscrito
+  motoboyCanalRealtime = supabaseClient
+    .channel('motoboy-localizacao-realtime')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'localizacao_motoboy' }, payload => {
+      motoboyUltimaLocalizacao = payload.new;
+      renderMotoboyAoVivo();
+    })
+    .subscribe();
+}
+
+function renderMotoboyAoVivo(){
+  const el = document.getElementById('config-motoboy');
+  if(!el) return;
+  const loc = motoboyUltimaLocalizacao;
+
+  if(!loc || loc.latitude == null || loc.longitude == null){
+    el.innerHTML = `
+      <h3 style="margin-top:0;">📍 Motoboy ao vivo</h3>
+      <p style="opacity:.8;">Ainda não recebemos nenhuma localização. Peça pro motoboy abrir o painel dele e tocar em "Compartilhar localização".</p>
+    `;
+    return;
+  }
+
+  const segundosAtras = loc.atualizado_em ? Math.floor((Date.now() - new Date(loc.atualizado_em).getTime())/1000) : null;
+  const haQuanto = segundosAtras === null ? 'nunca' : segundosAtras < 60 ? `${segundosAtras}s atrás` : `${Math.floor(segundosAtras/60)} min atrás`;
+  const parado = segundosAtras !== null && segundosAtras > 120; // mais de 2 min sem atualizar
+  const statusTexto = loc.compartilhando && !parado ? '🟢 Compartilhando agora' : parado ? '🟡 Sem atualização há um tempo — o app pode estar fechado ou sem sinal' : '🔴 Não está compartilhando';
+  const mapaSrc = `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}&z=16&output=embed`;
+  const linkMaps = `https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}`;
+
+  el.innerHTML = `
+    <h3 style="margin-top:0;">📍 Motoboy ao vivo</h3>
+    <p style="opacity:.85; margin-top:-6px;">${statusTexto} · atualizado ${haQuanto}</p>
+    <div style="border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.15); max-width:640px;">
+      <iframe src="${mapaSrc}" width="100%" height="360" style="border:0; display:block;" loading="lazy"></iframe>
+    </div>
+    <p style="margin-top:10px;"><a href="${linkMaps}" target="_blank" rel="noopener">🗺️ Abrir no Google Maps</a></p>
   `;
 }
 
