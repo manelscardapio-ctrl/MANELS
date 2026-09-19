@@ -32,6 +32,28 @@
   .tab{ font-family:inherit; font-size:.9rem; padding:10px 18px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:rgba(255,255,255,.12); color:var(--beige); }
   .tab.active{ background:var(--terracotta); color:#fff; }
 
+  .banner-corrida{ background:#6a3ac0; color:#fff; border-radius:12px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-weight:bold; }
+  .banner-corrida button{ font-family:inherit; font-size:.85rem; padding:8px 14px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; background:#fff; color:#6a3ac0; }
+
+  .banner-loc{ border-radius:12px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-weight:bold; }
+  .banner-loc.ligado{ background:#3a72c0; color:#fff; }
+  .banner-loc.desligado{ background:rgba(255,255,255,.1); color:var(--beige); }
+  .banner-loc button{ font-family:inherit; font-size:.85rem; padding:8px 14px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; }
+  .banner-loc.ligado button{ background:#fff; color:#3a72c0; }
+  .banner-loc.desligado button{ background:var(--terracotta); color:#fff; }
+
+  .pasta.selecionavel{ cursor:pointer; }
+  .pasta.selecionada{ outline:3px solid #6a3ac0; }
+  .pasta.desabilitada{ opacity:.45; cursor:default; }
+  .check-corrida{ width:26px; height:26px; flex-shrink:0; }
+
+  .barra-selecao{ position:fixed; left:0; right:0; bottom:0; background:#6a3ac0; color:#fff; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; z-index:800; }
+  .barra-selecao button{ font-family:inherit; font-size:.9rem; padding:10px 16px; border:none; border-radius:20px; cursor:pointer; font-weight:bold; }
+  .barra-selecao .btn-iniciar{ background:#fff; color:#6a3ac0; }
+  .barra-selecao .btn-cancelar-sel{ background:rgba(255,255,255,.2); color:#fff; }
+
+  .progresso-corrida{ text-align:center; font-weight:bold; color:#6a3ac0; margin-bottom:4px; }
+
   .barra-hist{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
   .barra-hist input[type=date]{ font-family:inherit; padding:10px 12px; border-radius:8px; border:none; font-size:.9rem; }
   #hist-status{ font-size:.8rem; opacity:.85; }
@@ -100,10 +122,14 @@
   </header>
 
   <div id="resumo-dia"></div>
+  <div id="localizacao-banner"></div>
+  <div id="banner-corrida-container"></div>
 
   <div class="tabs">
     <button class="tab active" id="tab-hoje" onclick="mudarAba('hoje')">📥 Hoje</button>
     <button class="tab" id="tab-historico" onclick="mudarAba('historico')">🕘 Histórico</button>
+    <button class="tab" id="tab-corrida" onclick="mudarAba('corrida')" style="display:none;">🛵 Corrida</button>
+    <button class="tab" id="btn-toggle-selecao" onclick="alternarModoSelecao()">🛵 Nova corrida</button>
   </div>
 
   <div class="barra-hist" id="barra-hist" style="display:none;">
@@ -114,6 +140,14 @@
 
   <div id="lista-container"></div>
   <div id="vazio" style="display:none;">Nenhum pedido encontrado.</div>
+</div>
+
+<div class="barra-selecao" id="barra-selecao" style="display:none;">
+  <span id="contagem-selecao">0 selecionado(s)</span>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-cancelar-sel" onclick="alternarModoSelecao()">Cancelar</button>
+    <button class="btn-iniciar" id="btn-iniciar-corrida" onclick="iniciarCorrida()" disabled>🛵 Iniciar corrida</button>
+  </div>
 </div>
 
 <div id="overlay-detalhe" onclick="if(event.target===this) fecharDetalhe()">
@@ -143,6 +177,7 @@
       </div>
       <div class="d-total" id="d-total">R$ 0,00</div>
       <div class="d-status-atual" id="d-status-atual"></div>
+      <div class="progresso-corrida" id="progresso-corrida" style="display:none;"></div>
       <button id="btn-finalizar" onclick="finalizarPedidoAtual()">✅ Finalizado e pago</button>
       <div id="ja-finalizado" style="display:none;">🟢 Esse pedido já está finalizado e pago.</div>
     </div>
@@ -171,6 +206,25 @@ let pedidosHoje = [];
 let pedidosHistorico = [];
 let pedidoSelecionadoId = null;
 
+// ===== CORRIDA (agrupar vários pedidos numa mesma saída) =====
+const STATUS_ELEGIVEIS_CORRIDA = ['novo', 'em_andamento', 'pendencia'];
+let modoSelecaoCorrida = false;
+let selecionadosCorrida = [];      // ids na ordem em que foram marcados
+let corridaAtual = carregarCorridaSalva(); // { ids:[...], index:0 } ou null
+
+function carregarCorridaSalva(){
+  try{
+    const bruto = localStorage.getItem('motoboy_corrida');
+    return bruto ? JSON.parse(bruto) : null;
+  } catch(e){ return null; }
+}
+function salvarCorrida(){
+  try{
+    if(corridaAtual) localStorage.setItem('motoboy_corrida', JSON.stringify(corridaAtual));
+    else localStorage.removeItem('motoboy_corrida');
+  } catch(e){}
+}
+
 // ===== LOGIN (mesma conta usada no painel de pedidos) =====
 async function conferirSenha(){
   const email = document.getElementById('input-email').value.trim();
@@ -188,6 +242,7 @@ async function conferirSenha(){
   iniciar();
 }
 async function sairPainel(){
+  await desligarCompartilhamento();
   await supabaseClient.auth.signOut();
   document.getElementById('conteudo').style.display = 'none';
   document.getElementById('tela-senha').style.display = 'flex';
@@ -207,6 +262,109 @@ function iniciar(){
   statusEl.textContent = '🟢 conectado';
   statusEl.className = 'ok';
   carregarHoje();
+  renderizarBannerCorrida();
+  renderizarBannerLocalizacao();
+  if(localStorage.getItem('motoboy_compartilhando') === '1') ligarCompartilhamento(true);
+}
+
+// ===== COMPARTILHAMENTO DE LOCALIZAÇÃO (GPS) =====
+// Manda a posição pro Supabase no máximo a cada 15s (evita gastar bateria/dados
+// mandando a cada pequeníssimo movimento que o GPS detectar).
+const INTERVALO_MIN_ENVIO_MS = 15000;
+let watchId = null;
+let ultimoEnvioLocalizacao = 0;
+let compartilhandoLocalizacao = false;
+
+function renderizarBannerLocalizacao(){
+  const container = document.getElementById('localizacao-banner');
+  if(compartilhandoLocalizacao){
+    container.innerHTML = `
+      <div class="banner-loc ligado">
+        <span>📍 Compartilhando sua localização</span>
+        <button onclick="desligarCompartilhamento()">Parar</button>
+      </div>`;
+  } else {
+    container.innerHTML = `
+      <div class="banner-loc desligado">
+        <span>📍 Localização desligada</span>
+        <button onclick="ligarCompartilhamento()">Compartilhar localização</button>
+      </div>`;
+  }
+}
+
+function ligarCompartilhamento(silencioso){
+  if(!navigator.geolocation){
+    if(!silencioso) alert('Esse navegador não suporta compartilhar localização.');
+    return;
+  }
+  watchId = navigator.geolocation.watchPosition(
+    async pos => {
+      compartilhandoLocalizacao = true;
+      localStorage.setItem('motoboy_compartilhando', '1');
+      renderizarBannerLocalizacao();
+      const agora = Date.now();
+      if(agora - ultimoEnvioLocalizacao < INTERVALO_MIN_ENVIO_MS) return; // ainda dentro do intervalo mínimo
+      ultimoEnvioLocalizacao = agora;
+      await supabaseClient.from('localizacao_motoboy').update({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        atualizado_em: new Date().toISOString(),
+        compartilhando: true
+      }).eq('id', 1);
+    },
+    err => {
+      console.error('Erro de geolocalização:', err);
+      if(!silencioso) alert('Não foi possível acessar sua localização. Verifique se você deu permissão de GPS pro navegador.');
+      desligarCompartilhamento();
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+  );
+}
+
+async function desligarCompartilhamento(){
+  if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+  compartilhandoLocalizacao = false;
+  localStorage.removeItem('motoboy_compartilhando');
+  renderizarBannerLocalizacao();
+  try{ await supabaseClient.from('localizacao_motoboy').update({ compartilhando: false }).eq('id', 1); }catch(e){}
+}
+
+function renderizarBannerCorrida(){
+  const container = document.getElementById('banner-corrida-container');
+  const tabCorrida = document.getElementById('tab-corrida');
+  if(!corridaAtual){ container.innerHTML = ''; tabCorrida.style.display = 'none'; return; }
+
+  const pedidosDaCorrida = corridaAtual.ids.map(id => encontrarPedido(id)).filter(Boolean);
+  const restantes = pedidosDaCorrida.filter(p => p.status !== 'finalizado_pago' && p.status !== 'cancelado').length;
+  tabCorrida.style.display = 'inline-block';
+  tabCorrida.textContent = `🛵 Corrida (${restantes})`;
+
+  if(pedidosDaCorrida.length === 0){
+    // ainda não recarregou os pedidos de hoje — evita mostrar "concluída" à toa
+    container.innerHTML = `<div class="banner-corrida"><span>🛵 Corrida em andamento</span><button onclick="mudarAba('corrida')">Ver corrida</button></div>`;
+    return;
+  }
+  if(restantes === 0){
+    container.innerHTML = `
+      <div class="banner-corrida">
+        <span>🎉 Corrida concluída — todos os pedidos foram entregues!</span>
+        <button onclick="encerrarCorrida()">Encerrar corrida</button>
+      </div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div class="banner-corrida">
+      <span>🛵 Corrida em andamento — ${restantes} pedido(s) restante(s)</span>
+      <button onclick="mudarAba('corrida')">Ver corrida — você escolhe a ordem</button>
+    </div>
+  `;
+}
+
+function encerrarCorrida(){
+  corridaAtual = null;
+  salvarCorrida();
+  renderizarBannerCorrida();
+  if(modoAtual === 'corrida') mudarAba('hoje');
 }
 
 // ===== EXTRAÇÃO DE INFORMAÇÕES DE DENTRO DO TEXTO DA COMANDA =====
@@ -273,7 +431,8 @@ async function carregarHoje(){
     <div class="cartao-resumo"><div class="num">${cardResumo}</div><div class="lbl">Ainda por entregar/retirar</div></div>
     <div class="cartao-resumo"><div class="num">${pedidosHoje.length}</div><div class="lbl">Pedidos hoje</div></div>
   `;
-  if(modoAtual === 'hoje') renderizar();
+  if(modoAtual === 'hoje' || modoAtual === 'corrida') renderizar();
+  renderizarBannerCorrida();
 }
 
 async function buscarHistoricoPorDia(){
@@ -299,7 +458,9 @@ function mudarAba(aba){
   modoAtual = aba;
   document.getElementById('tab-hoje').classList.toggle('active', aba === 'hoje');
   document.getElementById('tab-historico').classList.toggle('active', aba === 'historico');
+  document.getElementById('tab-corrida').classList.toggle('active', aba === 'corrida');
   document.getElementById('barra-hist').style.display = aba === 'historico' ? 'flex' : 'none';
+  if(aba === 'historico' && modoSelecaoCorrida) alternarModoSelecao();
   if(aba === 'historico' && pedidosHistorico.length === 0){
     document.getElementById('hist-status').textContent = 'Escolha uma data acima.';
   }
@@ -308,14 +469,18 @@ function mudarAba(aba){
 
 // ===== RENDERIZAR AS "PASTAS" =====
 function renderizar(){
-  const lista = modoAtual === 'hoje' ? pedidosHoje : pedidosHistorico;
+  const lista = modoAtual === 'hoje' ? pedidosHoje
+    : modoAtual === 'corrida' ? pedidosHoje.filter(p => corridaAtual && corridaAtual.ids.map(String).includes(String(p.id)))
+    : pedidosHistorico;
   const listaEl = document.getElementById('lista-container');
   const vazioEl = document.getElementById('vazio');
   listaEl.innerHTML = '';
 
   if(lista.length === 0){
     vazioEl.style.display = 'block';
-    vazioEl.textContent = modoAtual === 'hoje' ? 'Nenhum pedido hoje ainda.' : 'Nenhum pedido encontrado.';
+    vazioEl.textContent = modoAtual === 'hoje' ? 'Nenhum pedido hoje ainda.'
+      : modoAtual === 'corrida' ? 'Nenhum pedido nessa corrida.'
+      : 'Nenhum pedido encontrado.';
     return;
   }
   vazioEl.style.display = 'none';
@@ -333,10 +498,26 @@ function renderizar(){
     const nome = extrairNomeCliente(p.texto_comanda) || 'Cliente sem nome';
     const retirada = ehRetirada(p.texto_comanda);
     const total = p.total || extrairTotal(p.texto_comanda) || 0;
+    const elegivel = STATUS_ELEGIVEIS_CORRIDA.includes(p.status);
+    const idStr = String(p.id);
+    const selecionado = selecionadosCorrida.includes(idStr);
     const pasta = document.createElement('div');
     pasta.className = 'pasta status-' + p.status;
-    pasta.onclick = () => abrirDetalhe(p.id);
+
+    if(modoSelecaoCorrida){
+      pasta.classList.add(elegivel ? 'selecionavel' : 'desabilitada');
+      if(selecionado) pasta.classList.add('selecionada');
+      pasta.onclick = elegivel ? () => alternarSelecaoPedido(idStr) : null;
+    } else {
+      pasta.onclick = () => abrirDetalhe(p.id);
+    }
+
+    const checkbox = modoSelecaoCorrida && elegivel
+      ? `<input type="checkbox" class="check-corrida" ${selecionado ? 'checked' : ''} onclick="event.stopPropagation(); alternarSelecaoPedido('${idStr}')">`
+      : '';
+
     pasta.innerHTML = `
+      ${checkbox}
       <div class="pasta-info">
         <div class="pasta-nome">${nome}</div>
         <div class="pasta-meta">
@@ -353,9 +534,62 @@ function renderizar(){
   listaEl.appendChild(grade);
 }
 
+// ===== SELEÇÃO DE PEDIDOS PRA UMA CORRIDA =====
+function alternarModoSelecao(){
+  modoSelecaoCorrida = !modoSelecaoCorrida;
+  selecionadosCorrida = [];
+  document.getElementById('btn-toggle-selecao').classList.toggle('active', modoSelecaoCorrida);
+  document.getElementById('barra-selecao').style.display = modoSelecaoCorrida ? 'flex' : 'none';
+  if(modoSelecaoCorrida && modoAtual !== 'hoje') mudarAba('hoje');
+  atualizarContagemSelecao();
+  renderizar();
+}
+function alternarSelecaoPedido(id){
+  const idx = selecionadosCorrida.indexOf(id);
+  if(idx === -1) selecionadosCorrida.push(id); else selecionadosCorrida.splice(idx, 1);
+  atualizarContagemSelecao();
+  renderizar();
+}
+function atualizarContagemSelecao(){
+  document.getElementById('contagem-selecao').textContent = `${selecionadosCorrida.length} selecionado(s)`;
+  document.getElementById('btn-iniciar-corrida').disabled = selecionadosCorrida.length === 0;
+}
+
+async function iniciarCorrida(){
+  if(selecionadosCorrida.length === 0) return;
+  const botao = document.getElementById('btn-iniciar-corrida');
+  botao.disabled = true;
+  botao.textContent = 'Iniciando...';
+
+  const ids = [...selecionadosCorrida];
+  const { error } = await supabaseClient.from('pedidos').update({ status: 'rota_entrega' }).in('id', ids);
+  botao.textContent = '🛵 Iniciar corrida';
+
+  if(error){
+    alert('Não foi possível colocar os pedidos em rota.\n\nErro: ' + (error.message || JSON.stringify(error)));
+    botao.disabled = false;
+    return;
+  }
+
+  ids.forEach(id => {
+    const p = encontrarPedido(id);
+    if(p) p.status = 'rota_entrega';
+  });
+
+  corridaAtual = { ids };
+  salvarCorrida();
+  modoSelecaoCorrida = false;
+  selecionadosCorrida = [];
+  document.getElementById('btn-toggle-selecao').classList.remove('active');
+  document.getElementById('barra-selecao').style.display = 'none';
+  renderizarBannerCorrida();
+  await carregarHoje();
+  mudarAba('corrida');
+}
+
 // ===== DETALHE DO PEDIDO =====
 function encontrarPedido(id){
-  return pedidosHoje.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id);
+  return pedidosHoje.find(p => String(p.id) === String(id)) || pedidosHistorico.find(p => String(p.id) === String(id));
 }
 
 function abrirDetalhe(id){
@@ -404,8 +638,18 @@ function abrirDetalhe(id){
 
   document.getElementById('d-status-atual').textContent = 'Status atual: ' + (STATUS_LABELS[p.status] || p.status);
 
+  const progressoEl = document.getElementById('progresso-corrida');
+  const fazParteDaCorrida = corridaAtual && corridaAtual.ids.map(String).includes(String(id));
+  if(fazParteDaCorrida){
+    progressoEl.style.display = 'block';
+    progressoEl.textContent = '🛵 Esse pedido faz parte da corrida em andamento';
+  } else {
+    progressoEl.style.display = 'none';
+  }
+
   const jaFinalizado = p.status === 'finalizado_pago' || p.status === 'cancelado';
   document.getElementById('btn-finalizar').style.display = jaFinalizado ? 'none' : 'block';
+  document.getElementById('btn-finalizar').textContent = fazParteDaCorrida && !jaFinalizado ? '✅ Finalizado — voltar pra corrida' : '✅ Finalizado e pago';
   document.getElementById('ja-finalizado').style.display = jaFinalizado ? 'block' : 'none';
 
   document.getElementById('overlay-detalhe').style.display = 'block';
@@ -418,7 +662,8 @@ function fecharDetalhe(){
 
 async function finalizarPedidoAtual(){
   if(!pedidoSelecionadoId) return;
-  const p = encontrarPedido(pedidoSelecionadoId);
+  const idFinalizado = pedidoSelecionadoId;
+  const p = encontrarPedido(idFinalizado);
   const botao = document.getElementById('btn-finalizar');
   botao.disabled = true;
   botao.textContent = 'Atualizando...';
@@ -426,9 +671,8 @@ async function finalizarPedidoAtual(){
   const payload = { status: 'finalizado_pago' };
   if(p && !p.finalizado_em) payload.finalizado_em = new Date().toISOString();
 
-  const { data, error } = await supabaseClient.from('pedidos').update(payload).eq('id', pedidoSelecionadoId).select();
+  const { data, error } = await supabaseClient.from('pedidos').update(payload).eq('id', idFinalizado).select();
   botao.disabled = false;
-  botao.textContent = '✅ Finalizado e pago';
 
   if(error){
     alert('Não foi possível atualizar o pedido.\n\nErro: ' + (error.message || JSON.stringify(error)));
@@ -442,6 +686,7 @@ async function finalizarPedidoAtual(){
   if(p) Object.assign(p, payload);
   fecharDetalhe();
   renderizar();
+  renderizarBannerCorrida();
   carregarHoje();
 }
 </script>
