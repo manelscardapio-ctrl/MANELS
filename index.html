@@ -324,8 +324,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     <h1>Escolha o seu pedido</h1>
     <p>Sabores nordestinos feitos na hora. Toque num item, monte do seu jeito — no final, o pedido vai prontinho pro nosso WhatsApp.</p>
     <div class="hero-meta">
-      <span class="hero-meta-item" id="hero-entrega-badge">🛵 Entrega em 35–50 min</span>
-      <span class="hero-meta-item" id="hero-local-badge">📍 Centro</span>
+      <span class="hero-meta-item">🛵 Entrega em 35–50 min</span>
+      <span class="hero-meta-item">📍 Centro</span>
     </div>
   </header>
 
@@ -345,7 +345,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div class="p-body">
         <span class="p-eyebrow">Calzone</span>
         <div class="p-name">Calzones</div>
-        <span class="p-desc">4 fatias (serve até 2 pessoas)</span>
+        <span class="p-desc">Tamanho único, recheado na hora.</span>
         <div class="p-price">ver sabores</div>
         <button class="p-btn" onclick="event.stopPropagation(); openModal('calzones')">Ver sabores</button>
       </div>
@@ -653,6 +653,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
         <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
+        <div class="summary-line" id="cart-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="cart-desconto">-R$ 0,00</span></div>
         <div class="summary-total"><span>TOTAL:</span><span id="cart-total">R$ 0,00</span></div>
       </div>
     </div>
@@ -678,6 +679,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <span>👋 Olá, <b id="login-nome-usuario"></b>! <span id="login-pontos-usuario" style="opacity:.75; font-size:.85rem;"></span></span>
           <button type="button" onclick="sairDoLogin()" style="border:none; background:none; color:var(--rust); font-weight:bold; cursor:pointer; font-size:.8rem;">Sair</button>
         </div>
+        <div id="pontos-resgate" style="display:none; margin-top:10px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
       </div>
       <div class="field-group">
         <span class="field-label">Nome completo *</span>
@@ -742,6 +744,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
       <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
+      <div class="summary-line" id="chk-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="chk-desconto">-R$ 0,00</span></div>
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
 
       <div class="error-msg" id="chk-error"></div>
@@ -854,6 +857,12 @@ let userGeoLng = null;
 let paymentMethod = '';
 let wantKetchup = false;
 let maioneseQty = 0;
+// ===== Resgate de pontos de fidelidade =====
+let pontosDisponiveis = 0;      // saldo do cliente logado (0 se não logado)
+let clienteLogadoUid = null;
+let pontosParaDesconto = 0;     // quantos pontos ele escolheu trocar por desconto em R$ (1 pt = R$1)
+let comboPontosResgatado = false; // se já resgatou o combo de 5 esfihas grátis (custa 5 pontos)
+const CUSTO_COMBO_PONTOS = 5;
 
 function brl(v){ return 'R$ ' + (v||0).toFixed(2).replace('.', ','); }
 
@@ -1407,6 +1416,10 @@ async function sairDoLogin(){
   await supabaseClient.auth.signOut();
   document.getElementById('login-btn-entrar').style.display = 'flex';
   document.getElementById('login-logado').style.display = 'none';
+  clienteLogadoUid = null;
+  pontosDisponiveis = 0;
+  pontosParaDesconto = 0;
+  if(comboPontosResgatado) removerComboPontos(); else renderCart();
 }
 function mostrarUsuarioLogado(user){
   const nome = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Cliente';
@@ -1420,6 +1433,8 @@ function mostrarUsuarioLogado(user){
 async function preencherDadosSalvos(user){
   try{
     const { data } = await supabaseClient.from('pontos_clientes').select('*').eq('cliente_uid', user.id).maybeSingle();
+    pontosDisponiveis = data?.pontos || 0;
+    clienteLogadoUid = user.id;
     const pontosEl = document.getElementById('login-pontos-usuario');
     if(pontosEl) pontosEl.textContent = data?.pontos ? `⭐ ${data.pontos} ponto${data.pontos===1?'':'s'}` : '';
     if(data){
@@ -1430,6 +1445,8 @@ async function preencherDadosSalvos(user){
       if(data.telefone && telInput && !telInput.value) telInput.value = data.telefone;
       if(data.endereco && endInput && !endInput.value) endInput.value = data.endereco;
     }
+    renderResgatePontos();
+    renderCart();
   } catch(e){ console.error('Não foi possível carregar os dados salvos do cliente:', e); }
 }
 // Salva/atualiza nome, telefone e endereço do cliente logado — chamado ao enviar
@@ -1582,33 +1599,13 @@ function mostrarAvisoTempoEspera(){
     el.style.display = 'none';
   }
 }
-function aplicarSelosHero(){
-  const entregaEl = document.getElementById('hero-entrega-badge');
-  const localEl = document.getElementById('hero-local-badge');
-  if(entregaEl){
-    if(CONFIG_GERAL.hero_entrega_texto){
-      entregaEl.textContent = CONFIG_GERAL.hero_entrega_texto;
-      entregaEl.style.display = '';
-    } else {
-      entregaEl.style.display = 'none';
-    }
-  }
-  if(localEl){
-    if(CONFIG_GERAL.hero_local_texto){
-      localEl.textContent = CONFIG_GERAL.hero_local_texto;
-      localEl.style.display = '';
-    } else {
-      localEl.style.display = 'none';
-    }
-  }
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Horário e aviso de espera carregam em paralelo com o resto, mas com um horário
   // de segurança já disponível de imediato — checkStoreHours() nunca fica esperando.
   checkStoreHours();
   carregarHorarioFuncionamento().then(checkStoreHours);
-  carregarConfigGeral().then(() => { mostrarAvisoTempoEspera(); aplicarSelosHero(); });
+  carregarConfigGeral().then(mostrarAvisoTempoEspera);
   verificarLoginIndex();
   aplicarCapasSecoes();
   await carregarTamanhosPizza();
@@ -1680,9 +1677,9 @@ async function carregarTamanhosPizza(){
   } catch(e){
     console.error('Não foi possível carregar os tamanhos de pizza, usando padrão M/G/GG:', e);
     TAMANHOS_PIZZA = [
-      { chave:'M', rotulo:'Média', medida:'30 cm', descricao:'6 fatias (serve 2-3 pessoas)', max_sabores:2, ordem:1, ativo:true },
-      { chave:'G', rotulo:'Grande', medida:'35 cm', descricao:'8 fatias (serve 3-4 pessoas)', max_sabores:2, ordem:2, ativo:true },
-      { chave:'GG', rotulo:'Família', medida:'40 cm', descricao:'12 fatias (serve até 5-6 pessoas)', max_sabores:3, ordem:3, ativo:true },
+      { chave:'M', rotulo:'Média', medida:'30 cm', max_sabores:2, ordem:1, ativo:true },
+      { chave:'G', rotulo:'Grande', medida:'35 cm', max_sabores:2, ordem:2, ativo:true },
+      { chave:'GG', rotulo:'Família', medida:'40 cm', max_sabores:3, ordem:3, ativo:true },
     ];
   }
   if(!TAMANHOS_PIZZA.some(t => t.chave === pizzaState.size)){
@@ -1711,7 +1708,7 @@ function renderPizzaHomeCards(){
       <div class="p-body">
         <span class="p-eyebrow">Pizza</span>
         <div class="p-name">${t.rotulo}</div>
-        <span class="p-desc">${t.descricao ? t.descricao : (t.medida ? t.medida + ' · ' : '') + (t.max_sabores >= 3 ? 'até 3 sabores.' : t.max_sabores === 2 ? 'ideal para meio a meio.' : 'sabor único.')}</span>
+        <span class="p-desc">${t.medida ? t.medida + ' · ' : ''}${t.max_sabores >= 3 ? 'até 3 sabores.' : t.max_sabores === 2 ? 'ideal para meio a meio.' : 'sabor único.'}</span>
         <div class="p-price">a partir de <small id="price-hint-${t.chave}">—</small></div>
         <button class="p-btn" onclick="event.stopPropagation(); openPizzaCard('${t.chave}')">Escolher pizza</button>
       </div>
@@ -2163,7 +2160,12 @@ function addComboToCart(){
 }
 
 /* ==================== CARRINHO ==================== */
-function removeFromCart(id){ cart = cart.filter(i => i.id !== id); renderCart(); }
+function removeFromCart(id){
+  const removendoCombo = cart.some(i => i.id === id && i.type === 'combo_pontos');
+  cart = cart.filter(i => i.id !== id);
+  if(removendoCombo) comboPontosResgatado = false;
+  renderCart();
+}
 
 function getSubtotal(){ return cart.reduce((s,i)=>s+i.lineTotal,0); }
 function getFee(){
@@ -2172,6 +2174,66 @@ function getFee(){
   return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
 }
 function getExtras(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
+function getDescontoPontos(){ return pontosParaDesconto; } // 1 ponto = R$ 1, já limitado nos handlers abaixo
+
+function maxPontosParaDesconto(){
+  const tetoPelaCompra = Math.floor(getSubtotal() + getFee() + getExtras());
+  const disponivelAposCombo = pontosDisponiveis - (comboPontosResgatado ? CUSTO_COMBO_PONTOS : 0);
+  return Math.max(0, Math.min(disponivelAposCombo, tetoPelaCompra));
+}
+function changePontosDesconto(delta){
+  const max = maxPontosParaDesconto();
+  pontosParaDesconto = Math.min(max, Math.max(0, pontosParaDesconto + delta));
+  renderCart();
+}
+function resgatarComboPontos(){
+  if(comboPontosResgatado) return;
+  if(pontosDisponiveis - pontosParaDesconto < CUSTO_COMBO_PONTOS) return;
+  comboPontosResgatado = true;
+  cart.push({
+    id: cartIdCounter++,
+    type: 'combo_pontos',
+    label: 'Combo de 5 Esfihas (resgate de fidelidade)',
+    detail: '🎁 Grátis — sabores a combinar por WhatsApp',
+    qty: 1,
+    lineTotal: 0
+  });
+  pontosParaDesconto = Math.min(pontosParaDesconto, maxPontosParaDesconto());
+  renderCart();
+}
+function removerComboPontos(){
+  comboPontosResgatado = false;
+  cart = cart.filter(i => i.type !== 'combo_pontos');
+  renderCart();
+}
+function renderResgatePontos(){
+  const container = document.getElementById('pontos-resgate');
+  if(!container) return;
+  if(!clienteLogadoUid || pontosDisponiveis <= 0){ container.style.display = 'none'; return; }
+  container.style.display = 'block';
+
+  const max = maxPontosParaDesconto();
+  if(pontosParaDesconto > max) pontosParaDesconto = max;
+  const restanteParaCombo = pontosDisponiveis - pontosParaDesconto;
+  const podeCombo = !comboPontosResgatado && restanteParaCombo >= CUSTO_COMBO_PONTOS;
+
+  container.innerHTML = `
+    <div style="font-size:.85rem; margin-bottom:8px;"><b>⭐ Você tem ${pontosDisponiveis} ponto${pontosDisponiveis===1?'':'s'} de fidelidade</b></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+      <span style="font-size:.85rem;">Usar como desconto (1 ponto = R$ 1):</span>
+      <div class="stepper">
+        <button type="button" class="step-btn" onclick="changePontosDesconto(-1)" ${pontosParaDesconto<=0?'disabled':''}>-</button>
+        <span class="step-val">${pontosParaDesconto}</span>
+        <button type="button" class="step-btn" onclick="changePontosDesconto(1)" ${pontosParaDesconto>=max?'disabled':''}>+</button>
+      </div>
+    </div>
+    ${comboPontosResgatado
+      ? `<div style="margin-top:10px; font-size:.85rem; display:flex; justify-content:space-between; align-items:center;"><span>🎁 Combo de 5 Esfihas grátis resgatado</span><button type="button" onclick="removerComboPontos()" style="border:none;background:none;color:var(--rust);font-weight:bold;cursor:pointer;font-size:.8rem;">desfazer</button></div>`
+      : podeCombo
+        ? `<div style="margin-top:10px;"><button type="button" onclick="resgatarComboPontos()" style="width:100%; padding:9px; border-radius:8px; border:1px dashed var(--terracotta); background:#fff; color:var(--terracotta); font-weight:bold; cursor:pointer; font-size:.85rem;">🎁 Trocar ${CUSTO_COMBO_PONTOS} pontos por 1 Combo de 5 Esfihas grátis</button></div>`
+        : ''}
+  `;
+}
 
 // ===== CÁLCULO AUTOMÁTICO DE TROCO =====
 function parseMoneyBR(str){
@@ -2235,7 +2297,7 @@ function atualizarTrocoCalculado(){
     return;
   }
 
-  const total = getSubtotal() + getFee() + getExtras();
+  const total = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
   const trocoCalc = valorPago - total;
   hint.style.display = 'block';
   if(trocoCalc < 0){
@@ -2291,13 +2353,16 @@ function renderCart(){
   const subtotal = getSubtotal();
   const fee = getFee();
   const extras = getExtras();
-  const total = subtotal + fee + extras;
+  const desconto = getDescontoPontos();
+  const total = Math.max(0, subtotal + fee + extras - desconto);
 
   document.getElementById('cart-subtotal').textContent = brl(subtotal);
   document.getElementById('cart-fee-line').style.display = fee > 0 ? 'flex' : 'none';
   document.getElementById('cart-fee').textContent = brl(fee);
   document.getElementById('cart-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
   document.getElementById('cart-maionese').textContent = brl(extras);
+  document.getElementById('cart-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
+  document.getElementById('cart-desconto').textContent = '-' + brl(desconto);
   document.getElementById('cart-total').textContent = brl(total);
   floatingVal.textContent = brl(total);
   const gridTotalEl = document.getElementById('grid-cart-total');
@@ -2310,9 +2375,12 @@ function renderCart(){
   document.getElementById('chk-fee').textContent = brl(fee);
   document.getElementById('chk-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
   document.getElementById('chk-maionese').textContent = brl(extras);
+  document.getElementById('chk-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
+  document.getElementById('chk-desconto').textContent = '-' + brl(desconto);
   document.getElementById('chk-total').textContent = brl(total);
 
   if(paymentMethod === 'Dinheiro') atualizarTrocoCalculado();
+  renderResgatePontos();
 }
 
 function flashAdded(){
@@ -2435,7 +2503,8 @@ function gerarComanda(){
   const subtotal = getSubtotal();
   const fee = getFee();
   const extras = getExtras();
-  const total = subtotal + fee + extras;
+  const desconto = getDescontoPontos();
+  const total = Math.max(0, subtotal + fee + extras - desconto);
 
   // Largura pensada para a folha de comanda física (8,5 x 21cm), impressa em
   // fonte monoespaçada 14px — 32 colunas é o que cabe sem quebrar no meio da palavra.
@@ -2443,7 +2512,7 @@ function gerarComanda(){
   const SEP = '='.repeat(LARG);
 
   // Emoji por tipo de item principal, pra identificar rápido sem precisar de espaço extra.
-  const EMOJI_ITEM = { pizza:'🍕', calzone:'🥟', brotinho:'🍩', esfiha:'🥙', bebida:'🥤', combo:'🍽️' };
+  const EMOJI_ITEM = { pizza:'🍕', calzone:'🥟', brotinho:'🍩', esfiha:'🥙', bebida:'🥤', combo:'🍽️', combo_pontos:'🎁' };
 
   let c = `${SEP}\n`;
   c += `     MANEL'S PIZZARIA\n`;
@@ -2528,6 +2597,9 @@ function gerarComanda(){
     }
   }
 
+  if(desconto > 0){
+    c += `🎁 Desconto (pontos de fidelidade): -${brl(desconto)}\n`;
+  }
   c += `${SEP}\n`;
   c += `💰 *TOTAL A COBRAR: ${brl(total)}*\n`;
   c += `${SEP}\n`;
@@ -2821,7 +2893,7 @@ async function enviarPedido(){
     if(!troco){ showError('Informe o valor que vai pagar.', document.getElementById('chk-troco')); return; }
     const valorPago = parseMoneyBR(troco);
     if(valorPago === null){ showError('Digite apenas números no valor (ex: 100).', document.getElementById('chk-troco')); return; }
-    const totalPedido = getSubtotal() + getFee() + getExtras();
+    const totalPedido = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
     if(valorPago < totalPedido){
       showError(`O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, document.getElementById('chk-troco'));
       return;
@@ -2843,17 +2915,42 @@ async function enviarPedido(){
     }
   }
 
+  // Resgate de pontos (se ele escolheu usar desconto e/ou o combo grátis) — confirma
+  // no banco ANTES de gerar a comanda, pra nunca mandar um pedido com desconto que
+  // não foi de fato debitado do saldo. Se der qualquer problema, o pedido segue sem
+  // desconto — isso NUNCA pode travar o envio do pedido.
+  if(btn) btn.disabled = true;
+  const pontosASerGastos = pontosParaDesconto + (comboPontosResgatado ? CUSTO_COMBO_PONTOS : 0);
+  if(pontosASerGastos > 0 && clienteLogadoUid){
+    try{
+      const { data: sucesso, error: erroResgate } = await supabaseClient.rpc('resgatar_pontos', {
+        p_cliente_uid: clienteLogadoUid, p_quantidade: pontosASerGastos
+      });
+      if(erroResgate || !sucesso){
+        alert('Não conseguimos confirmar seus pontos agora (o saldo pode ter mudado). Seu pedido vai ser enviado sem o desconto de pontos — você pode tentar de novo na próxima compra.');
+        pontosParaDesconto = 0;
+        if(comboPontosResgatado) removerComboPontos();
+      } else {
+        pontosDisponiveis -= pontosASerGastos;
+      }
+    } catch(e){
+      console.error('Erro ao resgatar pontos:', e);
+      alert('Não conseguimos confirmar seus pontos agora. Seu pedido vai ser enviado sem o desconto de pontos.');
+      pontosParaDesconto = 0;
+      if(comboPontosResgatado) removerComboPontos();
+    }
+  }
+
   let comanda = gerarComanda();
-  const totalPedido = getSubtotal() + getFee() + getExtras();
+  const totalPedido = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
 
   // Baixa de estoque e atualização do perfil do cliente logado rodam em segundo
   // plano — não precisa esperar pra não atrasar o envio.
   descontarEstoquePedido(cart.slice());
   salvarPerfilCliente();
 
-  // 1) Mostra o aviso de envio e trava o botão pra não deixar o cliente achando
-  //    que travou (e pra evitar clique duplo enviando o pedido 2x).
-  if(btn) btn.disabled = true;
+  // 1) Mostra o aviso de envio (o botão já está travado desde o resgate de pontos acima,
+  //    pra não deixar o cliente achando que travou nem permitir clique duplo).
   mostrarEnviandoOverlay();
 
   let chegouNoPainel = false;
