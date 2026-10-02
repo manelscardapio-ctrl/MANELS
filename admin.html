@@ -376,6 +376,7 @@ const CATEGORIAS = [
   { key:'carrossel',label:'Carrossel',        icon:'🎠', group:'Site' },
   { key:'stats',    label:'Estatísticas',     icon:'📊', group:'Gestão' },
   { key:'avaliacoes',label:'Avaliações',      icon:'⭐', group:'Gestão' },
+  { key:'cupons',   label:'Cupons',           icon:'🏷️', group:'Gestão' },
   { key:'motoboy',  label:'Motoboy ao vivo',  icon:'📍', group:'Gestão' },
   { key:'config',   label:'Configurações',    icon:'⚙️', group:'Sistema' },
 ];
@@ -499,11 +500,11 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'motoboy' ? '<div id="config-motoboy"></div>' : c.key === 'comandas' ? '<div id="config-comandas"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'cupons' ? '<div id="config-cupons"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'motoboy' ? '<div id="config-motoboy"></div>' : c.key === 'comandas' ? '<div id="config-comandas"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'motoboy', 'comandas', 'carrossel', 'capas'];
+  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'cupons', 'motoboy', 'comandas', 'carrossel', 'capas'];
   CATEGORIAS.forEach(c => { if(!CHAVES_SEM_GRADE_PRODUTO.includes(c.key)) renderGrade(c.key); });
   renderConfiguracoes();
   renderTamanhosPizzaPainel();
@@ -520,6 +521,7 @@ function carregarAbaSobDemanda(key){
   if(ABAS_CARREGADAS[key]) return; // já carregou antes nesta sessão — não busca de novo
   if(key === 'stats'){ ABAS_CARREGADAS.stats = true; renderEstatisticas(); }
   else if(key === 'avaliacoes'){ ABAS_CARREGADAS.avaliacoes = true; renderAvaliacoes(); }
+  else if(key === 'cupons'){ ABAS_CARREGADAS.cupons = true; renderCuponsAdmin(); }
   else if(key === 'motoboy'){ ABAS_CARREGADAS.motoboy = true; iniciarMotoboyAoVivo(); }
   else if(key === 'comandas'){ ABAS_CARREGADAS.comandas = true; renderComandasShell(); iniciarComandas(); }
   else if(key === 'carrossel'){ ABAS_CARREGADAS.carrossel = true; renderCarrosselAdmin(); }
@@ -1898,6 +1900,96 @@ function dataAvaliacaoNoPeriodo(dataStr, periodo){
 }
 function dataDaAvaliacao(a){ return a.created_at || a.criado_em || a.data || a.avaliado_em || null; }
 
+/* ==================== CUPONS DE DESCONTO ==================== */
+// Tabela "cupons" no Supabase (veja supabase_cupons.sql). O cliente valida/usa o cupom
+// no cardápio pelas funções validar_cupom / usar_cupom; aqui você só cria e gerencia.
+let cuponsCache = [];
+function escCupom(t){ return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function descricaoCupom(c){
+  const v = Number(c.valor) || 0;
+  return c.tipo === 'percentual' ? (String(v).replace('.', ',') + '% de desconto') : ('R$ ' + v.toFixed(2).replace('.', ',') + ' de desconto');
+}
+async function renderCuponsAdmin(){
+  const el = document.getElementById('config-cupons');
+  if(!el) return;
+  el.innerHTML = '<p>Carregando cupons…</p>';
+  const { data, error } = await supabaseClient.from('cupons').select('*').order('id', { ascending:false });
+  if(error){
+    el.innerHTML = '<b>⚠️ Não consegui carregar os cupons.</b><br>Rode o arquivo <b>supabase_cupons.sql</b> no SQL Editor do Supabase (ele cria a tabela e as regras de acesso) e abra esta aba de novo.<br><br>Erro técnico: <code>' + escCupom(error.message || JSON.stringify(error)) + '</code>';
+    return;
+  }
+  cuponsCache = data || [];
+  const hoje = new Date().toISOString().slice(0, 10);
+  const linhas = cuponsCache.map(c => {
+    const expirado = c.validade && c.validade < hoje;
+    const esgotado = c.limite_usos !== null && c.limite_usos !== undefined && c.usos >= c.limite_usos;
+    const situacao = !c.ativo ? 'Pausado' : expirado ? 'Expirado' : esgotado ? 'Esgotado' : 'Ativo';
+    const cor = situacao === 'Ativo' ? 'var(--ok)' : 'var(--danger)';
+    return '<tr>' +
+      '<td><b>' + escCupom(c.codigo) + '</b></td>' +
+      '<td>' + escCupom(descricaoCupom(c)) + (Number(c.pedido_minimo) > 0 ? '<br><small>pedido mínimo R$ ' + Number(c.pedido_minimo).toFixed(2).replace('.', ',') + '</small>' : '') + '</td>' +
+      '<td>' + (c.usos || 0) + (c.limite_usos ? ' / ' + c.limite_usos : '') + '</td>' +
+      '<td>' + (c.validade ? c.validade.split('-').reverse().join('/') : 'sem prazo') + '</td>' +
+      '<td style="color:' + cor + '; font-weight:700;">' + situacao + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button class="btn-salvar" style="padding:5px 10px; border:none; border-radius:6px; cursor:pointer;" onclick="alternarCupom(' + c.id + ')">' + (c.ativo ? 'Pausar' : 'Ativar') + '</button> ' +
+        '<button class="btn-excluir" style="padding:5px 10px; border:none; border-radius:6px; cursor:pointer;" onclick="excluirCupom(' + c.id + ')">Excluir</button>' +
+      '</td></tr>';
+  }).join('');
+  el.innerHTML =
+    '<div style="max-width:900px;">' +
+    '<h3 style="margin-top:0;">🏷️ Cupons de desconto</h3>' +
+    '<p style="font-size:.82rem; color:var(--ink-soft);">O cliente digita o código no cardápio, na hora de finalizar o pedido. O desconto vale sobre o total do pedido (itens + taxa + extras).</p>' +
+    '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">' +
+      '<div class="campo"><label>Código</label><input type="text" id="cupom-novo-codigo" placeholder="Ex: BEMVINDO10" style="text-transform:uppercase; max-width:170px;"></div>' +
+      '<div class="campo"><label>Tipo</label><select id="cupom-novo-tipo"><option value="percentual">Porcentagem (%)</option><option value="valor">Valor em reais (R$)</option></select></div>' +
+      '<div class="campo"><label>Valor</label><input type="number" step="0.01" min="0" id="cupom-novo-valor" placeholder="10" style="max-width:100px;"></div>' +
+      '<div class="campo"><label>Pedido mínimo (R$)</label><input type="number" step="0.01" min="0" id="cupom-novo-minimo" placeholder="0" style="max-width:110px;"></div>' +
+      '<div class="campo"><label>Válido até</label><input type="date" id="cupom-novo-validade"></div>' +
+      '<div class="campo"><label>Limite de usos</label><input type="number" step="1" min="1" id="cupom-novo-limite" placeholder="sem limite" style="max-width:110px;"></div>' +
+      '<button class="btn-salvar" style="padding:9px 16px; border:none; border-radius:6px; cursor:pointer; font-weight:700;" onclick="criarCupom()">➕ Criar cupom</button>' +
+    '</div>' +
+    '<div class="salvo-ok" id="cupom-msg"></div>' +
+    (cuponsCache.length
+      ? '<table class="stat-tabela"><thead><tr><th>Código</th><th>Desconto</th><th>Usos</th><th>Validade</th><th>Situação</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table>'
+      : '<p style="opacity:.7;">Nenhum cupom criado ainda.</p>') +
+    '</div>';
+}
+async function criarCupom(){
+  const msg = document.getElementById('cupom-msg');
+  const codigo = document.getElementById('cupom-novo-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
+  const tipo = document.getElementById('cupom-novo-tipo').value;
+  const valor = parseFloat(document.getElementById('cupom-novo-valor').value);
+  const minimo = parseFloat(document.getElementById('cupom-novo-minimo').value) || 0;
+  const validade = document.getElementById('cupom-novo-validade').value || null;
+  const limiteRaw = parseInt(document.getElementById('cupom-novo-limite').value, 10);
+  const limite = isNaN(limiteRaw) ? null : limiteRaw;
+  if(!/^[A-Z0-9_-]{3,30}$/.test(codigo)){ alert('Use um código de 3 a 30 caracteres, só letras, números, - ou _ (ex: BEMVINDO10).'); return; }
+  if(isNaN(valor) || valor <= 0){ alert('Informe o valor do desconto.'); return; }
+  if(tipo === 'percentual' && valor > 100){ alert('A porcentagem máxima é 100.'); return; }
+  const { error } = await supabaseClient.from('cupons').insert({ codigo, tipo, valor, pedido_minimo: minimo, validade, limite_usos: limite, ativo: true });
+  if(error){
+    alert('Não foi possível criar o cupom.\n\nErro: ' + (error.message || JSON.stringify(error)) + (String(error.message || '').includes('duplicate') ? '\n\nJá existe um cupom com esse código.' : ''));
+    return;
+  }
+  await renderCuponsAdmin();
+  const m2 = document.getElementById('cupom-msg'); if(m2) m2.textContent = '✅ Cupom ' + codigo + ' criado!';
+}
+async function alternarCupom(id){
+  const c = cuponsCache.find(x => x.id === id);
+  if(!c) return;
+  const { error } = await supabaseClient.from('cupons').update({ ativo: !c.ativo }).eq('id', id);
+  if(error){ alert('Não foi possível atualizar o cupom.\n\nErro: ' + (error.message || JSON.stringify(error))); return; }
+  renderCuponsAdmin();
+}
+async function excluirCupom(id){
+  const c = cuponsCache.find(x => x.id === id);
+  if(!c || !confirm('Excluir o cupom ' + c.codigo + ' definitivamente?')) return;
+  const { error } = await supabaseClient.from('cupons').delete().eq('id', id);
+  if(error){ alert('Não foi possível excluir o cupom.\n\nErro: ' + (error.message || JSON.stringify(error))); return; }
+  renderCuponsAdmin();
+}
+
 async function renderAvaliacoes(){
   const el = document.getElementById('config-avaliacoes');
   if(!el) return;
@@ -2591,6 +2683,23 @@ function renderComandasShell(){
       </div>
     </div>
 
+    <div id="builder-desconto-box" style="border-top:1px dashed #ccc; padding-top:12px; margin-bottom:12px;">
+      <h4 style="margin:0 0 8px;">🏷️ Desconto especial</h4>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="b-campo"><label>Tipo de desconto</label>
+          <select id="builder-desc-tipo" onchange="renderBuilderCart()">
+            <option value="nenhum">Sem desconto</option>
+            <option value="percentual">Porcentagem (%)</option>
+            <option value="valor_final">Digitar o valor final do pedido</option>
+            <option value="valor">Desconto em reais (R$)</option>
+          </select>
+        </div>
+        <div class="b-campo" id="builder-desc-valor-wrap" style="display:none;"><label id="builder-desc-valor-lbl">Valor</label><input type="text" inputmode="decimal" id="builder-desc-valor" placeholder="0" oninput="renderBuilderCart()"></div>
+        <div class="b-campo" id="builder-desc-motivo-wrap" style="display:none;"><label>Motivo (opcional)</label><input type="text" id="builder-desc-motivo" placeholder="Ex: cliente fiel" oninput="renderBuilderCart()"></div>
+      </div>
+      <div id="builder-desc-resumo" style="font-size:.82rem; margin-top:2px;"></div>
+    </div>
+
     <div class="b-rodape">
       <div class="b-total">Total: <span id="builder-total">R$ 0,00</span></div>
       <div class="acoes">
@@ -3112,6 +3221,7 @@ function abrirNovoPedido(){
   document.getElementById('builder-ketchup').checked = false;
   document.getElementById('builder-maionese').value = 0;
   document.querySelector('input[name="builder-fulfillment"][value="entrega"]').checked = true;
+  aplicarDescontoNoBuilder(null);
   atualizarBuilderFulfillment();
   atualizarBuilderTroco();
   renderBuilderFormItem();
@@ -3201,6 +3311,7 @@ function abrirEditarPedido(id){
   document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
   const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
   document.getElementById('builder-maionese').value = mMaionese ? mMaionese[1] : 0;
+  aplicarDescontoNoBuilder(extrairDescontoDaComanda(p.texto_comanda || ''));
 
   atualizarBuilderFulfillment();
   atualizarBuilderTroco();
@@ -3443,7 +3554,106 @@ function builderExtras(){
   const qtd = parseInt(document.getElementById('builder-maionese')?.value, 10) || 0;
   return Math.max(0, qtd - 1) * MAIONESE_PRICE;
 }
-function builderTotal(){ return builderSubtotal() + builderFee() + builderExtras(); }
+function arred2B(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
+function parseNumDescB(s){
+  if(s === null || s === undefined) return null;
+  let t = String(s).replace(/[Rr]\$/g, '').replace(/\s/g, '');
+  if(!t) return null;
+  if(t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
+  else if(t.includes(',')) t = t.replace(',', '.');
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+function builderBruto(){ return builderSubtotal() + builderFee() + builderExtras(); }
+
+// Calcula o desconto especial a partir do que foi preenchido no bloco "Desconto especial".
+// Sempre limitado entre 0 e o total sem desconto — o total final nunca fica negativo.
+function builderDescontoInfo(){
+  const bruto = arred2B(builderBruto());
+  const info = { tipo:'nenhum', bruto, desconto:0, aviso:'', pct:null, motivo:'' };
+  const tipoEl = document.getElementById('builder-desc-tipo');
+  if(!tipoEl) return info;
+  info.tipo = tipoEl.value;
+  info.motivo = (document.getElementById('builder-desc-motivo')?.value || '').replace(/[:\r\n]+/g, ' ').trim();
+  if(info.tipo === 'nenhum' || bruto <= 0) return info;
+  const v = parseNumDescB(document.getElementById('builder-desc-valor')?.value);
+  if(v === null) return info;
+  if(v < 0){ info.aviso = 'O valor não pode ser negativo.'; return info; }
+  if(info.tipo === 'percentual'){
+    let pct = v;
+    if(pct > 100){ pct = 100; info.aviso = 'A porcentagem máxima é 100%.'; }
+    info.pct = pct;
+    info.desconto = arred2B(bruto * pct / 100);
+  } else if(info.tipo === 'valor_final'){
+    if(v > bruto){ info.aviso = 'O valor final (' + brlB(v) + ') é maior que o total sem desconto (' + brlB(bruto) + '). Nenhum desconto aplicado.'; return info; }
+    info.desconto = arred2B(bruto - v);
+  } else if(info.tipo === 'valor'){
+    if(v > bruto) info.aviso = 'O desconto é maior que o total — limitado ao total do pedido.';
+    info.desconto = arred2B(Math.min(v, bruto));
+  }
+  return info;
+}
+function builderTotal(){ const i = builderDescontoInfo(); return Math.max(0, arred2B(i.bruto - i.desconto)); }
+
+// Texto da linha de desconto na comanda impressa. O mesmo texto é lido de volta
+// por extrairDescontoDaComanda() quando o pedido é aberto em "Editar itens".
+function builderRotuloDesconto(info){
+  const m = info.motivo;
+  if(info.tipo === 'percentual' && info.pct !== null) return 'Desconto ' + String(info.pct).replace('.', ',') + '%' + (m ? ' (' + m + ')' : '');
+  if(m && /^(desconto|cupom)/i.test(m)) return m;
+  return m ? 'Desconto (' + m + ')' : 'Desconto';
+}
+
+// Lê de volta o desconto que já está escrito no texto da comanda (desconto especial,
+// cupom ou pontos de fidelidade vindos do cardápio), para que ao editar os itens de um
+// pedido o desconto NÃO se perca e o total não suba sozinho.
+function extrairDescontoDaComanda(texto){
+  const achados = [];
+  const re = /^\S+[ \t]+((?:Desconto|Cupom)[^:\n]*):[ \t]*-[ \t]*R\$[ \t]*([\d.,]+)/gmi;
+  let m;
+  while((m = re.exec(texto || '')) !== null){
+    const v = parseNumDescB(m[2]);
+    if(v !== null && v > 0) achados.push({ rotulo: m[1].trim(), valor: v });
+  }
+  if(achados.length === 0) return null;
+  const fmt = n => n.toFixed(2).replace('.', ',');
+  if(achados.length === 1){
+    const rotulo = achados[0].rotulo, valor = achados[0].valor;
+    const mp = rotulo.match(/^Desconto\s+(\d+(?:[.,]\d+)?)%\s*(?:\((.*)\))?$/i);
+    if(mp) return { tipo:'percentual', valor: mp[1], motivo: mp[2] || '' };
+    const mm = rotulo.match(/^Desconto\s*\((.*)\)$/i);
+    if(mm) return { tipo:'valor', valor: fmt(valor), motivo: mm[1] };
+    if(/^Desconto$/i.test(rotulo)) return { tipo:'valor', valor: fmt(valor), motivo: '' };
+    return { tipo:'valor', valor: fmt(valor), motivo: rotulo };
+  }
+  const soma = achados.reduce((s, a) => s + a.valor, 0);
+  return { tipo:'valor', valor: fmt(soma), motivo: achados.map(a => a.rotulo).join(' + ') };
+}
+function aplicarDescontoNoBuilder(d){
+  document.getElementById('builder-desc-tipo').value = d ? d.tipo : 'nenhum';
+  document.getElementById('builder-desc-valor').value = d ? d.valor : '';
+  document.getElementById('builder-desc-motivo').value = d ? d.motivo : '';
+}
+function atualizarDescontoBuilderUI(){
+  const tipoEl = document.getElementById('builder-desc-tipo');
+  if(!tipoEl) return;
+  const tipo = tipoEl.value;
+  const mostra = tipo !== 'nenhum';
+  document.getElementById('builder-desc-valor-wrap').style.display = mostra ? 'flex' : 'none';
+  document.getElementById('builder-desc-motivo-wrap').style.display = mostra ? 'flex' : 'none';
+  const lbl = document.getElementById('builder-desc-valor-lbl');
+  const inp = document.getElementById('builder-desc-valor');
+  if(tipo === 'percentual'){ lbl.textContent = 'Porcentagem (%)'; inp.placeholder = 'Ex: 10'; }
+  else if(tipo === 'valor_final'){ lbl.textContent = 'Valor final do pedido (R$)'; inp.placeholder = 'Ex: 65,00'; }
+  else if(tipo === 'valor'){ lbl.textContent = 'Desconto (R$)'; inp.placeholder = 'Ex: 5,00'; }
+  const info = builderDescontoInfo();
+  let html = '';
+  if(info.desconto > 0){
+    html = 'Total sem desconto: <b>' + brlB(info.bruto) + '</b> · Desconto: <b style="color:#c0392b;">-' + brlB(info.desconto) + '</b> · Cliente paga: <b>' + brlB(arred2B(info.bruto - info.desconto)) + '</b>';
+  }
+  if(info.aviso) html += '<div style="color:#c0392b; margin-top:4px;">⚠️ ' + info.aviso + '</div>';
+  document.getElementById('builder-desc-resumo').innerHTML = html;
+}
 
 function renderBuilderCart(){
   const lista = document.getElementById('builder-cart-lista');
@@ -3462,6 +3672,7 @@ function renderBuilderCart(){
   }
   const totalEl = document.getElementById('builder-total');
   if(totalEl) totalEl.textContent = brlB(builderTotal());
+  atualizarDescontoBuilderUI();
 }
 
 // ---------- texto da comanda + itens estruturados ----------
@@ -3495,7 +3706,8 @@ function gerarComandaBuilder(){
   const subtotal = builderSubtotal();
   const fee = builderFee();
   const extras = builderExtras();
-  const total = subtotal + fee + extras;
+  const descInfo = builderDescontoInfo();
+  const total = Math.max(0, arred2B(subtotal + fee + extras - descInfo.desconto));
 
   const LARG = 32;
   const SEP = '='.repeat(LARG);
@@ -3556,6 +3768,9 @@ function gerarComandaBuilder(){
     }
   }
 
+  if(descInfo.desconto > 0){
+    c += quebrarTextoB(`🏷️ ${builderRotuloDesconto(descInfo)}: -${brlB(descInfo.desconto)}`, LARG, '') + '\n';
+  }
   c += `${SEP}\n`;
   c += `💰 *TOTAL A COBRAR: ${brlB(total)}*\n`;
   c += `${SEP}\n`;
