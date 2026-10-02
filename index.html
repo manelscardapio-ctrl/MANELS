@@ -653,6 +653,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
         <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
+        <div class="summary-line" id="cart-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="cart-cupom">-R$ 0,00</span></div>
         <div class="summary-line" id="cart-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="cart-desconto">-R$ 0,00</span></div>
         <div class="summary-total"><span>TOTAL:</span><span id="cart-total">R$ 0,00</span></div>
       </div>
@@ -741,9 +742,19 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <textarea id="chk-obs" rows="2" placeholder="Ex: sem cebola, tocar a campainha, etc."></textarea>
       </div>
 
+      <div class="field-group" id="cupom-box">
+        <span class="field-label">Cupom de desconto</span>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="cupom-input" placeholder="Digite seu cupom" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase; flex:1; min-width:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCupom();}" />
+          <button type="button" id="cupom-btn" onclick="aplicarCupom()" style="padding:0 18px; border:none; border-radius:10px; background:var(--forest-dark); color:#fff; font-weight:700; cursor:pointer;">Aplicar</button>
+        </div>
+        <div id="cupom-msg" style="font-size:.82rem; margin-top:6px; min-height:1em;"></div>
+      </div>
+
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
       <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
+      <div class="summary-line" id="chk-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="chk-cupom">-R$ 0,00</span></div>
       <div class="summary-line" id="chk-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="chk-desconto">-R$ 0,00</span></div>
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
 
@@ -863,6 +874,11 @@ let clienteLogadoUid = null;
 let pontosParaDesconto = 0;     // quantos pontos ele escolheu trocar por desconto em R$ (1 pt = R$1)
 let comboPontosResgatado = false; // se já resgatou o combo de 5 esfihas grátis (custa 5 pontos)
 const CUSTO_COMBO_PONTOS = 5;
+// ===== Cupom de desconto =====
+let cupomAplicado = null; // { codigo, tipo:'percentual'|'valor', valor, minimo }
+// true  = cupom e pontos (desconto em R$) podem ser usados juntos no mesmo pedido.
+// false = ao aplicar um cupom, o desconto em R$ dos pontos fica bloqueado (um desconto por pedido).
+const PONTOS_COM_CUPOM = true;
 
 function brl(v){ return 'R$ ' + (v||0).toFixed(2).replace('.', ','); }
 
@@ -2175,9 +2191,23 @@ function getFee(){
 }
 function getExtras(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
 function getDescontoPontos(){ return pontosParaDesconto; } // 1 ponto = R$ 1, já limitado nos handlers abaixo
+// Desconto do cupom: sempre entre 0 e o total do pedido (itens + taxa + extras).
+function getDescontoCupom(){
+  if(!cupomAplicado) return 0;
+  const base = getSubtotal() + getFee() + getExtras();
+  if(base <= 0) return 0;
+  if(cupomAplicado.minimo > 0 && getSubtotal() < cupomAplicado.minimo) return 0;
+  const bruto = cupomAplicado.tipo === 'percentual'
+    ? Math.round(base * Math.min(100, cupomAplicado.valor)) / 100
+    : cupomAplicado.valor;
+  return Math.min(Math.round(bruto * 100) / 100, base);
+}
+function getTotalFinal(){ return Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoCupom() - getDescontoPontos()); }
 
 function maxPontosParaDesconto(){
-  const tetoPelaCompra = Math.floor(getSubtotal() + getFee() + getExtras());
+  const tetoPelaCompra = (!PONTOS_COM_CUPOM && cupomAplicado && getDescontoCupom() > 0)
+    ? 0
+    : Math.floor(getSubtotal() + getFee() + getExtras() - getDescontoCupom());
   const disponivelAposCombo = pontosDisponiveis - (comboPontosResgatado ? CUSTO_COMBO_PONTOS : 0);
   return Math.max(0, Math.min(disponivelAposCombo, tetoPelaCompra));
 }
@@ -2233,6 +2263,67 @@ function renderResgatePontos(){
         ? `<div style="margin-top:10px;"><button type="button" onclick="resgatarComboPontos()" style="width:100%; padding:9px; border-radius:8px; border:1px dashed var(--terracotta); background:#fff; color:var(--terracotta); font-weight:bold; cursor:pointer; font-size:.85rem;">🎁 Trocar ${CUSTO_COMBO_PONTOS} pontos por 1 Combo de 5 Esfihas grátis</button></div>`
         : ''}
   `;
+}
+
+// ===== CUPOM DE DESCONTO =====
+function setCupomMsg(texto, erro){
+  const el = document.getElementById('cupom-msg');
+  if(!el) return;
+  el.textContent = texto || '';
+  el.style.color = erro ? 'var(--rust-dark)' : 'var(--forest-dark)';
+}
+function atualizarCupomUI(){
+  const input = document.getElementById('cupom-input');
+  const btn = document.getElementById('cupom-btn');
+  if(!input || !btn) return;
+  if(cupomAplicado){
+    input.value = cupomAplicado.codigo;
+    input.disabled = true;
+    btn.textContent = 'Remover';
+    btn.onclick = removerCupom;
+    const d = getDescontoCupom();
+    if(d > 0) setCupomMsg('✅ Cupom ' + cupomAplicado.codigo + ' aplicado: -' + brl(d), false);
+    else if(cupomAplicado.minimo > 0 && getSubtotal() < cupomAplicado.minimo) setCupomMsg('⚠️ Esse cupom vale para pedidos a partir de ' + brl(cupomAplicado.minimo) + ' em itens.', true);
+  } else {
+    input.disabled = false;
+    btn.textContent = 'Aplicar';
+    btn.onclick = aplicarCupom;
+  }
+}
+async function aplicarCupom(){
+  const input = document.getElementById('cupom-input');
+  const btn = document.getElementById('cupom-btn');
+  const codigo = (input.value || '').trim().toUpperCase().replace(/\s+/g, '');
+  if(!codigo){ setCupomMsg('Digite o código do cupom.', true); return; }
+  if(cart.length === 0){ setCupomMsg('Adicione itens ao carrinho antes de aplicar o cupom.', true); return; }
+  if(!supabaseClient){ setCupomMsg('Não foi possível validar o cupom agora. Tente de novo em instantes.', true); return; }
+  btn.disabled = true;
+  setCupomMsg('Validando cupom…', false);
+  try{
+    const { data, error } = await supabaseClient.rpc('validar_cupom', { p_codigo: codigo, p_subtotal: getSubtotal() });
+    if(error) throw error;
+    if(!data || data.ok !== true){
+      cupomAplicado = null;
+      setCupomMsg((data && data.erro) || 'Cupom inválido.', true);
+      renderCart();
+      return;
+    }
+    cupomAplicado = { codigo: data.codigo, tipo: data.tipo, valor: Number(data.valor) || 0, minimo: Number(data.minimo) || 0 };
+    renderCart();
+  } catch(e){
+    console.error('Erro ao validar cupom:', e);
+    cupomAplicado = null;
+    setCupomMsg('Não foi possível validar o cupom agora. Tente de novo em instantes.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+function removerCupom(){
+  cupomAplicado = null;
+  const input = document.getElementById('cupom-input');
+  if(input) input.value = '';
+  setCupomMsg('', false);
+  renderCart();
 }
 
 // ===== CÁLCULO AUTOMÁTICO DE TROCO =====
@@ -2297,7 +2388,7 @@ function atualizarTrocoCalculado(){
     return;
   }
 
-  const total = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
+  const total = getTotalFinal();
   const trocoCalc = valorPago - total;
   hint.style.display = 'block';
   if(trocoCalc < 0){
@@ -2326,6 +2417,8 @@ function renderCart(){
   const floatingLink = document.getElementById('floating-link');
 
   const qtdItens = cart.reduce((s,i) => s + i.qty, 0);
+  // Se o carrinho mudou (ou um cupom foi aplicado), o desconto em pontos não pode passar do que sobrou a pagar.
+  pontosParaDesconto = Math.min(pontosParaDesconto, maxPontosParaDesconto());
 
   if(cart.length === 0){
     empty.style.display = 'flex';
@@ -2353,14 +2446,17 @@ function renderCart(){
   const subtotal = getSubtotal();
   const fee = getFee();
   const extras = getExtras();
+  const descontoCupom = getDescontoCupom();
   const desconto = getDescontoPontos();
-  const total = Math.max(0, subtotal + fee + extras - desconto);
+  const total = Math.max(0, subtotal + fee + extras - descontoCupom - desconto);
 
   document.getElementById('cart-subtotal').textContent = brl(subtotal);
   document.getElementById('cart-fee-line').style.display = fee > 0 ? 'flex' : 'none';
   document.getElementById('cart-fee').textContent = brl(fee);
   document.getElementById('cart-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
   document.getElementById('cart-maionese').textContent = brl(extras);
+  document.getElementById('cart-cupom-line').style.display = descontoCupom > 0 ? 'flex' : 'none';
+  document.getElementById('cart-cupom').textContent = '-' + brl(descontoCupom);
   document.getElementById('cart-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
   document.getElementById('cart-desconto').textContent = '-' + brl(desconto);
   document.getElementById('cart-total').textContent = brl(total);
@@ -2375,12 +2471,15 @@ function renderCart(){
   document.getElementById('chk-fee').textContent = brl(fee);
   document.getElementById('chk-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
   document.getElementById('chk-maionese').textContent = brl(extras);
+  document.getElementById('chk-cupom-line').style.display = descontoCupom > 0 ? 'flex' : 'none';
+  document.getElementById('chk-cupom').textContent = '-' + brl(descontoCupom);
   document.getElementById('chk-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
   document.getElementById('chk-desconto').textContent = '-' + brl(desconto);
   document.getElementById('chk-total').textContent = brl(total);
 
   if(paymentMethod === 'Dinheiro') atualizarTrocoCalculado();
   renderResgatePontos();
+  atualizarCupomUI();
 }
 
 function flashAdded(){
@@ -2503,8 +2602,9 @@ function gerarComanda(){
   const subtotal = getSubtotal();
   const fee = getFee();
   const extras = getExtras();
+  const descontoCupom = getDescontoCupom();
   const desconto = getDescontoPontos();
-  const total = Math.max(0, subtotal + fee + extras - desconto);
+  const total = Math.max(0, subtotal + fee + extras - descontoCupom - desconto);
 
   // Largura pensada para a folha de comanda física (8,5 x 21cm), impressa em
   // fonte monoespaçada 14px — 32 colunas é o que cabe sem quebrar no meio da palavra.
@@ -2597,6 +2697,9 @@ function gerarComanda(){
     }
   }
 
+  if(descontoCupom > 0){
+    c += `🏷️ Cupom ${cupomAplicado.codigo}: -${brl(descontoCupom)}\n`;
+  }
   if(desconto > 0){
     c += `🎁 Desconto (pontos de fidelidade): -${brl(desconto)}\n`;
   }
@@ -2893,7 +2996,7 @@ async function enviarPedido(){
     if(!troco){ showError('Informe o valor que vai pagar.', document.getElementById('chk-troco')); return; }
     const valorPago = parseMoneyBR(troco);
     if(valorPago === null){ showError('Digite apenas números no valor (ex: 100).', document.getElementById('chk-troco')); return; }
-    const totalPedido = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
+    const totalPedido = getTotalFinal();
     if(valorPago < totalPedido){
       showError(`O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, document.getElementById('chk-troco'));
       return;
@@ -2920,6 +3023,24 @@ async function enviarPedido(){
   // não foi de fato debitado do saldo. Se der qualquer problema, o pedido segue sem
   // desconto — isso NUNCA pode travar o envio do pedido.
   if(btn) btn.disabled = true;
+  // Cupom: confirma no banco (e conta o uso) ANTES de gerar a comanda. Se o cupom não for
+  // mais válido (acabou, expirou), o pedido segue sem o desconto — nunca trava o envio.
+  if(cupomAplicado && getDescontoCupom() > 0){
+    try{
+      const { data: respCupom, error: erroCupom } = await supabaseClient.rpc('usar_cupom', { p_codigo: cupomAplicado.codigo, p_subtotal: getSubtotal() });
+      if(erroCupom || !respCupom || respCupom.ok !== true){
+        alert((respCupom && respCupom.erro ? respCupom.erro + '\n\n' : '') + 'Não conseguimos confirmar o cupom agora. Seu pedido vai ser enviado sem o desconto do cupom.');
+        cupomAplicado = null;
+        renderCart();
+      }
+    } catch(e){
+      console.error('Erro ao usar cupom:', e);
+      alert('Não conseguimos confirmar o cupom agora. Seu pedido vai ser enviado sem o desconto do cupom.');
+      cupomAplicado = null;
+      renderCart();
+    }
+  }
+
   const pontosASerGastos = pontosParaDesconto + (comboPontosResgatado ? CUSTO_COMBO_PONTOS : 0);
   if(pontosASerGastos > 0 && clienteLogadoUid){
     try{
@@ -2942,7 +3063,7 @@ async function enviarPedido(){
   }
 
   let comanda = gerarComanda();
-  const totalPedido = Math.max(0, getSubtotal() + getFee() + getExtras() - getDescontoPontos());
+  const totalPedido = getTotalFinal();
 
   // Baixa de estoque e atualização do perfil do cliente logado rodam em segundo
   // plano — não precisa esperar pra não atrasar o envio.
