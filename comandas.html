@@ -256,6 +256,23 @@
       </div>
     </div>
 
+    <div id="builder-desconto-box" style="border-top:1px dashed #ccc; padding-top:12px; margin-bottom:12px;">
+      <h4 style="margin:0 0 8px;">🏷️ Desconto especial</h4>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="b-campo"><label>Tipo de desconto</label>
+          <select id="builder-desc-tipo" onchange="renderBuilderCart()">
+            <option value="nenhum">Sem desconto</option>
+            <option value="percentual">Porcentagem (%)</option>
+            <option value="valor_final">Digitar o valor final do pedido</option>
+            <option value="valor">Desconto em reais (R$)</option>
+          </select>
+        </div>
+        <div class="b-campo" id="builder-desc-valor-wrap" style="display:none;"><label id="builder-desc-valor-lbl">Valor</label><input type="text" inputmode="decimal" id="builder-desc-valor" placeholder="0" oninput="renderBuilderCart()"></div>
+        <div class="b-campo" id="builder-desc-motivo-wrap" style="display:none;"><label>Motivo (opcional)</label><input type="text" id="builder-desc-motivo" placeholder="Ex: cliente fiel" oninput="renderBuilderCart()"></div>
+      </div>
+      <div id="builder-desc-resumo" style="font-size:.82rem; margin-top:2px;"></div>
+    </div>
+
     <div class="b-rodape">
       <div class="b-total">Total: <span id="builder-total">R$ 0,00</span></div>
       <div class="acoes">
@@ -820,6 +837,7 @@ function abrirNovoPedido(){
   document.getElementById('builder-ketchup').checked = false;
   document.getElementById('builder-maionese').value = 0;
   document.querySelector('input[name="builder-fulfillment"][value="entrega"]').checked = true;
+  aplicarDescontoNoBuilder(null);
   atualizarBuilderFulfillment();
   atualizarBuilderTroco();
   renderBuilderFormItem();
@@ -909,6 +927,7 @@ function abrirEditarPedido(id){
   document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
   const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
   document.getElementById('builder-maionese').value = mMaionese ? mMaionese[1] : 0;
+  aplicarDescontoNoBuilder(extrairDescontoDaComanda(p.texto_comanda || ''));
 
   atualizarBuilderFulfillment();
   atualizarBuilderTroco();
@@ -1151,7 +1170,106 @@ function builderExtras(){
   const qtd = parseInt(document.getElementById('builder-maionese')?.value, 10) || 0;
   return Math.max(0, qtd - 1) * MAIONESE_PRICE;
 }
-function builderTotal(){ return builderSubtotal() + builderFee() + builderExtras(); }
+function arred2B(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
+function parseNumDescB(s){
+  if(s === null || s === undefined) return null;
+  let t = String(s).replace(/[Rr]\$/g, '').replace(/\s/g, '');
+  if(!t) return null;
+  if(t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
+  else if(t.includes(',')) t = t.replace(',', '.');
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+function builderBruto(){ return builderSubtotal() + builderFee() + builderExtras(); }
+
+// Calcula o desconto especial a partir do que foi preenchido no bloco "Desconto especial".
+// Sempre limitado entre 0 e o total sem desconto — o total final nunca fica negativo.
+function builderDescontoInfo(){
+  const bruto = arred2B(builderBruto());
+  const info = { tipo:'nenhum', bruto, desconto:0, aviso:'', pct:null, motivo:'' };
+  const tipoEl = document.getElementById('builder-desc-tipo');
+  if(!tipoEl) return info;
+  info.tipo = tipoEl.value;
+  info.motivo = (document.getElementById('builder-desc-motivo')?.value || '').replace(/[:\r\n]+/g, ' ').trim();
+  if(info.tipo === 'nenhum' || bruto <= 0) return info;
+  const v = parseNumDescB(document.getElementById('builder-desc-valor')?.value);
+  if(v === null) return info;
+  if(v < 0){ info.aviso = 'O valor não pode ser negativo.'; return info; }
+  if(info.tipo === 'percentual'){
+    let pct = v;
+    if(pct > 100){ pct = 100; info.aviso = 'A porcentagem máxima é 100%.'; }
+    info.pct = pct;
+    info.desconto = arred2B(bruto * pct / 100);
+  } else if(info.tipo === 'valor_final'){
+    if(v > bruto){ info.aviso = 'O valor final (' + brlB(v) + ') é maior que o total sem desconto (' + brlB(bruto) + '). Nenhum desconto aplicado.'; return info; }
+    info.desconto = arred2B(bruto - v);
+  } else if(info.tipo === 'valor'){
+    if(v > bruto) info.aviso = 'O desconto é maior que o total — limitado ao total do pedido.';
+    info.desconto = arred2B(Math.min(v, bruto));
+  }
+  return info;
+}
+function builderTotal(){ const i = builderDescontoInfo(); return Math.max(0, arred2B(i.bruto - i.desconto)); }
+
+// Texto da linha de desconto na comanda impressa. O mesmo texto é lido de volta
+// por extrairDescontoDaComanda() quando o pedido é aberto em "Editar itens".
+function builderRotuloDesconto(info){
+  const m = info.motivo;
+  if(info.tipo === 'percentual' && info.pct !== null) return 'Desconto ' + String(info.pct).replace('.', ',') + '%' + (m ? ' (' + m + ')' : '');
+  if(m && /^(desconto|cupom)/i.test(m)) return m;
+  return m ? 'Desconto (' + m + ')' : 'Desconto';
+}
+
+// Lê de volta o desconto que já está escrito no texto da comanda (desconto especial,
+// cupom ou pontos de fidelidade vindos do cardápio), para que ao editar os itens de um
+// pedido o desconto NÃO se perca e o total não suba sozinho.
+function extrairDescontoDaComanda(texto){
+  const achados = [];
+  const re = /^\S+[ \t]+((?:Desconto|Cupom)[^:\n]*):[ \t]*-[ \t]*R\$[ \t]*([\d.,]+)/gmi;
+  let m;
+  while((m = re.exec(texto || '')) !== null){
+    const v = parseNumDescB(m[2]);
+    if(v !== null && v > 0) achados.push({ rotulo: m[1].trim(), valor: v });
+  }
+  if(achados.length === 0) return null;
+  const fmt = n => n.toFixed(2).replace('.', ',');
+  if(achados.length === 1){
+    const rotulo = achados[0].rotulo, valor = achados[0].valor;
+    const mp = rotulo.match(/^Desconto\s+(\d+(?:[.,]\d+)?)%\s*(?:\((.*)\))?$/i);
+    if(mp) return { tipo:'percentual', valor: mp[1], motivo: mp[2] || '' };
+    const mm = rotulo.match(/^Desconto\s*\((.*)\)$/i);
+    if(mm) return { tipo:'valor', valor: fmt(valor), motivo: mm[1] };
+    if(/^Desconto$/i.test(rotulo)) return { tipo:'valor', valor: fmt(valor), motivo: '' };
+    return { tipo:'valor', valor: fmt(valor), motivo: rotulo };
+  }
+  const soma = achados.reduce((s, a) => s + a.valor, 0);
+  return { tipo:'valor', valor: fmt(soma), motivo: achados.map(a => a.rotulo).join(' + ') };
+}
+function aplicarDescontoNoBuilder(d){
+  document.getElementById('builder-desc-tipo').value = d ? d.tipo : 'nenhum';
+  document.getElementById('builder-desc-valor').value = d ? d.valor : '';
+  document.getElementById('builder-desc-motivo').value = d ? d.motivo : '';
+}
+function atualizarDescontoBuilderUI(){
+  const tipoEl = document.getElementById('builder-desc-tipo');
+  if(!tipoEl) return;
+  const tipo = tipoEl.value;
+  const mostra = tipo !== 'nenhum';
+  document.getElementById('builder-desc-valor-wrap').style.display = mostra ? 'flex' : 'none';
+  document.getElementById('builder-desc-motivo-wrap').style.display = mostra ? 'flex' : 'none';
+  const lbl = document.getElementById('builder-desc-valor-lbl');
+  const inp = document.getElementById('builder-desc-valor');
+  if(tipo === 'percentual'){ lbl.textContent = 'Porcentagem (%)'; inp.placeholder = 'Ex: 10'; }
+  else if(tipo === 'valor_final'){ lbl.textContent = 'Valor final do pedido (R$)'; inp.placeholder = 'Ex: 65,00'; }
+  else if(tipo === 'valor'){ lbl.textContent = 'Desconto (R$)'; inp.placeholder = 'Ex: 5,00'; }
+  const info = builderDescontoInfo();
+  let html = '';
+  if(info.desconto > 0){
+    html = 'Total sem desconto: <b>' + brlB(info.bruto) + '</b> · Desconto: <b style="color:#c0392b;">-' + brlB(info.desconto) + '</b> · Cliente paga: <b>' + brlB(arred2B(info.bruto - info.desconto)) + '</b>';
+  }
+  if(info.aviso) html += '<div style="color:#c0392b; margin-top:4px;">⚠️ ' + info.aviso + '</div>';
+  document.getElementById('builder-desc-resumo').innerHTML = html;
+}
 
 function renderBuilderCart(){
   const lista = document.getElementById('builder-cart-lista');
@@ -1170,6 +1288,7 @@ function renderBuilderCart(){
   }
   const totalEl = document.getElementById('builder-total');
   if(totalEl) totalEl.textContent = brlB(builderTotal());
+  atualizarDescontoBuilderUI();
 }
 
 // ---------- texto da comanda + itens estruturados ----------
@@ -1203,7 +1322,8 @@ function gerarComandaBuilder(){
   const subtotal = builderSubtotal();
   const fee = builderFee();
   const extras = builderExtras();
-  const total = subtotal + fee + extras;
+  const descInfo = builderDescontoInfo();
+  const total = Math.max(0, arred2B(subtotal + fee + extras - descInfo.desconto));
 
   const LARG = 32;
   const SEP = '='.repeat(LARG);
@@ -1264,6 +1384,9 @@ function gerarComandaBuilder(){
     }
   }
 
+  if(descInfo.desconto > 0){
+    c += quebrarTextoB(`🏷️ ${builderRotuloDesconto(descInfo)}: -${brlB(descInfo.desconto)}`, LARG, '') + '\n';
+  }
   c += `${SEP}\n`;
   c += `💰 *TOTAL A COBRAR: ${brlB(total)}*\n`;
   c += `${SEP}\n`;
