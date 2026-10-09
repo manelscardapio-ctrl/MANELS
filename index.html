@@ -744,15 +744,16 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
 
       <div id="endereco-field" class="field-group" data-wstep="4">
-        <span class="field-label">Localização para entrega *</span>
+        <span class="field-label">Endereço para entrega *</span>
         <div class="geo-guia" id="geo-guia">
-          <b>📍 Precisamos da sua localização exata para a entrega chegar certinho.</b>
+          <b>📍 Recomendamos muito compartilhar sua localização: o motoboy chega mais rápido e certinho.</b>
           <ol>
             <li>Ligue o <b>GPS (Localização)</b> do celular e, se puder, fique na porta de casa ou em local aberto.</li>
             <li>Toque no botão verde abaixo.</li>
             <li>Quando o navegador perguntar, toque em <b>Permitir</b> (ou <b>Permitir ao usar o app</b>).</li>
             <li>Aguarde alguns segundos até aparecer <b>"Localização capturada"</b>.</li>
           </ol>
+          <div style="margin-top:.5rem;"><b>Não conseguiu?</b> Sem problema: se a localização falhar, vão aparecer os campos para você digitar o endereço e continuar o pedido.</div>
         </div>
         <div id="geo-actions" style="margin:.3rem 0 .5rem;">
           <button type="button" class="geo-btn-main" id="geo-btn" onclick="compartilharLocalizacao()">📍 Compartilhar minha localização</button>
@@ -761,7 +762,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div id="geo-ajuda" class="geo-ajuda" style="display:none;"></div>
         <div id="endereco-input-wrap" style="display:none; margin-top:.5rem;">
           <div id="geo-nota" class="geo-nota" style="display:none;"></div>
-          <label class="geo-confirma" id="geo-confirma-label" for="chk-confirma-local">
+          <label class="geo-confirma" id="geo-confirma-label" for="chk-confirma-local" style="display:none;">
             <input type="checkbox" id="chk-confirma-local" onchange="this.parentElement.classList.remove('field-error')">
             <span>✅ Confirmo que estou <b>no local onde quero receber</b> o pedido.</span>
           </label>
@@ -2755,7 +2756,9 @@ function gerarComanda(){
   if(fulfillment === 'entrega'){
     c += quebrarTexto(`📍 Endereço: ${endereco}`, LARG, '') + '\n';
     if(referencia){ c += quebrarTexto(`📌 Referência: ${referencia}`, LARG, '') + '\n'; }
-    if(userGeoLat !== null && userGeoLng !== null){
+    if(!wzGeoValida()){
+      c += quebrarTexto('⚠️ Cliente sem GPS: confirmar o endereço pelo WhatsApp se precisar', LARG, '') + '\n';
+    } else {
       const gpsInfo = userGeoAcc ? ` (GPS ±${Math.round(userGeoAcc)} m${document.getElementById('chk-confirma-local')?.checked ? ' · cliente no local' : ''})` : '';
       c += `🗺️ Mapa: https://www.google.com/maps?q=${userGeoLat},${userGeoLng}${gpsInfo}\n`;
     }
@@ -3258,19 +3261,18 @@ function wzTelefoneValido(t){
 
 function wzEntregaErro(){
   const $ = id => document.getElementById(id);
-  if(!wzGeoValida()){
-    const antiga = userGeoLat !== null && userGeoAcc !== null && userGeoAcc <= GEO_PRECISAO_MAX_M;
+  atualizarEnderecoComposto();
+  // Fluxo: o cliente tenta o GPS primeiro. Se der certo ou falhar, os campos de endereço
+  // aparecem e ele nunca fica travado. Só bloqueamos enquanto ele ainda não tentou o GPS.
+  if($('endereco-input-wrap').style.display === 'none'){
     return {
-      msg: antiga
-        ? 'Sua localização ficou antiga. Toque em "Atualizar localização" antes de continuar.'
-        : 'Compartilhe sua localização pelo GPS para continuar: toque em "Compartilhar minha localização" e depois em Permitir.',
+      msg: 'Toque em "Compartilhar minha localização" e depois em Permitir. Se não funcionar, vamos liberar os campos para você digitar o endereço.',
       el: $('geo-btn')
     };
   }
-  abrirEnderecoManual();
-  atualizarEnderecoComposto();
-  if(!$('chk-confirma-local').checked){
-    return { msg: 'Marque a caixinha confirmando que você está no local onde quer receber o pedido.', el: $('geo-confirma-label') };
+  // A confirmação "estou no local" só vale quando há uma localização GPS válida.
+  if(wzGeoValida() && !$('chk-confirma-local').checked){
+    return { msg: 'Marque a caixinha confirmando que você está no local onde quer receber o pedido (ou, se não estiver, atualize a localização / use só o endereço digitado).', el: $('geo-confirma-label') };
   }
   if($('chk-rua').value.trim().length < 3){
     return { msg: 'Informe o nome da rua.', el: $('chk-rua') };
@@ -3289,6 +3291,7 @@ function wzEntregaExtraRevisao(){
   let h = '';
   if(ref) h += `<small>📌 Referência: ${wzEsc(ref)}</small>`;
   if(wzGeoValida()) h += `<small>📍 GPS capturado (precisão de ±${Math.round(userGeoAcc)} m) · você confirmou estar no local</small>`;
+  else h += `<small>📍 Sem GPS · vamos entregar pelo endereço digitado</small>`;
   return h;
 }
 
@@ -3367,8 +3370,8 @@ function wzMontarRevisao(){
   box.innerHTML = partes.join('');
 }
 
-/* ==================== LOCALIZAÇÃO GPS OBRIGATÓRIA PARA ENTREGA ==================== */
-// Regras: o cliente precisa compartilhar o GPS; só aceitamos uma leitura precisa
+/* ==================== LOCALIZAÇÃO GPS (RECOMENDADA, NÃO OBRIGATÓRIA) ==================== */
+// Regras: o GPS vem primeiro; se falhar (ou for negado), os campos de endereço aparecem e o cliente fecha o pedido sem ele. Quando compartilha, só aceitamos uma leitura precisa
 // (até GEO_PRECISAO_MAX_M metros) e recente (até GEO_VALIDADE_MS), e ele confirma que está no local.
 let GEO_PRECISAO_MAX_M = 100;     // acima disso o sinal é considerado fraco e o cliente tenta de novo
 let GEO_PRECISAO_BOA_M = 25;      // com essa precisão paramos de procurar na hora
@@ -3413,7 +3416,7 @@ function geoMostrarAjuda(){
     : '<b>No Android:</b> toque no <b>cadeado</b> ao lado do endereço do site › <b>Permissões</b> › <b>Localização</b> › <b>Permitir</b>. Confira também se a <b>Localização</b> do celular está ligada (deslize a barra de cima da tela).';
   const msg = encodeURIComponent('Oi! Estou com dificuldade para compartilhar a localização no site.');
   el.innerHTML = `${passos}<br>Depois <b>recarregue a página</b> e toque no botão de novo.<br>`
-    + `Se preferir, escolha <b>Retirar no balcão</b>, ou <a href="https://wa.me/${WHATSAPP_NUMBER}?text=${msg}" target="_blank" rel="noopener">fale com a gente no WhatsApp</a>.`;
+    + `Se preferir, <b>preencha o endereço manualmente abaixo</b> e siga com o pedido, ou <a href="https://wa.me/${WHATSAPP_NUMBER}?text=${msg}" target="_blank" rel="noopener">fale com a gente no WhatsApp</a>.`;
   el.style.display = 'block';
 }
 
@@ -3425,11 +3428,13 @@ function geoAtualizarUI(){
     btn.classList.add('ok');
     geoStatus(`<b>✅ Localização capturada</b> (precisão de ±${Math.round(userGeoAcc)} m).`, 'ok');
     document.getElementById('geo-guia').style.display = 'none';
+    document.getElementById('geo-confirma-label').style.display = 'flex';
     abrirEnderecoManual();
   } else if(userGeoLat !== null && userGeoAcc !== null && userGeoAcc <= GEO_PRECISAO_MAX_M){
     btn.textContent = '🔄 Atualizar localização';
     btn.classList.remove('ok');
-    geoStatus('Sua localização ficou antiga. Toque em <b>Atualizar localização</b> para continuar.', 'erro');
+    document.getElementById('geo-confirma-label').style.display = 'none';
+    geoStatus('Sua localização ficou antiga. Recomendamos tocar em <b>Atualizar localização</b> (ou siga só com o endereço digitado).', 'erro');
   }
 }
 
@@ -3465,8 +3470,10 @@ function compartilharLocalizacao(){
   btn.classList.remove('ok');
 
   if(!navigator.geolocation || window.isSecureContext === false){
-    geoStatus('Este navegador não consegue compartilhar a localização. Abra o site no <b>Chrome</b> ou no <b>Safari</b> do celular, ou escolha <b>Retirar no balcão</b>.', 'erro');
+    geoStatus('Este navegador não consegue compartilhar a localização. Sem problema: <b>preencha o endereço abaixo</b> e continue o pedido (ou abra o site no <b>Chrome</b>/<b>Safari</b> do celular para usar o GPS).', 'erro');
     geoMostrarAjuda();
+    abrirEnderecoManual();
+    geoNota('Preencha a rua, o número e o ponto de referência abaixo.');
     return;
   }
 
@@ -3483,13 +3490,18 @@ function compartilharLocalizacao(){
     btn.textContent = '🔄 Tentar de novo';
     geoStatus(html, 'erro');
     geoMostrarAjuda();
+    abrirEnderecoManual();
+    if(!wzGeoValida()){
+      document.getElementById('geo-confirma-label').style.display = 'none';
+      geoNota('Não conseguimos pegar sua localização, sem problema! Preencha a rua, o número e o ponto de referência abaixo.');
+    }
   };
   const finalizar = () => {
     geoParar();
-    if(!melhor){ falhou('Não recebemos sinal de GPS. Ligue a <b>Localização</b> do celular, vá para um local aberto e tente de novo.'); return; }
+    if(!melhor){ falhou('Não recebemos sinal de GPS. Ligue a <b>Localização</b> do celular, vá para um local aberto e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.'); return; }
     const acc = melhor.coords.accuracy;
     if(acc > GEO_PRECISAO_MAX_M){
-      falhou(`Sinal de GPS fraco (precisão de ±${Math.round(acc)} m). Ligue o <b>GPS</b>, vá para um local aberto (porta de casa ou rua) e toque em <b>Tentar de novo</b>.`);
+      falhou(`Sinal de GPS fraco (precisão de ±${Math.round(acc)} m). Ligue o <b>GPS</b>, vá para um local aberto (porta de casa ou rua) e toque em <b>Tentar de novo</b> — ou, se preferir, <b>preencha o endereço abaixo</b>.`);
       return;
     }
     userGeoLat = melhor.coords.latitude;
@@ -3503,6 +3515,7 @@ function compartilharLocalizacao(){
     geoStatus(`<b>✅ Localização capturada</b> (precisão de ±${Math.round(acc)} m). Agora confira o endereço abaixo.`, 'ok');
     document.getElementById('geo-ajuda').style.display = 'none';
     document.getElementById('geo-guia').style.display = 'none';
+    document.getElementById('geo-confirma-label').style.display = 'flex';
     abrirEnderecoManual();
     geoPreencherEndereco();
   };
@@ -3515,13 +3528,13 @@ function compartilharLocalizacao(){
     geoStatus(`Buscando sinal de GPS… precisão atual de ±${Math.round(acc)} m. Aguarde alguns segundos.`, 'info');
   }, err => {
     if(err.code === err.PERMISSION_DENIED){
-      falhou('<b>Permissão de localização negada.</b> Sem ela não conseguimos entregar. Veja como liberar abaixo e tente de novo.');
+      falhou('<b>Permissão de localização negada.</b> Tudo bem! Você pode seguir <b>preenchendo o endereço abaixo</b>. Se quiser liberar a localização para a entrega ficar mais precisa, veja como no aviso abaixo.');
     } else if(melhor){
       finalizar();
     } else if(err.code === err.TIMEOUT){
-      falhou('Demorou demais para achar o sinal de GPS. Vá para um local aberto e tente de novo.');
+      falhou('Demorou demais para achar o sinal de GPS. Vá para um local aberto e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.');
     } else {
-      falhou('Não foi possível obter sua localização. Confira se o <b>GPS</b> do celular está ligado e tente de novo.');
+      falhou('Não foi possível obter sua localização. Confira se o <b>GPS</b> do celular está ligado e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.');
     }
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: GEO_ESPERA_MAX_MS });
   geoTimer = setTimeout(finalizar, GEO_ESPERA_MAX_MS);
