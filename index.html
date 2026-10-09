@@ -265,6 +265,30 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .enviando-box small{color:var(--ink-soft); font-size:13.5px; line-height:1.4; display:block;}
 .enviando-spinner{width:40px; height:40px; border:4px solid rgba(232,89,12,.18); border-top-color:var(--accent); border-radius:50%; margin:0 auto; animation:enviando-spin .8s linear infinite;}
 @keyframes enviando-spin{to{transform:rotate(360deg);}}
+
+/* ===== Passo a passo do pedido (checkout) ===== */
+.w-hide{display:none !important;}
+#modal-checkout .section-head{display:none;}
+#modal-checkout #finalizar{margin-top:0 !important; padding-top:0 !important; border-top:none !important;}
+.wz-progress{margin:0 0 1.1rem;}
+.wz-step-count{display:block; font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-dark); margin-bottom:.15rem;}
+.wz-step-title{font-family:'Fraunces',serif; font-size:22px; font-weight:700; color:var(--ink); margin:0 0 .6rem;}
+.wz-bar{display:flex; gap:5px;}
+.wz-bar span{flex:1; height:6px; border-radius:99px; background:var(--line);}
+.wz-bar span.done{background:var(--forest);}
+.wz-bar span.now{background:var(--accent);}
+.wz-nav-wrap{position:sticky; bottom:0; z-index:4; background:var(--card); margin-top:1.1rem; padding:.7rem 0 .15rem; border-top:1px solid var(--line);}
+.wz-nav-wrap .error-msg{margin:0 0 .6rem;}
+.wz-nav{display:flex; gap:.6rem;}
+.wz-btn{padding:.95rem 1rem; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; border:1.5px solid var(--line); background:var(--card); color:var(--ink);}
+.wz-btn.wz-back{flex:0 0 32%;}
+.wz-btn.wz-next{flex:1; background:var(--forest); border-color:var(--forest); color:#fff;}
+.wz-rev-bloco{border:1.5px solid var(--line); border-radius:12px; padding:.7rem .85rem; margin-bottom:.7rem; background:var(--bg);}
+.wz-rev-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);}
+.wz-edit{background:none; border:none; color:var(--accent-dark); font-weight:800; font-size:13.5px; text-decoration:underline; cursor:pointer; padding:.2rem .1rem;}
+.wz-rev-body{font-size:15px; color:var(--ink); line-height:1.45;}
+.wz-rev-body small{display:block; color:var(--ink-soft); font-size:13px;}
+.wz-rev-linha{display:flex; justify-content:space-between; gap:.6rem;}
 </style>
 
 <style id="fix-fotos-sem-corte">
@@ -622,26 +646,34 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <button class="modal-close" onclick="closeModal('checkout')">×</button>
     </div>
     <div class="modal-body">
-      <section class="section" id="carrinho">
+      <div class="wz-progress" id="wz-progress">
+        <span class="wz-step-count" id="wz-contador">Passo 1 de 7</span>
+        <h3 class="wz-step-title" id="wz-titulo">Confira seus itens</h3>
+        <div class="wz-bar" id="wz-bar"></div>
+      </div>
+      <div id="encomenda-antecipada-note" class="note-box" data-wstep="1 7" style="display:none; border-color:var(--rust);">
+        <b>⚠️ Estamos fechados agora.</b> Esse pedido será registrado como <b>encomenda antecipada</b> e vamos precisar de pagamento adiantado ou de um sinal de 50% pra confirmar. Combinamos os detalhes com você pelo WhatsApp assim que enviar.
+      </div>
+      <section class="section" id="carrinho" data-wstep="1 2">
 
     <div class="section-head">
       <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.3 11.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/></svg></div>
       <h2>Seu Carrinho</h2>
     </div>
     <div class="cart-box" id="cart-box">
-      <div class="cart-empty-alert" id="cart-empty">
+      <div class="cart-empty-alert" id="cart-empty" data-wstep="1">
         <span class="ico">⚠️</span>
         <div class="txt">
           <b>Seu carrinho está vazio</b>
           <span>Escolher o sabor não adiciona o item — role a página pra cima e toque em <b>"Adicionar ao Carrinho"</b> no que você quer pedir.</span>
         </div>
       </div>
-      <div id="cart-items"></div>
-      <label class="complement-toggle" for="want-ketchup">
+      <div id="cart-items" data-wstep="1"></div>
+      <label class="complement-toggle" for="want-ketchup" data-wstep="2">
         <input type="checkbox" id="want-ketchup" onchange="toggleKetchup(this.checked)">
         <span>Quer <b>Ketchup</b>? <br><small>Grátis</small></span>
       </label>
-      <div class="complement-toggle" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
+      <div class="complement-toggle" data-wstep="2" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
         <span>Quer <b>Maionese Temperada</b>? <br><small>A 1ª é grátis · a partir da 2ª, + R$ 1,00 cada</small></span>
         <div class="stepper">
           <button class="step-btn" onclick="changeMaioneseQty(-1)">-</button>
@@ -649,7 +681,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <button class="step-btn" onclick="changeMaioneseQty(1)">+</button>
         </div>
       </div>
-      <div id="cart-summary" style="display:none;">
+      <div id="cart-summary" data-wstep="1 2" style="display:none;">
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
         <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
@@ -660,7 +692,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
   
       </section>
-      <section class="section" id="finalizar" style="margin-top:1.6rem; padding-top:1.4rem; border-top:1px dashed var(--line);">
+      <section class="section" id="finalizar" data-wstep="3 4 5 6 7" style="margin-top:1.6rem; padding-top:1.4rem; border-top:1px dashed var(--line);">
 
     <div class="section-head">
       <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></div>
@@ -668,10 +700,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
 
     <div class="panel">
-      <div id="encomenda-antecipada-note" class="note-box" style="display:none; border-color:var(--rust);">
-        <b>⚠️ Estamos fechados agora.</b> Esse pedido será registrado como <b>encomenda antecipada</b> e vamos precisar de pagamento adiantado ou de um sinal de 50% pra confirmar. Combinamos os detalhes com você pelo WhatsApp assim que enviar.
-      </div>
-      <div id="login-widget" style="margin-bottom:14px;">
+      
+      <div id="login-widget" data-wstep="3" style="margin-bottom:14px;">
         <button type="button" id="login-btn-entrar" onclick="entrarComGoogleIndex()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; color:#3c4043; border:1px solid #dadce0; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; font-family:'Roboto',Arial,sans-serif; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08);">
           <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.08-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V4.95H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
           <span>Entrar com Google <span style="font-weight:400; opacity:.8;">— salva seus dados pra próxima compra</span></span>
@@ -680,24 +710,23 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <span>👋 Olá, <b id="login-nome-usuario"></b>! <span id="login-pontos-usuario" style="opacity:.75; font-size:.85rem;"></span></span>
           <button type="button" onclick="sairDoLogin()" style="border:none; background:none; color:var(--rust); font-weight:bold; cursor:pointer; font-size:.8rem;">Sair</button>
         </div>
-        <div id="pontos-resgate" style="display:none; margin-top:10px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
       </div>
-      <div class="field-group">
+      <div class="field-group" data-wstep="3">
         <span class="field-label">Nome completo *</span>
         <input type="text" id="chk-nome" placeholder="Seu nome" oninput="this.classList.remove('field-error')" />
       </div>
-      <div class="field-group">
+      <div class="field-group" data-wstep="3">
         <span class="field-label">Telefone *</span>
         <input type="tel" id="chk-telefone" placeholder="(88) 9 0000-0000" oninput="this.classList.remove('field-error')" />
       </div>
 
-      <span class="field-label">Como você vai receber o pedido? *</span>
-      <div class="fulfill-row">
+      <span class="field-label" data-wstep="4">Como você vai receber o pedido? *</span>
+      <div class="fulfill-row" data-wstep="4">
         <button class="fulfill-btn active" id="fulfill-entrega" onclick="selectFulfillment('entrega')">🛵 Entregar</button>
         <button class="fulfill-btn" id="fulfill-retirada" onclick="selectFulfillment('retirada')">🏠 Retirar no Balcão</button>
       </div>
 
-      <div id="endereco-field" class="field-group">
+      <div id="endereco-field" class="field-group" data-wstep="4">
         <span class="field-label">Endereço de entrega *</span>
         <!-- Localização automática via GPS + Geocoding Reverso (Nominatim/OpenStreetMap) -->
         <div id="geo-actions" style="margin:.3rem 0 .5rem;">
@@ -710,19 +739,19 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         </div>
         <div class="note-box"><b>Atenção:</b> pedidos abaixo de R$ 15,00 têm taxa de entrega de R$ 3,00. A partir de R$ 15,00, a entrega é grátis.</div>
       </div>
-      <div id="retirada-note" class="note-box" style="display:none;">
+      <div id="retirada-note" class="note-box" data-wstep="4" style="display:none;">
         <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
       </div>
 
-      <span class="field-label">Forma de pagamento *</span>
-      <div class="pay-row" id="pay-row">
+      <span class="field-label" data-wstep="5">Forma de pagamento *</span>
+      <div class="pay-row" id="pay-row" data-wstep="5">
         <button class="opt-btn" data-pay="Dinheiro" onclick="selectPayment('Dinheiro')">Dinheiro</button>
         <button class="opt-btn" data-pay="PIX" onclick="selectPayment('PIX')">PIX</button>
         <button class="opt-btn" data-pay="Débito" onclick="selectPayment('Débito')">Débito</button>
         <button class="opt-btn" data-pay="Crédito" onclick="selectPayment('Crédito')">Crédito</button>
       </div>
 
-      <div id="troco-field" class="field-group" style="display:none;">
+      <div id="troco-field" class="field-group" data-wstep="5" style="display:none;">
         <span class="field-label">Vai precisar de troco?</span>
         <div class="pay-row" id="troco-need-row">
           <button type="button" class="opt-btn" data-troco-need="sim" onclick="selectTrocoNeed(true)">Sim</button>
@@ -734,15 +763,17 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <div id="troco-calc-hint" class="note-box" style="display:none; margin-top:.4rem;"></div>
         </div>
       </div>
-      <div id="pix-note" class="note-box" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
-      <div id="card-note" class="note-box" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
+      <div id="pix-note" class="note-box" data-wstep="5" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
+      <div id="card-note" class="note-box" data-wstep="5" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
 
-      <div class="field-group">
+      <div class="field-group" data-wstep="6">
         <span class="field-label">Observações gerais (opcional)</span>
         <textarea id="chk-obs" rows="2" placeholder="Ex: sem cebola, tocar a campainha, etc."></textarea>
       </div>
 
-      <div class="field-group" id="cupom-box">
+      <div id="wz-revisao" data-wstep="7"></div>
+      <div id="pontos-resgate" data-wstep="7" style="display:none; margin-bottom:12px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
+      <div class="field-group" id="cupom-box" data-wstep="7">
         <span class="field-label">Cupom de desconto</span>
         <div style="display:flex; gap:8px;">
           <input type="text" id="cupom-input" placeholder="Digite seu cupom" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase; flex:1; min-width:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCupom();}" />
@@ -751,16 +782,17 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div id="cupom-msg" style="font-size:.82rem; margin-top:6px; min-height:1em;"></div>
       </div>
 
+      <div id="wz-totais" data-wstep="7">
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
       <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
       <div class="summary-line" id="chk-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="chk-cupom">-R$ 0,00</span></div>
       <div class="summary-line" id="chk-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="chk-desconto">-R$ 0,00</span></div>
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
+      </div>
 
-      <div class="error-msg" id="chk-error"></div>
-      <button class="wa-btn" id="enviar-pedido-btn" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
-      <div id="wa-fallback" style="display:none; margin-top:.6rem; text-align:center;">
+      <button class="wa-btn" id="enviar-pedido-btn" data-wstep="7" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
+      <div id="wa-fallback" data-wstep="7" style="display:none; margin-top:.6rem; text-align:center;">
         <a id="wa-fallback-link" href="#" target="_blank" rel="noopener" style="display:inline-block; font-size:12.5px; font-weight:700; color:var(--forest-dark); text-decoration:underline; padding:.4rem;">
           O WhatsApp não abriu? Toque aqui para enviar o pedido
         </a>
@@ -768,6 +800,13 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
   
       </section>
+      <div class="wz-nav-wrap" id="wz-nav-wrap">
+        <div class="error-msg" id="chk-error"></div>
+        <div class="wz-nav">
+          <button type="button" class="wz-btn wz-back" id="wz-voltar" onclick="wzBack()">← Voltar</button>
+          <button type="button" class="wz-btn wz-next" id="wz-continuar" onclick="wzNext()">Continuar →</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -798,7 +837,7 @@ function closeModal(id){
   ov.classList.remove('open');
   document.body.style.overflow = '';
 }
-function openCheckout(){ openModal('checkout'); }
+function openCheckout(passo){ wzStart(passo); openModal('checkout'); }
 function openPizzaCard(size){
   selectPizzaSize(size);
   openModal('pizzas');
@@ -1404,7 +1443,7 @@ const CARRINHO_PRE_LOGIN_KEY = 'manels_carrinho_pre_login';
 function salvarCarrinhoAntesDoLogin(){
   try{
     if(cart.length === 0) return;
-    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod }));
+    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod, wantKetchup, maioneseQty }));
   } catch(e){
     console.error('Não foi possível guardar o carrinho antes do login:', e);
   }
@@ -1420,9 +1459,13 @@ function restaurarCarrinhoAposLogin(){
       cartIdCounter = dados.cartIdCounter || (cart.length + 1);
       if(dados.fulfillment) fulfillment = dados.fulfillment;
       if(dados.paymentMethod) paymentMethod = dados.paymentMethod;
+      if(dados.wantKetchup){ wantKetchup = true; const k = document.getElementById('want-ketchup'); if(k) k.checked = true; }
+      if(dados.maioneseQty > 0){ maioneseQty = dados.maioneseQty; const m = document.getElementById('maionese-qty'); if(m) m.textContent = maioneseQty; }
+      selectFulfillment(fulfillment);
+      if(paymentMethod) selectPayment(paymentMethod);
       renderCart();
-      // A pessoa estava no checkout quando saiu pra logar — volta direto pra lá.
-      setTimeout(() => openCheckout(), 300);
+      // A pessoa estava no checkout quando saiu pra logar — volta direto pro passo "Seus dados".
+      setTimeout(() => openCheckout(3), 300);
     }
   } catch(e){
     console.error('Não foi possível restaurar o carrinho após o login:', e);
@@ -2557,19 +2600,7 @@ function setupScrollSpy(){
         pills.forEach(p=>p.classList.remove('active'));
         map[entry.target.id]?.classList.add('active');
 
-        // Quando o cliente CHEGA na seção de finalizar pedido, o botão flutuante
-        // deixa de "rolar até lá" (ele já está lá) e passa a enviar o pedido direto
-        // pelo WhatsApp — evita o cliente clicar em "Finalizar" de novo achando
-        // que é isso que envia o pedido, quando na verdade não faz nada.
-        if(entry.target.id === 'finalizar'){
-          floatingLink.textContent = '📲 Enviar Pedido';
-          floatingLink.removeAttribute('href');
-          floatingLink.onclick = (e) => { e.preventDefault(); enviarPedido(); };
-        } else {
-          floatingLink.textContent = 'Finalizar →';
-          floatingLink.setAttribute('href', '#finalizar');
-          floatingLink.onclick = null;
-        }
+        // (o botão flutuante sempre abre o carrinho; o envio do pedido acontece só no último passo)
       }
     });
   }, { rootMargin:'-40% 0px -50% 0px' });
@@ -2788,6 +2819,7 @@ function compartilharLocalizacao(){
 }
 
 function showError(msg, fieldEl){
+  if(fieldEl) wzRevealField(fieldEl);
   const el = document.getElementById('chk-error');
   el.textContent = msg;
   el.classList.add('show');
@@ -2986,7 +3018,7 @@ async function enviarPedido(){
   const endereco = document.getElementById('chk-endereco').value.trim();
   const troco = document.getElementById('chk-troco').value.trim();
 
-  if(cart.length === 0){ showError('Seu carrinho está vazio. Adicione pelo menos um item.'); document.getElementById('carrinho').scrollIntoView({behavior:'smooth', block:'center'}); return; }
+  if(cart.length === 0){ wzGo(1); showError('Seu carrinho está vazio. Adicione pelo menos um item.'); return; }
   if(!nome){ showError('Preencha seu nome.', document.getElementById('chk-nome')); return; }
   if(!telefone){ showError('Preencha seu telefone.', document.getElementById('chk-telefone')); return; }
   if(fulfillment === 'entrega' && !endereco){ abrirEnderecoManual(); showError('Preencha o endereço para entrega, ou toque em "Compartilhar minha localização atual".', document.getElementById('chk-endereco')); return; }
@@ -3007,12 +3039,12 @@ async function enviarPedido(){
   for(const item of cart){
     if(item.type === 'esfiha'){
       const total = Object.values(item.counts).reduce((a,b)=>a+b,0);
-      if(total !== item.comboSize || total < ESFIHA_MIN_QTY){ showError('Um dos combos de esfiha está com a distribuição incompleta ou abaixo do mínimo de 5 unidades. Remova e adicione novamente.'); return; }
+      if(total !== item.comboSize || total < ESFIHA_MIN_QTY){ wzGo(1); showError('Um dos combos de esfiha está com a distribuição incompleta ou abaixo do mínimo de 5 unidades. Remova e adicione novamente.'); return; }
     }
     if(item.type === 'combo'){
       const cfg = COMBO_NOTE_CONFIG[item.item];
       if(cfg && cfg.needsNote && (!item.note || !item.note.trim())){
-        showError(`A promoção "${item.item}" precisa de uma observação (${cfg.noteHint || 'sabor/detalhe'}). Remova e adicione novamente preenchendo o campo.`);
+        wzGo(1); showError(`A promoção "${item.item}" precisa de uma observação (${cfg.noteHint || 'sabor/detalhe'}). Remova e adicione novamente preenchendo o campo.`);
         return;
       }
     }
@@ -3099,6 +3131,176 @@ async function enviarPedido(){
   // 5) Abre o WhatsApp da forma mais confiável para o aparelho do cliente.
   abrirWhatsApp(url);
 }
+
+/* ==================== PASSO A PASSO DO PEDIDO ==================== */
+// O fechamento do pedido é dividido em telas. Os campos, os ids e o envio do pedido
+// continuam exatamente os mesmos de antes — aqui só controlamos QUAL tela aparece.
+const WZ_TITULOS = ['Confira seus itens', 'Complementos', 'Seus dados', 'Entrega', 'Pagamento', 'Observações', 'Confira e envie'];
+const WZ_TOTAL = WZ_TITULOS.length;
+let wzStep = 1;
+
+function wzEsc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function wzStepsDe(el){
+  return (el.getAttribute('data-wstep') || '').split(/\s+/).filter(Boolean).map(Number);
+}
+function wzTopo(){
+  const painel = document.querySelector('#modal-checkout .modal-panel');
+  if(painel) painel.scrollTop = 0;
+}
+
+function wzRender(){
+  document.querySelectorAll('#modal-checkout [data-wstep]').forEach(el => {
+    el.classList.toggle('w-hide', !wzStepsDe(el).includes(wzStep));
+  });
+  const cont = document.getElementById('wz-contador');
+  if(cont) cont.textContent = `Passo ${wzStep} de ${WZ_TOTAL}`;
+  const tit = document.getElementById('wz-titulo');
+  if(tit) tit.textContent = WZ_TITULOS[wzStep - 1];
+  const bar = document.getElementById('wz-bar');
+  if(bar){
+    bar.innerHTML = WZ_TITULOS.map((_, i) =>
+      `<span class="${i + 1 < wzStep ? 'done' : (i + 1 === wzStep ? 'now' : '')}"></span>`).join('');
+  }
+  const vb = document.getElementById('wz-voltar');
+  const cb = document.getElementById('wz-continuar');
+  if(vb){ vb.style.display = wzStep > 1 ? '' : 'none'; vb.style.flex = wzStep === WZ_TOTAL ? '1' : ''; }
+  if(cb){
+    cb.style.display = wzStep < WZ_TOTAL ? '' : 'none';
+    cb.textContent = wzStep === WZ_TOTAL - 1 ? 'Revisar pedido →' : 'Continuar →';
+  }
+  if(wzStep === WZ_TOTAL) wzMontarRevisao();
+}
+
+function wzStart(passo){
+  const n = parseInt(passo, 10);
+  wzStep = (n >= 1 && n <= WZ_TOTAL) ? n : 1;
+  clearError();
+  wzRender();
+  wzTopo();
+}
+function wzGo(n){
+  wzStep = Math.min(WZ_TOTAL, Math.max(1, n));
+  wzRender();
+  wzTopo();
+}
+function wzBack(){
+  clearError();
+  if(wzStep > 1) wzGo(wzStep - 1);
+}
+function wzNext(){
+  clearError();
+  const erro = wzValidar(wzStep);
+  if(erro){ showError(erro.msg, erro.el); return; }
+  if(wzStep < WZ_TOTAL) wzGo(wzStep + 1);
+}
+
+// Se um erro aponta pra um campo que está em outra tela, vai pra tela dele.
+function wzRevealField(el){
+  const dono = el && el.closest ? el.closest('[data-wstep]') : null;
+  if(!dono) return;
+  const passos = wzStepsDe(dono);
+  if(passos.length && !passos.includes(wzStep)){
+    wzStep = passos[0];
+    wzRender();
+  }
+}
+
+/* ---------- validações de cada tela ---------- */
+function wzTelefoneValido(t){
+  let d = (t || '').replace(/\D/g, '');
+  if(d.length >= 12 && d.startsWith('55')) d = d.slice(2);
+  return d.length === 10 || d.length === 11;
+}
+
+function wzEntregaErro(){
+  const end = document.getElementById('chk-endereco');
+  if(!end.value.trim()){
+    abrirEnderecoManual();
+    return { msg: 'Preencha o endereço para entrega, ou toque em "Compartilhar minha localização atual".', el: end };
+  }
+  return null;
+}
+
+function wzEntregaExtraRevisao(){ return ''; }
+
+function wzValidar(n){
+  const $ = id => document.getElementById(id);
+  if(n === 1){
+    if(cart.length === 0) return { msg: 'Seu carrinho está vazio. Feche esta tela e adicione pelo menos um item.', el: null };
+  }
+  if(n === 3){
+    const nome = $('chk-nome').value.trim();
+    const tel = $('chk-telefone').value.trim();
+    if(nome.length < 2) return { msg: 'Preencha seu nome.', el: $('chk-nome') };
+    if(!wzTelefoneValido(tel)) return { msg: 'Informe um telefone com DDD, por exemplo (88) 9 0000-0000.', el: $('chk-telefone') };
+  }
+  if(n === 4 && fulfillment === 'entrega'){
+    const e = wzEntregaErro();
+    if(e) return e;
+  }
+  if(n === 5){
+    if(!paymentMethod) return { msg: 'Escolha a forma de pagamento.', el: $('pay-row') };
+    if(paymentMethod === 'Dinheiro' && trocoNeed === null) return { msg: 'Informe se vai precisar de troco.', el: $('troco-need-row') };
+    if(paymentMethod === 'Dinheiro' && trocoNeed === true){
+      const troco = $('chk-troco').value.trim();
+      if(!troco) return { msg: 'Informe o valor que vai pagar.', el: $('chk-troco') };
+      const valorPago = parseMoneyBR(troco);
+      if(valorPago === null) return { msg: 'Digite apenas números no valor (ex: 100).', el: $('chk-troco') };
+      const totalPedido = getTotalFinal();
+      if(valorPago < totalPedido) return { msg: `O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, el: $('chk-troco') };
+    }
+  }
+  return null;
+}
+
+/* ---------- tela final: resumo pra conferir ---------- */
+function wzMontarRevisao(){
+  const box = document.getElementById('wz-revisao');
+  if(!box) return;
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  const bloco = (titulo, passo, html) =>
+    `<div class="wz-rev-bloco"><div class="wz-rev-head"><b>${titulo}</b><button type="button" class="wz-edit" onclick="wzGo(${passo})">Editar</button></div><div class="wz-rev-body">${html}</div></div>`;
+  const partes = [];
+
+  const itens = cart.slice().reverse().map(item =>
+    `<div class="wz-rev-linha"><span><b>${item.qty}x ${item.label}</b>${item.detail ? `<small>${item.detail}</small>` : ''}${item.note ? `<small>📝 ${wzEsc(item.note)}</small>` : ''}</span><span>${brl(item.lineTotal)}</span></div>`
+  ).join('');
+  partes.push(bloco('Itens', 1, itens || '<i>Nenhum item</i>'));
+
+  const comp = [];
+  if(wantKetchup) comp.push('Ketchup (grátis)');
+  if(maioneseQty > 0) comp.push(`Maionese temperada: ${maioneseQty}x` + (maioneseQty > 1 ? ` (+ ${brl(getExtras())})` : ' (grátis)'));
+  partes.push(bloco('Complementos', 2, comp.length ? comp.join('<br>') : '<i>Nenhum</i>'));
+
+  partes.push(bloco('Seus dados', 3, `${wzEsc(v('chk-nome'))}<small>${wzEsc(v('chk-telefone'))}</small>`));
+
+  let ent;
+  if(fulfillment === 'entrega'){
+    ent = `🛵 <b>Entrega</b><small>${wzEsc(v('chk-endereco')).replace(/\n/g, '<br>')}</small>${wzEntregaExtraRevisao()}`;
+  } else {
+    ent = `🏠 <b>Retirar no balcão</b><small>Rua Joaquim Soares da Silva, 641, Centro</small>`;
+  }
+  partes.push(bloco('Entrega', 4, ent));
+
+  let pag = wzEsc(paymentMethod || '—');
+  if(paymentMethod === 'Dinheiro'){
+    if(trocoNeed === false) pag += '<small>Sem troco (valor exato)</small>';
+    else if(trocoNeed === true){
+      const vp = parseMoneyBR(v('chk-troco'));
+      if(vp !== null) pag += `<small>Pagar com ${brl(vp)}</small>`;
+    }
+  }
+  partes.push(bloco('Pagamento', 5, pag));
+
+  partes.push(bloco('Observações', 6, v('chk-obs') ? wzEsc(v('chk-obs')).replace(/\n/g, '<br>') : '<i>Nenhuma</i>'));
+
+  box.innerHTML = partes.join('');
+}
+
+wzRender();
+
 </script>
 </body>
 </html>
