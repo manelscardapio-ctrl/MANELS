@@ -646,8 +646,27 @@ async function excluirPedido(id){
   renderizar();
 }
 
+// Troca os emojis coloridos por símbolos de uma cor só, que saem melhor na impressora térmica.
+// O texto guardado do pedido (e a mensagem do WhatsApp) NÃO mudam — só o que vai pro papel.
+function converterParaImpressao(texto){
+  let t = String(texto || '');
+  t = t.replace(/\*?🍕 PARA O PIZZAIOLO\*?/g, '★ PARA O PIZZAIOLO ★')
+       .replace(/\*?🛵 PARA O MOTOBOY\*?/g, '➤ PARA O MOTOBOY ➤')
+       .replace(/Bom apetite! 🍕🔥/g, '✿ Bom apetite! ✿');
+  const MAPA = {
+    '🧾':'№', '📅':'▦', '🕒':'◷', '📞':'✆', '👤':'☻', '📍':'⌂', '📌':'☞', '🗺':'⊕', '🛵':'»', '🏠':'⌂',
+    '💳':'¤', '💵':'$', '💰':'◆', '🏷':'%', '⚠':'(!)', '🔸':'▸', '🔹':'▹', '🧀':'◎', '📝':'✎', '❗':'⚑',
+    '🍕':'◔', '🥟':'◖', '🍩':'✿', '🥙':'▲', '🥤':'∪', '🍽':'◆', '🎁':'★', '🔥':'✿', '✂':'÷'
+  };
+  const re = new RegExp('(' + Object.keys(MAPA).join('|') + ')[\uFE0E\uFE0F]? ?', 'g');
+  t = t.replace(re, (_, e) => MAPA[e] + ' ');
+  t = t.replace(/\*([^*\n]+)\*/g, '$1');                  // tira os asteriscos de "negrito" do WhatsApp
+  t = t.replace(/[\u{1F000}-\u{1FAFF}]\uFE0F?/gu, '•');    // qualquer emoji que sobrou vira um marcador simples
+  return t;
+}
+
 function imprimirTextoBruto(texto){
-  const escapado = texto.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const escapado = converterParaImpressao(texto).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const janela = window.open('', '_blank', 'width=400,height=650');
   janela.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda</title>
     <style>
@@ -656,7 +675,7 @@ function imprimirTextoBruto(texto){
          sai cortado ou desproporcional na impressora. */
       @media print{ @page{ size: 8.5cm 21cm; margin: 4mm; } }
       body{ margin:0; padding:8px; }
-      pre{ font-family:'Courier New',monospace; font-size:14px; font-weight:700; line-height:1.42; color:#000; white-space:pre-wrap; word-break:break-word; margin:0 0 14px 0; border-bottom:1px dashed #000; padding-bottom:10px; }
+      pre{ font-family:'Courier New','DejaVu Sans Mono','Segoe UI Symbol',monospace; font-size:14px; font-weight:700; line-height:1.42; color:#000; white-space:pre-wrap; word-break:break-word; margin:0 0 14px 0; border-bottom:1px dashed #000; padding-bottom:10px; }
     </style>
     </head><body><pre>${escapado}</pre>
     <script>window.onload=function(){window.focus();window.print();}; window.onafterprint=function(){window.close();};<\/script>
@@ -833,6 +852,7 @@ function abrirNovoPedido(){
   document.getElementById('builder-endereco').value = '';
   document.getElementById('builder-obs').value = '';
   document.getElementById('builder-troco').value = '';
+  builderPrepararPagamentoDividido('');
   document.getElementById('builder-pagamento').value = 'Pix';
   document.getElementById('builder-ketchup').checked = false;
   document.getElementById('builder-maionese').value = 0;
@@ -843,6 +863,50 @@ function abrirNovoPedido(){
   renderBuilderFormItem();
   renderBuilderCart();
   document.getElementById('builder-overlay').style.display = 'block';
+}
+
+// ---------- pagamento no construtor ----------
+// O site grava "PIX", "Débito", "Crédito"; o seletor do construtor usa "Pix", "Cartão de Débito", "Cartão de Crédito".
+function builderNomePagamento(raw){
+  const s = (raw || '').trim().toLowerCase();
+  if(s === 'pix') return 'Pix';
+  if(s.includes('débito') || s.includes('debito')) return 'Cartão de Débito';
+  if(s.includes('crédito') || s.includes('credito')) return 'Cartão de Crédito';
+  if(s === 'dinheiro') return 'Dinheiro';
+  return raw ? raw.trim() : 'Pix';
+}
+
+// Pagamento dividido (ex.: "PIX R$ 30,00 + Dinheiro R$ 22,00"): o construtor não edita esse formato.
+// Guardamos as linhas originais e as repetimos ao salvar, a não ser que se escolha outra forma de pagamento.
+let builderPagDividido = null;
+function builderPrepararPagamentoDividido(texto){
+  const sel = document.getElementById('builder-pagamento');
+  const antigo = sel.querySelector('option[value="__dividido__"]');
+  if(antigo) antigo.remove();
+  builderPagDividido = null;
+  const m = (texto || '').match(/💳 Pagamento: (.+)/);
+  if(!m || !m[1].includes(' + ') || !/R\$/.test(m[1])) return;
+  let soma = 0, valido = true;
+  m[1].trim().split(' + ').forEach(s => {
+    const x = s.trim().match(/R\$\s*([\d.]*\d,\d{2})$/);
+    if(x) soma += parseFloat(x[1].replace(/\./g, '').replace(',', '.')); else valido = false;
+  });
+  if(!valido) return;
+  builderPagDividido = { linha: m[1].trim(), extras: (texto.match(/^💵 .+$/gm) || []), soma };
+  const opt = document.createElement('option');
+  opt.value = '__dividido__';
+  opt.textContent = '✂️ Dividido: ' + m[1].trim() + ' (manter)';
+  sel.appendChild(opt);
+  sel.value = '__dividido__';
+}
+function builderLinhasPagamentoDividido(total){
+  const d = builderPagDividido;
+  let c = `💳 Pagamento: ${d.linha}\n`;
+  d.extras.forEach(l => { c += l + '\n'; });
+  if(Math.abs((total || 0) - d.soma) > 0.009){
+    c += `⚠️ Total mudou: confirme com o cliente os valores de cada forma de pagamento\n`;
+  }
+  return c;
 }
 
 function extrairMetaPedidoComandas(p){
@@ -920,10 +984,13 @@ function abrirEditarPedido(id){
   document.getElementById('builder-nome').value = meta.cliente;
   document.getElementById('builder-telefone').value = meta.telefone;
   document.getElementById('builder-endereco').value = meta.endereco;
-  document.getElementById('builder-pagamento').value = meta.pagamento;
+  builderPrepararPagamentoDividido('');
+  document.getElementById('builder-pagamento').value = builderNomePagamento(meta.pagamento);
+  builderPrepararPagamentoDividido(p.texto_comanda || '');
   document.querySelector(`input[name="builder-fulfillment"][value="${meta.entrega === 'retirada' ? 'retirada' : 'entrega'}"]`).checked = true;
   document.getElementById('builder-obs').value = meta.observacoes;
-  document.getElementById('builder-troco').value = '';
+  const mPagaCom = (p.texto_comanda || '').match(/Pagará com: R\$ ([\d.,]+)/);
+  document.getElementById('builder-troco').value = (mPagaCom && meta.pagamento && /dinheiro/i.test(meta.pagamento)) ? mPagaCom[1] : '';
   document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
   const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
   document.getElementById('builder-maionese').value = mMaionese ? mMaionese[1] : 0;
@@ -1376,12 +1443,16 @@ function gerarComandaBuilder(){
     c += `🏠 *RETIRADA NO BALCÃO*\n`;
   }
 
+  if(pagamento === '__dividido__' && builderPagDividido){
+    c += builderLinhasPagamentoDividido(total);
+  } else {
   c += `💳 Pagamento: ${pagamento}\n`;
   if(pagamento === 'Dinheiro' && troco){
     const valorPago = parseFloat(troco.replace(/\./g,'').replace(',','.'));
     if(!isNaN(valorPago) && valorPago >= total){
       c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} → Troco: R$ ${(valorPago-total).toFixed(2).replace('.',',')}\n`;
     }
+  }
   }
 
   if(descInfo.desconto > 0){
