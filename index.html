@@ -306,6 +306,12 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .geo-confirma.field-error{border-color:var(--rust);}
 .geo-semnum{display:flex; align-items:center; gap:.5rem; font-size:14.5px; color:var(--ink-soft); margin:.4rem 0 .2rem; cursor:pointer;}
 .geo-semnum input{width:18px; height:18px; accent-color:var(--forest);}
+
+.pm-hide{display:none !important;}
+.total-pagar{display:flex; justify-content:space-between; align-items:center; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:.8rem .95rem; margin:.2rem 0 1rem; font-size:16px; font-weight:600;}
+.total-pagar b{font-family:'Fraunces',serif; font-size:22px; color:var(--forest-dark);}
+.split-box{border:1.5px solid var(--line); border-radius:12px; padding:.85rem .9rem; margin-top:.8rem; background:var(--bg);}
+.split-box .note-box{margin-top:.7rem;}
 </style>
 
 <style id="fix-fotos-sem-corte">
@@ -353,22 +359,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 
 <div class="wrap">
   <div id="tempo-espera-aviso" style="display:none; margin:1rem 0 0; padding:.6rem 1rem; background:var(--accent); color:#fff; border-radius:10px; font-weight:bold; text-align:center;"></div>
-  <div id="horario-aviso" style="display:none;">
-    <div class="closed-banner">
-      <span class="closed-badge">🕒 Estamos fechados no momento</span>
-      <p>Funcionamos <b>sexta, sábado e domingo, das 18h às 21h</b>. Fora desse horário você pode ver o cardápio numa boa e, se quiser, já fazer sua <b>encomenda antecipada</b> — nesse caso pedimos pagamento adiantado ou um sinal de 50% para confirmar.</p>
-      <a class="closed-wa" href="https://wa.me/5588992182784" target="_blank">📲 Falar no WhatsApp</a>
-    </div>
+    <div class="hero-meta" id="hero-meta" style="margin:1.1rem 0 .2rem;">
+    <span class="hero-meta-item" id="hero-entrega">🛵 Entrega em 35–50 min</span>
+    <span class="hero-meta-item" id="hero-local">📍 Centro</span>
   </div>
-
-  <header class="hero">
-    <h1>Escolha o seu pedido</h1>
-    <p>Sabores nordestinos feitos na hora. Toque num item, monte do seu jeito — no final, o pedido vai prontinho pro nosso WhatsApp.</p>
-    <div class="hero-meta">
-      <span class="hero-meta-item">🛵 Entrega em 35–50 min</span>
-      <span class="hero-meta-item">📍 Centro</span>
-    </div>
-  </header>
 
   <div class="carrossel-secao" id="carrossel-secao" style="display:none;">
     <div class="grid-title">🔥 Promoções</div>
@@ -781,6 +775,22 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
       </div>
 
+      <div id="pontos-resgate" data-wstep="5" style="display:none; margin-bottom:12px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
+      <div class="field-group" id="cupom-box" data-wstep="5">
+        <span class="field-label">Cupom de desconto</span>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="cupom-input" placeholder="Digite seu cupom" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase; flex:1; min-width:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCupom();}" />
+          <button type="button" id="cupom-btn" onclick="aplicarCupom()" style="padding:0 18px; border:none; border-radius:10px; background:var(--forest-dark); color:#fff; font-weight:700; cursor:pointer;">Aplicar</button>
+        </div>
+        <div id="cupom-msg" style="font-size:.82rem; margin-top:6px; min-height:1em;"></div>
+      </div>
+      <div id="wz-total-pagar" class="total-pagar" data-wstep="5"><span>Total a pagar</span><b id="wz-total-pagar-valor">R$ 0,00</b></div>
+      <span class="field-label" data-wstep="5">Como você vai pagar? *</span>
+      <div class="pay-row" id="pay-mode-row" data-wstep="5">
+        <button type="button" class="opt-btn active" data-paymode="uma" onclick="selectPayMode('uma')">💳 Uma forma</button>
+        <button type="button" class="opt-btn" data-paymode="dividir" onclick="selectPayMode('dividir')">✂️ Dividir em duas formas</button>
+      </div>
+      <div id="pay-single" style="margin-top:.9rem;">
       <span class="field-label" data-wstep="5">Forma de pagamento *</span>
       <div class="pay-row" id="pay-row" data-wstep="5">
         <button class="opt-btn" data-pay="Dinheiro" onclick="selectPayment('Dinheiro')">Dinheiro</button>
@@ -803,6 +813,40 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
       <div id="pix-note" class="note-box" data-wstep="5" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
       <div id="card-note" class="note-box" data-wstep="5" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
+      </div>
+      <div id="split-box" class="split-box pm-hide" data-wstep="5">
+        <span class="field-label">1ª forma de pagamento *</span>
+        <div class="pay-row" id="split-a-row">
+          <button type="button" class="opt-btn" data-split-a="PIX" onclick="splitSelect('A','PIX')">PIX</button>
+          <button type="button" class="opt-btn" data-split-a="Dinheiro" onclick="splitSelect('A','Dinheiro')">Dinheiro</button>
+          <button type="button" class="opt-btn" data-split-a="Débito" onclick="splitSelect('A','Débito')">Débito</button>
+          <button type="button" class="opt-btn" data-split-a="Crédito" onclick="splitSelect('A','Crédito')">Crédito</button>
+          </div>
+        <span class="field-label" style="margin-top:.8rem;">Quanto vai pagar nessa forma? *</span>
+        <input type="text" inputmode="decimal" id="split-a-valor" placeholder="Ex: 30" oninput="sanitizeTrocoInput(this); splitAtualizarUI()" />
+        <span class="field-label" style="margin-top:.9rem;">2ª forma de pagamento — paga o restante: <b id="split-b-valor-txt">—</b> *</span>
+        <div class="pay-row" id="split-b-row">
+          <button type="button" class="opt-btn" data-split-b="PIX" onclick="splitSelect('B','PIX')">PIX</button>
+          <button type="button" class="opt-btn" data-split-b="Dinheiro" onclick="splitSelect('B','Dinheiro')">Dinheiro</button>
+          <button type="button" class="opt-btn" data-split-b="Débito" onclick="splitSelect('B','Débito')">Débito</button>
+          <button type="button" class="opt-btn" data-split-b="Crédito" onclick="splitSelect('B','Crédito')">Crédito</button>
+          </div>
+        <div id="split-troco-field" class="field-group" style="display:none; margin-top:.9rem;">
+          <span class="field-label">Dinheiro (<b id="split-cash-txt"></b>): vai precisar de troco?</span>
+          <div class="pay-row" id="split-troco-need-row">
+            <button type="button" class="opt-btn" data-stroco="sim" onclick="selectSplitTrocoNeed(true)">Sim</button>
+            <button type="button" class="opt-btn" data-stroco="nao" onclick="selectSplitTrocoNeed(false)">Não</button>
+          </div>
+          <div id="split-troco-valor-wrap" style="display:none; margin-top:.6rem;">
+            <span class="field-label">Vai pagar o dinheiro com quanto?</span>
+            <input type="text" inputmode="decimal" id="split-troco" placeholder="Ex: 50" oninput="sanitizeTrocoInput(this); splitAtualizarUI()" />
+            <div id="split-troco-hint" class="note-box" style="display:none; margin-top:.4rem;"></div>
+          </div>
+        </div>
+        <div id="split-pix-note" class="note-box" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
+        <div id="split-card-note" class="note-box" style="display:none;">O cartão é pago na entrega/retirada. Levamos a maquininha.</div>
+        <div id="split-resumo" class="note-box" style="display:none;"></div>
+      </div>
 
       <div class="field-group" data-wstep="6">
         <span class="field-label">Observações gerais (opcional)</span>
@@ -810,15 +854,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
 
       <div id="wz-revisao" data-wstep="7"></div>
-      <div id="pontos-resgate" data-wstep="7" style="display:none; margin-bottom:12px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
-      <div class="field-group" id="cupom-box" data-wstep="7">
-        <span class="field-label">Cupom de desconto</span>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="cupom-input" placeholder="Digite seu cupom" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase; flex:1; min-width:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCupom();}" />
-          <button type="button" id="cupom-btn" onclick="aplicarCupom()" style="padding:0 18px; border:none; border-radius:10px; background:var(--forest-dark); color:#fff; font-weight:700; cursor:pointer;">Aplicar</button>
-        </div>
-        <div id="cupom-msg" style="font-size:.82rem; margin-top:6px; min-height:1em;"></div>
-      </div>
+      
+      
 
       <div id="wz-totais" data-wstep="7">
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
@@ -945,6 +982,10 @@ let userGeoLng = null;
 let userGeoAcc = null;   // precisão do GPS em metros
 let userGeoTime = 0;     // quando a localização foi capturada
 let paymentMethod = '';
+let payMode = 'uma';        // 'uma' = uma forma de pagamento | 'dividir' = duas formas
+let splitA = '';            // 1ª forma (PIX / Dinheiro / Débito / Crédito)
+let splitB = '';            // 2ª forma (paga o restante)
+let splitTrocoNeed = null;  // troco da parte em dinheiro: true / false / null
 let wantKetchup = false;
 let maioneseQty = 0;
 // ===== Resgate de pontos de fidelidade =====
@@ -1483,7 +1524,7 @@ const CARRINHO_PRE_LOGIN_KEY = 'manels_carrinho_pre_login';
 function salvarCarrinhoAntesDoLogin(){
   try{
     if(cart.length === 0) return;
-    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod, wantKetchup, maioneseQty }));
+    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod: (payMode === 'dividir' ? '' : paymentMethod), wantKetchup, maioneseQty }));
   } catch(e){
     console.error('Não foi possível guardar o carrinho antes do login:', e);
   }
@@ -1661,12 +1702,21 @@ function isStoreOpen(){
 }
 
 function textoHorarioFuncionamento(){
-  const nomesDiasCorrigido = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-  const abertos = (HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK)
-    .filter(h => !h.fechado && h.hora_abertura && h.hora_fechamento)
-    .map(h => `${nomesDiasCorrigido[h.dia_semana]} ${ (h.hora_abertura||'').slice(0,5) }h às ${(h.hora_fechamento||'').slice(0,5)}h`);
+  const nomes = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const ordem = [1,2,3,4,5,6,0]; // segunda a domingo
+  const lista = HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK;
+  const abertos = ordem.map(d => lista.find(h => h.dia_semana === d)).filter(h => h && !h.fechado && h.hora_abertura && h.hora_fechamento);
   if(abertos.length === 0) return 'nosso horário de funcionamento configurado';
-  return abertos.join(', ');
+  const fmt = t => { const [h, m] = String(t || '').slice(0,5).split(':'); return (m && m !== '00') ? `${parseInt(h,10)}h${m}` : `${parseInt(h,10)}h`; };
+  const grupos = [];
+  abertos.forEach(h => {
+    const abre = fmt(h.hora_abertura), fecha = fmt(h.hora_fechamento);
+    let g = grupos.find(x => x.abre === abre && x.fecha === fecha);
+    if(!g){ g = { abre, fecha, dias: [] }; grupos.push(g); }
+    g.dias.push(nomes[h.dia_semana]);
+  });
+  const juntar = d => d.length > 1 ? d.slice(0, -1).join(', ') + ' e ' + d[d.length - 1] : d[0];
+  return grupos.map(g => `${juntar(g.dias)}, das ${g.abre} às ${g.fecha}`).join('; ');
 }
 
 let storeClosedAtLoad = false;
@@ -1690,11 +1740,24 @@ async function carregarConfigGeral(){
     const { data, error } = await supabaseClient.from('config_geral').select('*').eq('id',1).maybeSingle();
     if(error || !data) return;
     CONFIG_GERAL = data;
+    aplicarSelosHome(data);
     if(data.esfiha_min_qty) ESFIHA_MIN_QTY = data.esfiha_min_qty;
   } catch(e){
     console.error('Não foi possível carregar o aviso de tempo de espera:', e);
   }
 }
+// Selos do topo ("Entrega em 35–50 min", "Centro"): o texto vem do admin. Em branco = esconde.
+function aplicarSelosHome(cfg){
+  [['hero-entrega','hero_entrega_texto'], ['hero-local','hero_local_texto']].forEach(([id, campo]) => {
+    const el = document.getElementById(id);
+    if(!el || cfg[campo] === undefined || cfg[campo] === null) return; // sem valor salvo: mantém o padrão
+    const txt = String(cfg[campo]).trim();
+    if(txt){ el.textContent = txt; el.style.display = ''; } else { el.style.display = 'none'; }
+  });
+  const meta = document.getElementById('hero-meta');
+  if(meta) meta.style.display = [...meta.children].some(c => c.style.display !== 'none') ? '' : 'none';
+}
+
 function mostrarAvisoTempoEspera(){
   const el = document.getElementById('tempo-espera-aviso');
   if(!el) return;
@@ -2568,6 +2631,7 @@ function renderCart(){
   document.getElementById('chk-total').textContent = brl(total);
 
   if(paymentMethod === 'Dinheiro') atualizarTrocoCalculado();
+  splitAtualizarUI();
   renderResgatePontos();
   atualizarCupomUI();
 }
@@ -2767,6 +2831,9 @@ function gerarComanda(){
     c += `🏠 *RETIRADA NO BALCÃO*\n`;
   }
 
+  if(payMode === 'dividir'){
+    c += splitLinhasComanda();
+  } else {
   c += `💳 Pagamento: ${paymentMethod}\n`;
   if(paymentMethod === 'Dinheiro'){
     if(trocoNeed === false){
@@ -2779,6 +2846,8 @@ function gerarComanda(){
         c += `💵 Pagará com: R$ ${valorPago.toFixed(2).replace('.',',')} ⚠️ menor que o total\n`;
       }
     }
+  }
+
   }
 
   if(descontoCupom > 0){
@@ -3006,18 +3075,7 @@ async function enviarPedido(){
   if(!nome){ showError('Preencha seu nome.', document.getElementById('chk-nome')); return; }
   if(!wzTelefoneValido(telefone)){ showError('Informe um telefone com DDD, por exemplo (88) 9 0000-0000.', document.getElementById('chk-telefone')); return; }
   if(fulfillment === 'entrega'){ const eErr = wzEntregaErro(); if(eErr){ showError(eErr.msg, eErr.el); return; } }
-  if(!paymentMethod){ showError('Escolha a forma de pagamento.', document.getElementById('pay-row')); return; }
-  if(paymentMethod === 'Dinheiro' && trocoNeed === null){ showError('Informe se vai precisar de troco.', document.getElementById('troco-need-row')); return; }
-  if(paymentMethod === 'Dinheiro' && trocoNeed === true){
-    if(!troco){ showError('Informe o valor que vai pagar.', document.getElementById('chk-troco')); return; }
-    const valorPago = parseMoneyBR(troco);
-    if(valorPago === null){ showError('Digite apenas números no valor (ex: 100).', document.getElementById('chk-troco')); return; }
-    const totalPedido = getTotalFinal();
-    if(valorPago < totalPedido){
-      showError(`O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, document.getElementById('chk-troco'));
-      return;
-    }
-  }
+  { const pErr = pagamentoErro(); if(pErr){ showError(pErr.msg, pErr.el); return; } }
 
   // revalidação defensiva dos combos de esfiha
   for(const item of cart){
@@ -3311,16 +3369,8 @@ function wzValidar(n){
     if(e) return e;
   }
   if(n === 5){
-    if(!paymentMethod) return { msg: 'Escolha a forma de pagamento.', el: $('pay-row') };
-    if(paymentMethod === 'Dinheiro' && trocoNeed === null) return { msg: 'Informe se vai precisar de troco.', el: $('troco-need-row') };
-    if(paymentMethod === 'Dinheiro' && trocoNeed === true){
-      const troco = $('chk-troco').value.trim();
-      if(!troco) return { msg: 'Informe o valor que vai pagar.', el: $('chk-troco') };
-      const valorPago = parseMoneyBR(troco);
-      if(valorPago === null) return { msg: 'Digite apenas números no valor (ex: 100).', el: $('chk-troco') };
-      const totalPedido = getTotalFinal();
-      if(valorPago < totalPedido) return { msg: `O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, el: $('chk-troco') };
-    }
+    const pErr = pagamentoErro();
+    if(pErr) return pErr;
   }
   return null;
 }
@@ -3355,13 +3405,18 @@ function wzMontarRevisao(){
   }
   partes.push(bloco('Entrega', 4, ent));
 
-  let pag = wzEsc(paymentMethod || '—');
+  let pag;
+  if(payMode === 'dividir'){
+    pag = splitRevisaoHtml();
+  } else {
+  pag = wzEsc(paymentMethod || '—');
   if(paymentMethod === 'Dinheiro'){
     if(trocoNeed === false) pag += '<small>Sem troco (valor exato)</small>';
     else if(trocoNeed === true){
       const vp = parseMoneyBR(v('chk-troco'));
       if(vp !== null) pag += `<small>Pagar com ${brl(vp)}</small>`;
     }
+  }
   }
   partes.push(bloco('Pagamento', 5, pag));
 
@@ -3539,6 +3594,203 @@ function compartilharLocalizacao(){
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: GEO_ESPERA_MAX_MS });
   geoTimer = setTimeout(finalizar, GEO_ESPERA_MAX_MS);
 }
+
+
+/* ==================== PAGAMENTO EM UMA OU DUAS FORMAS ==================== */
+// Modo "uma forma": funciona exatamente como antes.
+// Modo "dividir": o cliente escolhe a 1ª forma e quanto paga nela; a 2ª forma paga o restante.
+// Se uma das duas for dinheiro, a pergunta de troco vale só para a parte em dinheiro.
+const centavos = v => Math.round((v || 0) * 100);
+
+function selectPayMode(modo){
+  payMode = modo;
+  document.querySelectorAll('#pay-mode-row .opt-btn').forEach(b => b.classList.toggle('active', b.dataset.paymode === modo));
+  document.getElementById('pay-mode-row').classList.remove('field-error');
+  document.getElementById('pay-single').classList.toggle('pm-hide', modo === 'dividir');
+  document.getElementById('split-box').classList.toggle('pm-hide', modo !== 'dividir');
+
+  // limpa o que era da outra opção, pra nada ficar "preso" de um modo no outro
+  trocoNeed = null;
+  document.querySelectorAll('#troco-need-row .opt-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('troco-valor-wrap').style.display = 'none';
+  document.getElementById('chk-troco').value = '';
+  document.getElementById('troco-field').style.display = 'none';
+  document.getElementById('pix-note').style.display = 'none';
+  document.getElementById('card-note').style.display = 'none';
+  document.querySelectorAll('#pay-row .opt-btn').forEach(b => b.classList.remove('active'));
+  paymentMethod = modo === 'dividir' ? 'Dividido' : '';
+  splitAtualizarUI();
+}
+
+function splitSelect(lado, metodo){
+  if(lado === 'A') splitA = metodo; else splitB = metodo;
+  document.getElementById(lado === 'A' ? 'split-a-row' : 'split-b-row').classList.remove('field-error');
+  splitAtualizarUI();
+}
+
+function selectSplitTrocoNeed(need){
+  splitTrocoNeed = need;
+  document.getElementById('split-troco-need-row').classList.remove('field-error');
+  document.querySelectorAll('#split-troco-need-row .opt-btn').forEach(b => {
+    b.classList.toggle('active', (b.dataset.stroco === 'sim') === need);
+  });
+  if(!need) document.getElementById('split-troco').value = '';
+  splitAtualizarUI();
+}
+
+// valores da divisão em reais: { a, b } ou null se o valor da 1ª forma ainda não é válido
+function splitValores(){
+  const total = getTotalFinal();
+  const a = parseMoneyBR((document.getElementById('split-a-valor')?.value || '').trim());
+  if(a === null || a <= 0 || centavos(a) >= centavos(total)) return null;
+  return { a, b: (centavos(total) - centavos(a)) / 100, total };
+}
+
+function splitTemDinheiro(){ return splitA === 'Dinheiro' || splitB === 'Dinheiro'; }
+
+function splitValorDinheiro(){
+  const v = splitValores();
+  if(!v || !splitTemDinheiro()) return null;
+  return splitA === 'Dinheiro' ? v.a : v.b;
+}
+
+function splitAtualizarUI(){
+  const tp = document.getElementById('wz-total-pagar-valor');
+  if(tp) tp.textContent = brl(getTotalFinal());
+  if(payMode !== 'dividir') return;
+
+  const v = splitValores();
+  const bTxt = document.getElementById('split-b-valor-txt');
+  if(bTxt) bTxt.textContent = v ? brl(v.b) : '—';
+
+  document.querySelectorAll('#split-a-row .opt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.splitA === splitA);
+    b.disabled = b.dataset.splitA === splitB;
+  });
+  document.querySelectorAll('#split-b-row .opt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.splitB === splitB);
+    b.disabled = b.dataset.splitB === splitA;
+  });
+
+  // troco: só aparece se uma das formas for dinheiro
+  const temCash = splitTemDinheiro();
+  const trocoField = document.getElementById('split-troco-field');
+  trocoField.style.display = temCash ? 'block' : 'none';
+  if(!temCash){
+    splitTrocoNeed = null;
+    document.querySelectorAll('#split-troco-need-row .opt-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('split-troco').value = '';
+  }
+  document.getElementById('split-troco-valor-wrap').style.display = (temCash && splitTrocoNeed === true) ? 'block' : 'none';
+  const cash = splitValorDinheiro();
+  document.getElementById('split-cash-txt').textContent = cash !== null ? brl(cash) : 'defina o valor acima';
+
+  const hint = document.getElementById('split-troco-hint');
+  hint.style.display = 'none';
+  if(temCash && splitTrocoNeed === true){
+    const t = parseMoneyBR(document.getElementById('split-troco').value.trim());
+    if(t !== null && cash !== null){
+      hint.style.display = 'block';
+      if(centavos(t) < centavos(cash)){
+        hint.style.color = 'var(--rust)';
+        hint.textContent = `O valor é menor que a parte em dinheiro (${brl(cash)}).`;
+      } else {
+        hint.style.color = 'var(--ink-soft)';
+        hint.textContent = `Troco: ${brl((centavos(t) - centavos(cash)) / 100)}`;
+      }
+    }
+  }
+
+  document.getElementById('split-pix-note').style.display = (splitA === 'PIX' || splitB === 'PIX') ? 'block' : 'none';
+  document.getElementById('split-card-note').style.display =
+    ([splitA, splitB].some(f => f === 'Débito' || f === 'Crédito')) ? 'block' : 'none';
+
+  const resumo = document.getElementById('split-resumo');
+  if(v && splitA && splitB){
+    resumo.style.display = 'block';
+    resumo.innerHTML = `<b>${splitA}</b> ${brl(v.a)} + <b>${splitB}</b> ${brl(v.b)} = ${brl(v.total)}`;
+  } else {
+    resumo.style.display = 'none';
+  }
+}
+
+// vale para os dois modos; devolve { msg, el } ou null
+function pagamentoErro(){
+  const $ = id => document.getElementById(id);
+  if(payMode === 'dividir'){
+    const total = getTotalFinal();
+    if(!splitA) return { msg: 'Escolha a 1ª forma de pagamento.', el: $('split-a-row') };
+    const a = parseMoneyBR($('split-a-valor').value.trim());
+    if(a === null || a <= 0) return { msg: 'Informe quanto vai pagar na 1ª forma.', el: $('split-a-valor') };
+    if(centavos(a) >= centavos(total)){
+      return { msg: `O valor da 1ª forma precisa ser menor que o total (${brl(total)}) para sobrar um restante para a 2ª forma.`, el: $('split-a-valor') };
+    }
+    if(!splitB) return { msg: 'Escolha a 2ª forma de pagamento.', el: $('split-b-row') };
+    if(splitA === splitB) return { msg: 'As duas formas de pagamento precisam ser diferentes.', el: $('split-b-row') };
+    const cash = splitValorDinheiro();
+    if(cash !== null){
+      if(splitTrocoNeed === null) return { msg: 'Informe se vai precisar de troco no dinheiro.', el: $('split-troco-need-row') };
+      if(splitTrocoNeed === true){
+        const raw = $('split-troco').value.trim();
+        if(!raw) return { msg: 'Informe com quanto vai pagar o dinheiro.', el: $('split-troco') };
+        const t = parseMoneyBR(raw);
+        if(t === null) return { msg: 'Digite apenas números no valor (ex: 50).', el: $('split-troco') };
+        if(centavos(t) < centavos(cash)) return { msg: `O valor informado é menor que a parte em dinheiro (${brl(cash)}). Corrija o valor.`, el: $('split-troco') };
+      }
+    }
+    return null;
+  }
+  if(!paymentMethod) return { msg: 'Escolha a forma de pagamento.', el: $('pay-row') };
+  if(paymentMethod === 'Dinheiro' && trocoNeed === null) return { msg: 'Informe se vai precisar de troco.', el: $('troco-need-row') };
+  if(paymentMethod === 'Dinheiro' && trocoNeed === true){
+    const troco = $('chk-troco').value.trim();
+    if(!troco) return { msg: 'Informe o valor que vai pagar.', el: $('chk-troco') };
+    const valorPago = parseMoneyBR(troco);
+    if(valorPago === null) return { msg: 'Digite apenas números no valor (ex: 100).', el: $('chk-troco') };
+    const totalPedido = getTotalFinal();
+    if(valorPago < totalPedido) return { msg: `O valor informado é menor que o total do pedido (${brl(totalPedido)}). Corrija o valor.`, el: $('chk-troco') };
+  }
+  return null;
+}
+
+// linhas do pagamento dividido na comanda (formato lido pelo admin, comandas e motoboy)
+//   💳 Pagamento: PIX R$ 30,00 + Dinheiro R$ 22,00
+//   💵 Dinheiro R$ 22,00 — pagará com R$ 50,00 → Troco: R$ 28,00
+function splitLinhasComanda(){
+  const v = splitValores();
+  if(!v) return `💳 Pagamento: ${splitA} + ${splitB}\n`;
+  let c = `💳 Pagamento: ${splitA} ${brl(v.a)} + ${splitB} ${brl(v.b)}\n`;
+  const cash = splitValorDinheiro();
+  if(cash !== null){
+    if(splitTrocoNeed === false){
+      c += `💵 Dinheiro ${brl(cash)} — NÃO precisa de troco (valor exato)\n`;
+    } else if(splitTrocoNeed === true){
+      const t = parseMoneyBR(document.getElementById('split-troco').value.trim());
+      if(t !== null && centavos(t) >= centavos(cash)){
+        c += `💵 Dinheiro ${brl(cash)} — pagará com ${brl(t)} → Troco: ${brl((centavos(t) - centavos(cash)) / 100)}\n`;
+      } else if(t !== null){
+        c += `💵 Dinheiro ${brl(cash)} — pagará com ${brl(t)} ⚠️ menor que o valor\n`;
+      }
+    }
+  }
+  return c;
+}
+
+function splitRevisaoHtml(){
+  const v = splitValores();
+  if(!v) return wzEsc(`${splitA || '—'} + ${splitB || '—'}`);
+  let h = `${wzEsc(splitA)} ${brl(v.a)}<br>${wzEsc(splitB)} ${brl(v.b)}`;
+  const cash = splitValorDinheiro();
+  if(cash !== null){
+    if(splitTrocoNeed === false) h += `<small>Dinheiro sem troco (valor exato)</small>`;
+    else if(splitTrocoNeed === true){
+      const t = parseMoneyBR(document.getElementById('split-troco').value.trim());
+      if(t !== null) h += `<small>Dinheiro: pagar com ${brl(t)}</small>`;
+    }
+  }
+  return h;
+}
+
 
 wzRender();
 
