@@ -386,7 +386,7 @@ function extrairReferencia(texto){
   let r = linhas[idx].replace('📌 Referência:', '').trim();
   for(let i = idx + 1; i < linhas.length; i++){
     const l = linhas[i].trim();
-    if(!l || /^(🗺️|📍|🛵|💳|💵|💰|=|-)/.test(l)) break;
+    if(!l || /^(🗺️|📍|⚠️|🛵|💳|💵|💰|=|-)/.test(l)) break;
     r += ' ' + l;
   }
   return r.trim();
@@ -409,7 +409,7 @@ function extrairEndereco(texto){
   let resultado = linhas[idx].replace('📍 Endereço:', '').trim();
   for(let i = idx + 1; i < linhas.length; i++){
     const l = linhas[i].trim();
-    if(!l || /^(🗺️|📌|🛵|💳|💵|💰|=)/.test(l)) break;
+    if(!l || /^(🗺️|📌|⚠️|🛵|💳|💵|💰|=)/.test(l)) break;
     resultado += ' ' + l;
   }
   return resultado.trim();
@@ -678,7 +678,15 @@ function abrirDetalhe(id){
 
   const pagamento = extrairPagamento(texto);
   const trocoLinha = extrairTrocoLinha(texto);
-  document.getElementById('d-pagamento').textContent = pagamento + (trocoLinha ? ' — ' + trocoLinha : '');
+  const pagEl = document.getElementById('d-pagamento');
+  if(pagamento.includes(' + ') && /R\$/.test(pagamento)){
+    // pagamento dividido: cada forma numa linha, com o valor de cada uma
+    pagEl.style.whiteSpace = 'pre-line';
+    pagEl.textContent = '✂️ Pagamento dividido:\n' + pagamento.split(' + ').join('\n') + (trocoLinha ? '\n↳ ' + trocoLinha.replace(/^Dinheiro R\$ [\d.,]+ — /, '') : '');
+  } else {
+    pagEl.style.whiteSpace = '';
+    pagEl.textContent = pagamento + (trocoLinha ? ' — ' + trocoLinha : '');
+  }
 
   const total = p.total || extrairTotal(texto) || 0;
   document.getElementById('d-total').textContent = 'R$ ' + total.toFixed(2).replace('.',',');
