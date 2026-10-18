@@ -3074,22 +3074,34 @@ function converterParaImpressao(texto){
   return t;
 }
 
-function imprimirTextoBruto(texto){
-  const escapado = converterParaImpressao(texto).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// Abre UMA janela de impressão com uma ou várias comandas (cada uma numa folha).
+// Uma janela só: o navegador bloqueava as várias janelas abertas em sequência pelo "imprimir todos".
+function montarJanelaImpressao(textos){
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const paginas = textos.map(t => `<pre>${esc(converterParaImpressao(t))}</pre>`).join('');
   const janela = window.open('', '_blank', 'width=400,height=650');
+  if(!janela){
+    alert('O navegador bloqueou a janela de impressão. Permita pop-ups para este site (ícone na barra de endereço) e tente de novo.');
+    return false;
+  }
   janela.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda</title>
     <style>
       /* Papel físico da comanda: folha avulsa 8,5 x 21cm. Fixamos o tamanho real da
          página aqui — sem isso, o navegador imprime no tamanho padrão (A4) e o texto
          sai cortado ou desproporcional na impressora. */
-      @media print{ @page{ size: 8.5cm 21cm; margin: 4mm; } }
+      @media print{ @page{ size: 8.5cm 21cm; margin: 4mm; } pre{ page-break-after:always; break-after:page; } pre:last-child{ page-break-after:auto; break-after:auto; } }
       body{ margin:0; padding:8px; }
       pre{ font-family:'Courier New','DejaVu Sans Mono','Segoe UI Symbol',monospace; font-size:14px; font-weight:700; line-height:1.42; color:#000; white-space:pre-wrap; word-break:break-word; margin:0 0 14px 0; border-bottom:1px dashed #000; padding-bottom:10px; }
     </style>
-    </head><body><pre>${escapado}</pre>
+    </head><body>${paginas}
     <script>window.onload=function(){window.focus();window.print();}; window.onafterprint=function(){window.close();};<\/script>
     </body></html>`);
   janela.document.close();
+  return true;
+}
+
+function imprimirTextoBruto(texto){
+  montarJanelaImpressao([texto]);
 }
 
 function imprimirPedido(id){
@@ -3101,9 +3113,16 @@ function imprimirPedido(id){
 }
 
 function imprimirTodosPendentes(){
-  const pendentes = pedidosAtivos.filter(p => p.status === 'novo');
+  const pendentes = pedidosAtivos.filter(p => p.status === 'novo')
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // o mais antigo sai primeiro
   if(pendentes.length === 0){ alert('Não há pedidos pendentes de impressão.'); return; }
-  pendentes.forEach((p, i) => { setTimeout(() => imprimirPedido(p.id), i * 700); });
+  const textos = pendentes.map(p => {
+    const textarea = document.querySelector(`textarea[data-id="${p.id}"]`);
+    return textarea ? textarea.value : (p.texto_comanda || '');
+  });
+  // Uma janela só, com todas as comandas (uma por folha), aberta direto do clique no botão.
+  if(!montarJanelaImpressao(textos)) return;
+  pendentes.forEach(p => mudarStatus(p.id, 'em_andamento'));
 }
 
 function exportarExcel(){
