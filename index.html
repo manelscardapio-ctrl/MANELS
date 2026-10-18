@@ -312,6 +312,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .total-pagar b{font-family:'Fraunces',serif; font-size:22px; color:var(--forest-dark);}
 .split-box{border:1.5px solid var(--line); border-radius:12px; padding:.85rem .9rem; margin-top:.8rem; background:var(--bg);}
 .split-box .note-box{margin-top:.7rem;}
+
+.geo-guia{background:#FFF3D6; border:2px solid var(--gold); padding:1rem 1.05rem; text-align:center;}
+.geo-guia-titulo{font-family:'Fraunces',serif; font-size:19px; font-weight:800; line-height:1.25; color:var(--accent-dark); margin-bottom:.4rem;}
+.geo-guia-texto{font-size:16px; line-height:1.45; color:var(--ink);}
 </style>
 
 <style id="fix-fotos-sem-corte">
@@ -662,10 +666,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <h3 class="wz-step-title" id="wz-titulo">Confira seus itens</h3>
         <div class="wz-bar" id="wz-bar"></div>
       </div>
-      <div id="encomenda-antecipada-note" class="note-box" data-wstep="1 7" style="display:none; border-color:var(--rust);">
-        <b>⚠️ Estamos fechados agora.</b> Esse pedido será registrado como <b>encomenda antecipada</b> e vamos precisar de pagamento adiantado ou de um sinal de 50% pra confirmar. Combinamos os detalhes com você pelo WhatsApp assim que enviar.
-      </div>
-      <section class="section" id="carrinho" data-wstep="1 2">
+            <section class="section" id="carrinho" data-wstep="1 2">
 
     <div class="section-head">
       <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.3 11.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/></svg></div>
@@ -740,14 +741,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div id="endereco-field" class="field-group" data-wstep="4">
         <span class="field-label">Endereço para entrega *</span>
         <div class="geo-guia" id="geo-guia">
-          <b>📍 Recomendamos muito compartilhar sua localização: o motoboy chega mais rápido e certinho.</b>
-          <ol>
-            <li>Ligue o <b>GPS (Localização)</b> do celular e, se puder, fique na porta de casa ou em local aberto.</li>
-            <li>Toque no botão verde abaixo.</li>
-            <li>Quando o navegador perguntar, toque em <b>Permitir</b> (ou <b>Permitir ao usar o app</b>).</li>
-            <li>Aguarde alguns segundos até aparecer <b>"Localização capturada"</b>.</li>
-          </ol>
-          <div style="margin-top:.5rem;"><b>Não conseguiu?</b> Sem problema: se a localização falhar, vão aparecer os campos para você digitar o endereço e continuar o pedido.</div>
+          <div class="geo-guia-titulo">📍 COMPARTILHE SUA LOCALIZAÇÃO (GPS)</div>
+          <div class="geo-guia-texto">O motoboy chega mais rápido e certinho. Toque no botão verde abaixo e escolha <b>PERMITIR</b>.</div>
         </div>
         <div id="geo-actions" style="margin:.3rem 0 .5rem;">
           <button type="button" class="geo-btn-main" id="geo-btn" onclick="compartilharLocalizacao()">📍 Compartilhar minha localização</button>
@@ -1637,101 +1632,6 @@ async function aplicarCapasSecoes(){
   }
 }
 
-/* ==================== HORÁRIO DE FUNCIONAMENTO ==================== */
-// Horário configurável pelo admin (tabela horario_funcionamento, 1 linha por dia da
-// semana: 0=domingo ... 6=sábado). Se não der pra carregar do banco, cai num horário
-// de segurança (sex/sáb/dom, 18h-21h) pra nunca deixar o site sem essa checagem.
-let HORARIOS_FUNCIONAMENTO = null; // array de 7 linhas quando carregado
-const HORARIO_FALLBACK = [0,1,2,3,4,5,6].map(dia => ({
-  dia_semana: dia,
-  fechado: !(dia === 0 || dia === 5 || dia === 6),
-  hora_abertura: '18:00',
-  hora_fechamento: '21:00'
-}));
-
-async function carregarHorarioFuncionamento(){
-  if(!supabaseClient){ HORARIOS_FUNCIONAMENTO = HORARIO_FALLBACK; return; }
-  try{
-    const { data, error } = await supabaseClient.from('horario_funcionamento').select('*').order('dia_semana');
-    if(error || !data || data.length === 0) throw error || new Error('vazio');
-    HORARIOS_FUNCIONAMENTO = data;
-  } catch(e){
-    console.error('Não foi possível carregar o horário de funcionamento, usando horário padrão:', e);
-    HORARIOS_FUNCIONAMENTO = HORARIO_FALLBACK;
-  }
-}
-
-function horarioDoDia(dia){
-  return (HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK).find(h => h.dia_semana === dia);
-}
-
-// Confere se "agora" cai dentro do intervalo [abertura, fechamento) de um dado dia,
-// considerando que o horário pode passar da meia-noite (ex: 18h às 01h).
-function dentroDoIntervalo(minutosAgora, abreMin, fechaMin){
-  if(abreMin === null || fechaMin === null) return false;
-  if(fechaMin > abreMin){
-    return minutosAgora >= abreMin && minutosAgora < fechaMin;
-  }
-  // vira a noite: aberto desde abreMin até 23:59 OU desde 00:00 até fechaMin
-  return minutosAgora >= abreMin || minutosAgora < fechaMin;
-}
-function paraMinutos(hhmm){
-  if(!hhmm) return null;
-  const [h,m] = hhmm.split(':').map(Number);
-  return h*60 + (m||0);
-}
-
-function isStoreOpen(){
-  const now = new Date();
-  const diaHoje = now.getDay();
-  const diaOntem = (diaHoje + 6) % 7;
-  const minutosAgora = now.getHours()*60 + now.getMinutes();
-
-  const hHoje = horarioDoDia(diaHoje);
-  if(hHoje && !hHoje.fechado && dentroDoIntervalo(minutosAgora, paraMinutos(hHoje.hora_abertura), paraMinutos(hHoje.hora_fechamento))) return true;
-
-  // Cobre o caso do expediente de ontem ter virado a noite e ainda estar rolando agora
-  // (ex: ontem era sex 18h-01h e agora são 00h30 — hoje já é sábado, mas ainda tá "aberto de ontem").
-  const hOntem = horarioDoDia(diaOntem);
-  if(hOntem && !hOntem.fechado){
-    const abreOntem = paraMinutos(hOntem.hora_abertura);
-    const fechaOntem = paraMinutos(hOntem.hora_fechamento);
-    if(fechaOntem !== null && abreOntem !== null && fechaOntem <= abreOntem && minutosAgora < fechaOntem) return true;
-  }
-  return false;
-}
-
-function textoHorarioFuncionamento(){
-  const nomes = ['dom','seg','ter','qua','qui','sex','sáb'];
-  const ordem = [1,2,3,4,5,6,0]; // segunda a domingo
-  const lista = HORARIOS_FUNCIONAMENTO || HORARIO_FALLBACK;
-  const abertos = ordem.map(d => lista.find(h => h.dia_semana === d)).filter(h => h && !h.fechado && h.hora_abertura && h.hora_fechamento);
-  if(abertos.length === 0) return 'nosso horário de funcionamento configurado';
-  const fmt = t => { const [h, m] = String(t || '').slice(0,5).split(':'); return (m && m !== '00') ? `${parseInt(h,10)}h${m}` : `${parseInt(h,10)}h`; };
-  const grupos = [];
-  abertos.forEach(h => {
-    const abre = fmt(h.hora_abertura), fecha = fmt(h.hora_fechamento);
-    let g = grupos.find(x => x.abre === abre && x.fecha === fecha);
-    if(!g){ g = { abre, fecha, dias: [] }; grupos.push(g); }
-    g.dias.push(nomes[h.dia_semana]);
-  });
-  const juntar = d => d.length > 1 ? d.slice(0, -1).join(', ') + ' e ' + d[d.length - 1] : d[0];
-  return grupos.map(g => `${juntar(g.dias)}, das ${g.abre} às ${g.fecha}`).join('; ');
-}
-
-let storeClosedAtLoad = false;
-function checkStoreHours(){
-  storeClosedAtLoad = !isStoreOpen();
-  const banner = document.getElementById('horario-aviso');
-  if(banner){
-    const texto = banner.querySelector('.closed-banner p');
-    if(texto) texto.innerHTML = `Funcionamos <b>${textoHorarioFuncionamento()}</b>. Fora desse horário você pode ver o cardápio numa boa e, se quiser, já fazer sua <b>encomenda antecipada</b> — nesse caso pedimos pagamento adiantado ou um sinal de 50% para confirmar.`;
-    banner.style.display = storeClosedAtLoad ? 'block' : 'none';
-  }
-  const checkoutNote = document.getElementById('encomenda-antecipada-note');
-  if(checkoutNote) checkoutNote.style.display = storeClosedAtLoad ? 'block' : 'none';
-}
-
 /* ==================== AVISO DE TEMPO DE ESPERA ==================== */
 let CONFIG_GERAL = { tempo_espera_ativo:false, tempo_espera_texto:'' };
 async function carregarConfigGeral(){
@@ -1770,10 +1670,6 @@ function mostrarAvisoTempoEspera(){
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Horário e aviso de espera carregam em paralelo com o resto, mas com um horário
-  // de segurança já disponível de imediato — checkStoreHours() nunca fica esperando.
-  checkStoreHours();
-  carregarHorarioFuncionamento().then(checkStoreHours);
   carregarConfigGeral().then(mostrarAvisoTempoEspera);
   verificarLoginIndex();
   aplicarCapasSecoes();
@@ -2764,11 +2660,6 @@ function gerarComanda(){
   c += `${SEP}\n`;
   c += `🧾 Pedido #${numPedido}\n`;
   c += `📅 ${dataStr}   🕒 ${horaStr}\n`;
-  if(!isStoreOpen()){
-    c += `${SEP}\n`;
-    c += `⚠️ *ENCOMENDA ANTECIPADA*\n`;
-    c += quebrarTexto(`Funcionamos ${textoHorarioFuncionamento()}.`, LARG, '') + '\n';
-  }
 
   // ---------- PARA O PIZZAIOLO ----------
   c += `${SEP}\n`;
