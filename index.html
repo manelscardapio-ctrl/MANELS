@@ -748,7 +748,6 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <button type="button" class="geo-btn-main" id="geo-btn" onclick="compartilharLocalizacao()">📍 Compartilhar minha localização</button>
         </div>
         <div id="geo-status" class="note-box" style="display:none;"></div>
-        <div id="geo-ajuda" class="geo-ajuda" style="display:none;"></div>
         <div id="endereco-input-wrap" style="display:none; margin-top:.5rem;">
           <div id="geo-nota" class="geo-nota" style="display:none;"></div>
           <label class="geo-confirma" id="geo-confirma-label" for="chk-confirma-local" style="display:none;">
@@ -3353,19 +3352,6 @@ function geoNota(txt){
   el.style.display = txt ? 'block' : 'none';
 }
 
-function geoMostrarAjuda(){
-  const el = document.getElementById('geo-ajuda');
-  if(!el) return;
-  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
-  const passos = ios
-    ? '<b>No iPhone:</b> abra <b>Ajustes › Privacidade e Segurança › Serviços de Localização</b>, deixe ligado, procure o <b>Safari (Sites)</b> (ou o navegador que você usa) e escolha <b>Ao usar o app</b>.'
-    : '<b>No Android:</b> toque no <b>cadeado</b> ao lado do endereço do site › <b>Permissões</b> › <b>Localização</b> › <b>Permitir</b>. Confira também se a <b>Localização</b> do celular está ligada (deslize a barra de cima da tela).';
-  const msg = encodeURIComponent('Oi! Estou com dificuldade para compartilhar a localização no site.');
-  el.innerHTML = `${passos}<br>Depois <b>recarregue a página</b> e toque no botão de novo.<br>`
-    + `Se preferir, <b>preencha o endereço manualmente abaixo</b> e siga com o pedido, ou <a href="https://wa.me/${WHATSAPP_NUMBER}?text=${msg}" target="_blank" rel="noopener">fale com a gente no WhatsApp</a>.`;
-  el.style.display = 'block';
-}
-
 function geoAtualizarUI(){
   const btn = document.getElementById('geo-btn');
   if(!btn || btn.disabled) return;
@@ -3412,14 +3398,11 @@ async function geoPreencherEndereco(){
 
 function compartilharLocalizacao(){
   const btn = document.getElementById('geo-btn');
-  document.getElementById('geo-ajuda').style.display = 'none';
   btn.classList.remove('ok');
 
   if(!navigator.geolocation || window.isSecureContext === false){
-    geoStatus('Este navegador não consegue compartilhar a localização. Sem problema: <b>preencha o endereço abaixo</b> e continue o pedido (ou abra o site no <b>Chrome</b>/<b>Safari</b> do celular para usar o GPS).', 'erro');
-    geoMostrarAjuda();
+    geoStatus('Este navegador não compartilha localização. Preencha o endereço abaixo para continuar.', 'erro');
     abrirEnderecoManual();
-    geoNota('Preencha a rua, o número e o ponto de referência abaixo.');
     return;
   }
 
@@ -3435,19 +3418,17 @@ function compartilharLocalizacao(){
     btn.disabled = false;
     btn.textContent = '🔄 Tentar de novo';
     geoStatus(html, 'erro');
-    geoMostrarAjuda();
     abrirEnderecoManual();
     if(!wzGeoValida()){
       document.getElementById('geo-confirma-label').style.display = 'none';
-      geoNota('Não conseguimos pegar sua localização, sem problema! Preencha a rua, o número e o ponto de referência abaixo.');
     }
   };
   const finalizar = () => {
     geoParar();
-    if(!melhor){ falhou('Não recebemos sinal de GPS. Ligue a <b>Localização</b> do celular, vá para um local aberto e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.'); return; }
+    if(!melhor){ falhou('Não recebemos sinal de GPS. Toque em "Tentar de novo" ou preencha o endereço abaixo.'); return; }
     const acc = melhor.coords.accuracy;
     if(acc > GEO_PRECISAO_MAX_M){
-      falhou(`Sinal de GPS fraco (precisão de ±${Math.round(acc)} m). Ligue o <b>GPS</b>, vá para um local aberto (porta de casa ou rua) e toque em <b>Tentar de novo</b> — ou, se preferir, <b>preencha o endereço abaixo</b>.`);
+      falhou(`Sinal de GPS fraco (±${Math.round(acc)} m). Toque em "Tentar de novo" ou preencha o endereço abaixo.`);
       return;
     }
     userGeoLat = melhor.coords.latitude;
@@ -3459,7 +3440,6 @@ function compartilharLocalizacao(){
     btn.textContent = '🔄 Atualizar localização';
     btn.classList.add('ok');
     geoStatus(`<b>✅ Localização capturada</b> (precisão de ±${Math.round(acc)} m). Agora confira o endereço abaixo.`, 'ok');
-    document.getElementById('geo-ajuda').style.display = 'none';
     document.getElementById('geo-guia').style.display = 'none';
     document.getElementById('geo-confirma-label').style.display = 'flex';
     abrirEnderecoManual();
@@ -3474,13 +3454,13 @@ function compartilharLocalizacao(){
     geoStatus(`Buscando sinal de GPS… precisão atual de ±${Math.round(acc)} m. Aguarde alguns segundos.`, 'info');
   }, err => {
     if(err.code === err.PERMISSION_DENIED){
-      falhou('<b>Permissão de localização negada.</b> Tudo bem! Você pode seguir <b>preenchendo o endereço abaixo</b>. Se quiser liberar a localização para a entrega ficar mais precisa, veja como no aviso abaixo.');
+      falhou('Localização não liberada. Sem problema: preencha o endereço abaixo para continuar.');
     } else if(melhor){
       finalizar();
     } else if(err.code === err.TIMEOUT){
-      falhou('Demorou demais para achar o sinal de GPS. Vá para um local aberto e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.');
+      falhou('Demorou para achar o sinal. Toque em "Tentar de novo" ou preencha o endereço abaixo.');
     } else {
-      falhou('Não foi possível obter sua localização. Confira se o <b>GPS</b> do celular está ligado e tente de novo — ou <b>preencha o endereço abaixo</b> e continue.');
+      falhou('Não foi possível obter sua localização. Preencha o endereço abaixo para continuar.');
     }
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: GEO_ESPERA_MAX_MS });
   geoTimer = setTimeout(finalizar, GEO_ESPERA_MAX_MS);
