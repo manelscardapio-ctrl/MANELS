@@ -56,6 +56,32 @@
   .status-select.cancelado{ background:#e6e6e6; color:#555; }
 
   textarea{ width:100%; font-family:'Courier New', monospace; font-size:.8rem; padding:8px; border-radius:6px; border:1px dashed #ccc; background:#fafafa; color:#222; min-height:160px; resize:vertical; margin-bottom:8px; flex:1; }
+#lista.grade{ display:flex; flex-direction:column; gap:10px; }
+.pasta-admin{ background:#fff; color:#222; border-radius:12px; border-left:8px solid #c4562a; box-shadow:0 3px 10px rgba(0,0,0,.25); overflow:hidden; }
+.pasta-admin.status-em_andamento{ border-left-color:#2f6fb0; }
+.pasta-admin.status-rota_entrega{ border-left-color:#8a5ab5; }
+.pasta-admin.status-finalizado_pago{ border-left-color:#3a7d4a; }
+.pasta-admin.atrasado{ box-shadow:0 0 0 3px #e05a3a, 0 3px 10px rgba(0,0,0,.25); }
+.pasta-cab{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; }
+.pasta-cab:hover{ background:#faf6f0; }
+.pasta-info{ min-width:0; }
+.pasta-nome{ font-size:1.05rem; font-weight:bold; overflow-wrap:anywhere; }
+.pasta-seta{ display:inline-block; width:1em; transition:transform .15s; color:#888; }
+.pasta-admin.aberta .pasta-seta{ transform:rotate(90deg); }
+.pasta-meta{ font-size:.8rem; color:#666; display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; }
+.pasta-meta .selo{ font-size:.72rem; font-weight:bold; padding:3px 9px; border-radius:12px; white-space:nowrap; }
+.selo-entrega{ background:#fff0d6; color:#8a5a00; }
+.selo-retirada{ background:#e3f1e6; color:#2b6a3a; }
+.selo-status{ background:#eee; color:#444; }
+.selo-status.novo{ background:#ffe3cf; color:#a14a12; }
+.selo-status.em_andamento{ background:#d8e8f8; color:#1d4f86; }
+.selo-status.rota_entrega{ background:#e8def5; color:#5d3a86; }
+.selo-status.finalizado_pago{ background:#d4f0dc; color:#1e6b3a; }
+.pasta-atraso{ color:#c0392b; font-weight:bold; }
+.pasta-total{ font-weight:bold; color:#c4562a; font-size:1.15rem; white-space:nowrap; }
+.pasta-corpo{ display:none; padding:6px 16px 16px; border-top:1px dashed #ddd; }
+.pasta-admin.aberta .pasta-corpo{ display:block; }
+
   .acoes{ display:flex; gap:6px; flex-wrap:wrap; }
   button.acao{ font-family:inherit; font-size:.78rem; padding:7px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
   .btn-imprimir{ background:var(--dark-green); color:#fff; }
@@ -463,6 +489,20 @@ function filtrarBusca(lista){
   return lista.filter(p => (p.texto_comanda || '').toLowerCase().includes(termo));
 }
 
+// ---------- pastas (um cartão fechado por cliente; ao clicar abre a comanda e as opções) ----------
+let pastasAbertas = new Set();   // ids das pastas abertas — a lista se redesenha sozinha a cada pedido novo, e não pode fechar a que você está usando
+function alternarPasta(id){
+  const chave = String(id);
+  const el = document.querySelector(`#lista .pasta-admin[data-pasta="${chave}"]`);
+  if(!el) return;
+  if(el.classList.toggle('aberta')) pastasAbertas.add(chave); else pastasAbertas.delete(chave);
+}
+// O nome do cliente e o texto da comanda vêm do que o cliente digitou: precisam ser "escapados"
+// antes de entrar no HTML, senão um nome com código malicioso rodaria dentro do painel.
+function escHtmlPasta(t){
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function renderizar(){
   renderizarResumoDia();
   const edicoesAtuais = capturarEdicoes();
@@ -493,26 +533,39 @@ function renderizar(){
     const numero = pedidoNumero(p, listaOrdenadaAsc);
     const nomeCliente = extrairNomeCliente(valorTextarea);
 
+    const aberta = pastasAbertas.has(String(p.id));
+    const ehRetirada = /RETIRADA NO BALC/i.test(valorTextarea || '');
     const div = document.createElement('div');
-    div.className = 'pedido status-' + p.status + (atrasado ? ' atrasado' : '');
+    div.className = 'pasta-admin status-' + p.status + (atrasado ? ' atrasado' : '') + (aberta ? ' aberta' : '');
+    div.dataset.pasta = String(p.id);
     div.innerHTML = `
-      <div class="pedido-topo">
-        <span class="pedido-numero">Pedido #${numero}${nomeCliente ? ' — ' + nomeCliente : ''}${atrasado ? ' ⚠️ parado há ' + Math.round(minutosParado) + ' min' : ''}</span>
-        <span class="pedido-hora">${formatarHora(p.created_at)}</span>
+      <div class="pasta-cab" onclick="alternarPasta(${p.id})">
+        <div class="pasta-info">
+          <div class="pasta-nome"><span class="pasta-seta">▸</span> 📁 ${escHtmlPasta(nomeCliente || 'Cliente sem nome')}</div>
+          <div class="pasta-meta">
+            <span class="selo ${ehRetirada ? 'selo-retirada' : 'selo-entrega'}">${ehRetirada ? '🏠 Retirada' : '🛵 Entrega'}</span>
+            <span class="selo selo-status ${p.status}">${STATUS_LABELS[p.status] || p.status}</span>
+            <span>Pedido #${numero}</span>
+            <span>🕒 ${formatarHora(p.created_at)}</span>
+            ${atrasado ? `<span class="pasta-atraso">⚠️ parado há ${Math.round(minutosParado)} min</span>` : ''}
+          </div>
+        </div>
+        <div class="pasta-total">R$ ${(p.total||0).toFixed(2).replace('.',',')}</div>
       </div>
-      <div class="pedido-topo">
-        <select class="status-select ${p.status}" onchange="mudarStatus(${p.id}, this.value)">
-          ${Object.entries(STATUS_LABELS).map(([v,l]) => `<option value="${v}" ${p.status===v?'selected':''}>${l}</option>`).join('')}
-        </select>
-        <span class="pedido-total">R$ ${(p.total||0).toFixed(2).replace('.',',')}</span>
-      </div>
-      <textarea data-id="${p.id}">${valorTextarea}</textarea>
-      <div class="acoes">
-        <button class="acao btn-imprimir" onclick="imprimirPedido(${p.id})">🖨️ Imprimir</button>
-        <button class="acao btn-salvar" onclick="salvarEdicao(${p.id})">💾 Salvar texto</button>
-        <button class="acao btn-ok" onclick="abrirEditarPedido(${p.id})">✏️ Editar itens</button>
-        ${p.status === 'finalizado_pago' ? `<button class="acao btn-ok" onclick="gerarLinkAvaliacao(${p.id})">⭐ Link de avaliação</button>` : ''}
-        <button class="acao btn-excluir" onclick="excluirPedido(${p.id})">🗑️ Excluir</button>
+      <div class="pasta-corpo">
+        <div class="pedido-topo">
+          <select class="status-select ${p.status}" onchange="mudarStatus(${p.id}, this.value)">
+            ${Object.entries(STATUS_LABELS).map(([v,l]) => `<option value="${v}" ${p.status===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <textarea data-id="${p.id}">${escHtmlPasta(valorTextarea)}</textarea>
+        <div class="acoes">
+          <button class="acao btn-imprimir" onclick="imprimirPedido(${p.id})">🖨️ Imprimir</button>
+          <button class="acao btn-salvar" onclick="salvarEdicao(${p.id})">💾 Salvar texto</button>
+          <button class="acao btn-ok" onclick="abrirEditarPedido(${p.id})">✏️ Editar itens</button>
+          ${p.status === 'finalizado_pago' ? `<button class="acao btn-ok" onclick="gerarLinkAvaliacao(${p.id})">⭐ Link de avaliação</button>` : ''}
+          <button class="acao btn-excluir" onclick="excluirPedido(${p.id})">🗑️ Excluir</button>
+        </div>
       </div>
     `;
     listaEl.appendChild(div);
@@ -646,9 +699,12 @@ async function excluirPedido(id){
   renderizar();
 }
 
-// Troca os emojis coloridos por símbolos de uma cor só, que saem melhor na impressora térmica.
-// O texto guardado do pedido (e a mensagem do WhatsApp) NÃO mudam — só o que vai pro papel.
-function converterParaImpressao(texto){
+// ==================== COMANDA PARA O PAPEL ====================
+// Reorganiza o texto guardado do pedido num layout mais claro (blocos separados, uma informação
+// por linha) e troca os emojis coloridos por símbolos de uma cor só, que saem bem na impressora
+// térmica. O texto guardado do pedido (e a mensagem do WhatsApp) NÃO mudam — só o que vai pro papel.
+// Se o texto não tiver o formato esperado, cai numa conversão simples (só troca os símbolos).
+function trocarSimbolosSimples(texto){
   let t = String(texto || '');
   t = t.replace(/\*?🍕 PARA O PIZZAIOLO\*?/g, '★ PARA O PIZZAIOLO ★')
        .replace(/\*?🛵 PARA O MOTOBOY\*?/g, '➤ PARA O MOTOBOY ➤')
@@ -663,6 +719,216 @@ function converterParaImpressao(texto){
   t = t.replace(/\*([^*\n]+)\*/g, '$1');                  // tira os asteriscos de "negrito" do WhatsApp
   t = t.replace(/[\u{1F000}-\u{1FAFF}]\uFE0F?/gu, '•');    // qualquer emoji que sobrou vira um marcador simples
   return t;
+}
+
+function converterParaImpressao(texto){
+  const bruto = String(texto || '').replace(/\uFE0F/g, '').replace(/\r/g, '');
+  if(!/PARA O PIZZAIOLO/.test(bruto) || !/PARA O MOTOBOY/.test(bruto) || !/TOTAL A COBRAR/.test(bruto)){
+    return trocarSimbolosSimples(bruto);
+  }
+  try{
+    return montarLayoutPapel(bruto);
+  } catch(e){
+    console.error('Layout da comanda: usando conversão simples.', e);
+    return trocarSimbolosSimples(bruto);
+  }
+}
+
+function montarLayoutPapel(bruto){
+  const W = 32;
+  const SEP = '='.repeat(W);
+  const DIV = '-'.repeat(W);
+  const linhas = bruto.split('\n').map(l => l.replace(/\s+$/, ''));
+  const ehSep = l => /^=+$/.test(l.trim()) || /^-{5,}$/.test(l.trim());
+
+  const idxP = linhas.findIndex(l => /PARA O PIZZAIOLO/.test(l));
+  const idxM = linhas.findIndex(l => /PARA O MOTOBOY/.test(l));
+  const idxT = linhas.findIndex((l, i) => i > idxM && /TOTAL A COBRAR/.test(l));
+  if(idxP < 0 || idxM < idxP || idxT < idxM) throw new Error('estrutura da comanda');
+
+  const cab = linhas.slice(0, idxP);
+  const piz = linhas.slice(idxP + 1, idxM).filter(l => !ehSep(l) && l.trim() !== '');
+  const mot = linhas.slice(idxM + 1, idxT).filter(l => !ehSep(l) && l.trim() !== '');
+  const rod = linhas.slice(idxT).filter(l => !ehSep(l) && l.trim() !== '');
+
+  // quebra de linha com "recuo": prefixo na 1ª linha, recuoDemais nas seguintes
+  const quebrar = (prefixo, texto, recuoDemais) => {
+    const palavras = String(texto || '').split(/\s+/).filter(Boolean);
+    const out = [];
+    let atual = prefixo, primeiro = true;
+    palavras.forEach(p => {
+      const cand = primeiro ? atual + p : atual + ' ' + p;
+      if(cand.length > W && !primeiro){ out.push(atual); atual = recuoDemais + p; }
+      else atual = cand;
+      primeiro = false;
+    });
+    out.push(atual);
+    return out;
+  };
+  const simb = s => trocarSimbolosSimples(s).replace(/\s+$/, '');
+  const pontilhado = (rotulo, valor) => {
+    const pontos = '.'.repeat(Math.max(2, W - 2 - rotulo.length - valor.length - 2));
+    return `  ${rotulo} ${pontos} ${valor}`;
+  };
+  const centro = t => ' '.repeat(Math.max(0, Math.floor((W - t.length) / 2))) + t;
+
+  const out = [];
+
+  // ---------- cabeçalho ----------
+  const textoCab = cab.join('\n');
+  const num = (textoCab.match(/Pedido #(\d+)/) || [])[1];
+  const data = (textoCab.match(/📅\s*(\S+)/) || [])[1];
+  const hora = (textoCab.match(/🕒\s*(\S+)/) || [])[1];
+  out.push(SEP, centro("MANEL'S PIZZARIA"), SEP);
+  if(num || hora){
+    const esq = num ? `№ ${num}` : '';
+    const dir = hora ? `◷ ${hora}` : '';
+    out.push(esq + ' '.repeat(Math.max(1, W - esq.length - dir.length)) + dir);
+  }
+  if(data){
+    const dir2 = `▦ ${data}`;
+    out.push(' '.repeat(Math.max(0, W - dir2.length)) + dir2);
+  }
+  // linhas extras do cabeçalho (ex.: pedidos antigos marcados como encomenda)
+  cab.filter(l => !ehSep(l) && l.trim() !== '' && !/MANEL'S PIZZARIA/.test(l) && !/^\s*📞\s*\d/.test(l)
+                  && !/Pedido #/.test(l) && !/^📅/.test(l))
+     .forEach(l => out.push(simb(l.trim())));
+  out.push(SEP);
+
+  // ---------- PARA O PIZZAIOLO ----------
+  out.push('', '★ PARA O PIZZAIOLO ★', DIV);
+  const ITEM = /^(🍕|🥟|🍩|🥙|🥤|🍽|🎁|•) (\d+)x (.+)$/u;
+  const SIM_ITEM = { '🍕':'◔', '🥟':'◖', '🍩':'✿', '🥙':'▲', '🥤':'∪', '🍽':'◆', '🎁':'★', '•':'•' };
+  const blocos = [];
+  const complementos = [];
+  const obs = { txt: '' };
+  let atual = null;     // item em montagem
+  let alvo = null;      // último texto que pode receber uma linha de continuação (linhas quebradas a 32 colunas)
+  piz.forEach(l => {
+    let m;
+    if((m = l.match(ITEM))){ atual = { emoji: m[1], qty: m[2], label: m[3], subs: [] }; blocos.push(atual); alvo = null; return; }
+    if(/^\s*🔸/.test(l)){
+      const t = l.replace(/^\s*🔸\s*/, '');
+      const mm = t.match(/^\[(\d+)\/(\d+)\]\s*(.*)$/);
+      const sub = { simbolo: '▸', txt: mm ? `${mm[1]}/${mm[2]} ${mm[3]}` : t };
+      if(atual) atual.subs.push(sub); else blocos.push({ emoji: '•', qty: '', label: '', subs: [sub] });
+      alvo = sub; return;
+    }
+    if(/^🧀 Borda Recheada:/.test(l)){
+      const sub = { simbolo: '◎', txt: 'Borda: ' + l.replace(/^🧀 Borda Recheada:\s*/, '') };
+      if(atual) atual.subs.push(sub); alvo = sub; return;
+    }
+    if(/^\s*📝 Observação:/.test(l)){
+      const sub = { simbolo: '✎', txt: l.replace(/^\s*📝 Observação:\s*/, '') };
+      if(atual) atual.subs.push(sub); alvo = sub; return;
+    }
+    if(/^🔹/.test(l)){
+      complementos.push(l.replace(/^🔹\s*/, '').replace(/\s*\([^)]*\)\s*$/, '')); // tira "(1ª grátis, + R$ 1,00)"
+      alvo = null; return;
+    }
+    if((m = l.match(/^❗\s*\*?OBS:\*?\s*(.*)$/))){ obs.txt = m[1]; alvo = obs; return; }
+    if(alvo) alvo.txt += ' ' + l.trim();
+    else complementos.push(l.trim());
+  });
+
+  blocos.forEach(b => {
+    out.push('');
+    if(b.label){
+      let rotulo = b.label.toUpperCase();
+      const nSab = b.subs.filter(x => /^\d+\/\d+ /.test(x.txt)).length;
+      rotulo = rotulo.replace(/\(FRACIONADA\)/, nSab > 1 ? `(${nSab} SABORES)` : '(1 SABOR)');
+      quebrar(`${SIM_ITEM[b.emoji] || '•'} ${b.qty}x `, simb(rotulo), '   ').forEach(x => out.push(x));
+    }
+    b.subs.forEach(sb => quebrar(`   ${sb.simbolo} `, simb(sb.txt), '     ').forEach(x => out.push(x)));
+  });
+  if(complementos.length || obs.txt){
+    out.push('', DIV);
+    complementos.forEach(c => out.push('▹ ' + simb(c)));
+    if(obs.txt) quebrar('⚑ OBS: ', simb(obs.txt), '  ').forEach(x => out.push(x));
+  }
+
+  // ---------- PARA O MOTOBOY ----------
+  out.push('', SEP, '➤ PARA O MOTOBOY ➤', SEP, '');
+  const c = { nome: '', tel: '', end: [], ref: [], mapa: '', semGps: [], taxa: '', pag: '', cash: [], cupom: null, pontos: '', retirada: false, outros: [] };
+  alvo = null;
+  mot.forEach(l => {
+    let m;
+    if((m = l.match(/^👤 Cliente:\s*(.*)$/))){ c.nome = m[1]; alvo = null; return; }
+    if((m = l.match(/^📞 Telefone:\s*(.*)$/))){ c.tel = m[1]; alvo = null; return; }
+    if((m = l.match(/^📍 Endereço:\s*(.*)$/))){ c.end = [m[1]]; alvo = c.end; return; }
+    if((m = l.match(/^📌 Referência:\s*(.*)$/))){ c.ref = [m[1]]; alvo = c.ref; return; }
+    if(/^🗺 Mapa:/.test(l)){ c.mapa = l; alvo = null; return; }
+    if(/^⚠ Cliente sem GPS/.test(l)){ c.semGps = [l]; alvo = c.semGps; return; }
+    if(/RETIRADA NO BALC/.test(l)){ c.retirada = true; alvo = null; return; }
+    if((m = l.match(/^🛵 Taxa de entrega:\s*(.*)$/))){ c.taxa = m[1]; alvo = null; return; }
+    if((m = l.match(/^💳 Pagamento:\s*(.*)$/))){ c.pag = m[1]; alvo = null; return; }
+    if(/^💵 /.test(l)){ c.cash.push(l.replace(/^💵\s*/, '')); alvo = null; return; }
+    if((m = l.match(/^🏷 Cupom (.+?):\s*(-?\s*R\$.*)$/))){ c.cupom = { cod: m[1], val: m[2] }; alvo = null; return; }
+    if((m = l.match(/^🎁 Desconto[^:]*:\s*(-?\s*R\$.*)$/))){ c.pontos = m[1]; alvo = null; return; }
+    if(alvo){ alvo.push(l.trim()); return; }
+    c.outros.push(l);
+  });
+
+  if(c.nome) quebrar('☻ ', c.nome, '  ').forEach(x => out.push(x));
+  if(c.tel) out.push('✆ ' + c.tel);
+  out.push('');
+  if(c.retirada){
+    out.push('⌂ RETIRADA NO BALCÃO');
+  } else {
+    out.push('⌂ ENTREGA');
+    const end = c.end.join(' ').trim();
+    if(end) quebrar('  ', end, '  ').forEach(x => out.push(x));
+    const ref = c.ref.join(' ').trim();
+    if(ref) quebrar('  ☞ ', ref, '    ').forEach(x => out.push(x));
+    if(c.mapa){
+      const prec = (c.mapa.match(/±\s*(\d+)\s*m/) || [])[1];
+      out.push('  ⊕ GPS localizado' + (prec ? ` (±${prec} m)` : ''));
+    } else if(c.semGps.length){
+      quebrar('  (!) ', 'Sem GPS: confirmar o endereço', '      ').forEach(x => out.push(x));
+    }
+  }
+
+  out.push('', DIV, '¤ PAGAMENTO');
+  const partes = c.pag.split(' + ').map(s => s.trim());
+  if(partes.length >= 2 && partes.every(p => /\S\s+R\$\s*[\d.,]+$/.test(p))){
+    partes.forEach(p => {
+      const mm = p.match(/^(.+?)\s+(R\$\s*[\d.,]+)$/);
+      out.push(pontilhado(mm[1], mm[2].replace(/\s+/g, ' ')));
+    });
+  } else if(c.pag){
+    out.push('  ' + c.pag);
+  }
+  c.cash.forEach(x => {
+    let mm;
+    if((mm = x.match(/pagará com:?\s*(R\$\s*[\d.,]+)\s*→\s*Troco:\s*(R\$\s*[\d.,]+)/i))){
+      out.push(`  $ Pagar com ${mm[1].replace(/\s+/g, ' ')}`);
+      out.push(`    Troco: ${mm[2].replace(/\s+/g, ' ')}`);
+    } else if(/NÃO precisa/i.test(x)){
+      out.push('  $ Sem troco (valor exato)');
+    } else {
+      quebrar('  $ ', simb(x.replace(/^Dinheiro[^—]*—\s*/, '')), '    ').forEach(y => out.push(y));
+    }
+  });
+
+  const extras = [];
+  if(c.taxa) extras.push(['Taxa de entrega', c.taxa.replace(/\s+/g, ' ')]);
+  if(c.cupom) extras.push([`% Cupom ${c.cupom.cod}`, c.cupom.val.replace(/\s+/g, ' ')]);
+  if(c.pontos) extras.push(['★ Desconto pontos', c.pontos.replace(/\s+/g, ' ')]);
+  if(extras.length){
+    out.push('', DIV);
+    extras.forEach(([r, v]) => out.push(pontilhado(r, v)));
+  }
+  if(c.outros.length){
+    out.push('');
+    c.outros.forEach(l => out.push(simb(l)));
+  }
+
+  // ---------- total ----------
+  const mTot = (rod[0] || '').match(/TOTAL A COBRAR:\s*\*?\s*(R\$\s*[\d.,]+)/);
+  out.push('', SEP, mTot ? `◆ TOTAL A COBRAR: ${mTot[1].replace(/\s+/g, ' ')}` : simb(rod[0] || ''), SEP);
+  if(rod.some(l => /Bom apetite/.test(l))) out.push(centro('✿ Bom apetite! ✿'), SEP);
+
+  return out.join('\n').replace(/[\u{1F000}-\u{1FAFF}]\uFE0F?/gu, '•');
 }
 
 // Abre UMA janela de impressão com uma ou várias comandas (cada uma numa folha).
