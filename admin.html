@@ -2687,6 +2687,10 @@ function renderComandasShell(){
           <label><input type="radio" name="builder-fulfillment" value="entrega" checked onchange="atualizarBuilderFulfillment()"> 🛵 Entrega</label>
           <label><input type="radio" name="builder-fulfillment" value="retirada" onchange="atualizarBuilderFulfillment()"> 🏠 Retirada no balcão</label>
         </div>
+        <div class="b-fulfillment" id="builder-zona-wrap">
+          <label><input type="radio" name="builder-zona" value="cidade" checked onchange="atualizarBuilderFulfillment()"> 🏙️ Na cidade</label>
+          <label><input type="radio" name="builder-zona" value="sitio" onchange="atualizarBuilderFulfillment()"> 🌾 No sítio (taxa R$ 5,00)</label>
+        </div>
         <div class="b-campo full"><label>Endereço de entrega</label><textarea id="builder-endereco" placeholder="Rua, número, bairro, ponto de referência" style="min-height:52px;"></textarea></div>
         <div class="b-linha">
           <div class="b-campo">
@@ -2699,7 +2703,7 @@ function renderComandasShell(){
         </div>
         <div class="b-campo full"><label>Observação geral do pedido</label><input type="text" id="builder-obs" placeholder="Opcional — ex: sem cebola, tocar interfone"></div>
         <div class="b-checkrow">
-          <label><input type="checkbox" id="builder-ketchup"> Ketchup grátis</label>
+          <label>Ketchup (1º grátis): <input type="number" id="builder-ketchup" value="0" min="0" style="width:55px;" oninput="renderBuilderCart()"></label>
           <label>Maionese temperada (1ª grátis): <input type="number" id="builder-maionese" value="0" min="0" style="width:55px;" oninput="renderBuilderCart()"></label>
         </div>
       </div>
@@ -3474,7 +3478,9 @@ let PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{
 const CATEGORY_DB_TO_MENU = { pizza:'pizzas', calzone:'calzones', brotinho:'brotinho', esfiha:'esfihas', bebida:'bebidas', combo:'combos', borda:'bordas' };
 const DISQUETES_PRICE = 1.00;
 const MAIONESE_PRICE = 1.00;
+const KETCHUP_PRICE = 0.50;
 const DELIVERY_FEE = 3.00;
+const SITIO_DELIVERY_FEE = 5.00; // entrega no sítio: valor único, cobrado sempre
 const FREE_DELIVERY_THRESHOLD = 15.00;
 let ESFIHA_MIN_QTY = 5; // valor padrão — carregarConfigGeralBuilder() pode trocar
 function rotuloTamanho(chave){
@@ -3541,9 +3547,10 @@ function abrirNovoPedido(){
   document.getElementById('builder-troco').value = '';
   builderPrepararPagamentoDividido('');
   document.getElementById('builder-pagamento').value = 'Pix';
-  document.getElementById('builder-ketchup').checked = false;
+  document.getElementById('builder-ketchup').value = 0;
   document.getElementById('builder-maionese').value = 0;
   document.querySelector('input[name="builder-fulfillment"][value="entrega"]').checked = true;
+  document.querySelector('input[name="builder-zona"][value="cidade"]').checked = true;
   aplicarDescontoNoBuilder(null);
   atualizarBuilderFulfillment();
   atualizarBuilderTroco();
@@ -3675,10 +3682,13 @@ function abrirEditarPedido(id){
   document.getElementById('builder-pagamento').value = builderNomePagamento(meta.pagamento);
   builderPrepararPagamentoDividido(p.texto_comanda || '');
   document.querySelector(`input[name="builder-fulfillment"][value="${meta.entrega === 'retirada' ? 'retirada' : 'entrega'}"]`).checked = true;
+  const eraSitio = /🛵 Taxa de entrega:[^\n]*\(sítio\)/.test(p.texto_comanda || '');
+  document.querySelector(`input[name="builder-zona"][value="${eraSitio ? 'sitio' : 'cidade'}"]`).checked = true;
   document.getElementById('builder-obs').value = meta.observacoes;
   const mPagaCom = (p.texto_comanda || '').match(/Pagará com: R\$ ([\d.,]+)/);
   document.getElementById('builder-troco').value = (mPagaCom && meta.pagamento && /dinheiro/i.test(meta.pagamento)) ? mPagaCom[1] : '';
-  document.getElementById('builder-ketchup').checked = /🔹 Ketchup/.test(p.texto_comanda || '');
+  const mKetchup = (p.texto_comanda || '').match(/🔹 Ketchup: (\d+)x/);
+  document.getElementById('builder-ketchup').value = mKetchup ? mKetchup[1] : (/🔹 Ketchup/.test(p.texto_comanda || '') ? 1 : 0); // pedidos antigos só tinham "🔹 Ketchup" (= 1)
   const mMaionese = (p.texto_comanda || '').match(/Maionese Temperada: (\d+)x/);
   document.getElementById('builder-maionese').value = mMaionese ? mMaionese[1] : 0;
   aplicarDescontoNoBuilder(extrairDescontoDaComanda(p.texto_comanda || ''));
@@ -3696,6 +3706,7 @@ function fecharBuilder(){
 function atualizarBuilderFulfillment(){
   const tipo = document.querySelector('input[name="builder-fulfillment"]:checked').value;
   document.getElementById('builder-endereco').style.display = tipo === 'entrega' ? 'block' : 'none';
+  document.getElementById('builder-zona-wrap').style.display = tipo === 'entrega' ? 'flex' : 'none';
   renderBuilderCart();
 }
 function atualizarBuilderTroco(){
@@ -3914,15 +3925,25 @@ function removerBuilderItem(idx){
 
 // ---------- total e renderização do carrinho ----------
 function builderSubtotal(){ return builderCart.reduce((s,i) => s + i.lineTotal, 0); }
+function builderSitio(){ return document.querySelector('input[name="builder-zona"]:checked')?.value === 'sitio'; }
 function builderFee(){
   const tipo = document.querySelector('input[name="builder-fulfillment"]:checked')?.value;
   if(tipo !== 'entrega') return 0;
   const sub = builderSubtotal();
-  return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
+  if(sub <= 0) return 0;
+  if(builderSitio()) return SITIO_DELIVERY_FEE;
+  return sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
 }
-function builderExtras(){
+function builderExtrasKetchup(){
+  const qtd = parseInt(document.getElementById('builder-ketchup')?.value, 10) || 0;
+  return Math.max(0, qtd - 1) * KETCHUP_PRICE;
+}
+function builderExtrasMaionese(){
   const qtd = parseInt(document.getElementById('builder-maionese')?.value, 10) || 0;
   return Math.max(0, qtd - 1) * MAIONESE_PRICE;
+}
+function builderExtras(){
+  return Math.round((builderExtrasKetchup() + builderExtrasMaionese()) * 100) / 100;
 }
 function arred2B(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function parseNumDescB(s){
@@ -4065,7 +4086,7 @@ function gerarComandaBuilder(){
   const troco = document.getElementById('builder-troco').value.trim();
   const pagamento = document.getElementById('builder-pagamento').value;
   const fulfillment = document.querySelector('input[name="builder-fulfillment"]:checked').value;
-  const wantKetchup = document.getElementById('builder-ketchup').checked;
+  const ketchupQty = parseInt(document.getElementById('builder-ketchup').value, 10) || 0;
   const maioneseQty = parseInt(document.getElementById('builder-maionese').value, 10) || 0;
 
   const numPedido = builderNumPedidoOriginal || Math.floor(1000 + Math.random()*9000);
@@ -4108,8 +4129,11 @@ function gerarComandaBuilder(){
     if(item.note) c += quebrarTextoB(`📝 Observação: ${item.note}`, LARG, '  ') + '\n';
   });
 
-  if(wantKetchup || maioneseQty > 0){
-    if(wantKetchup) c += `🔹 Ketchup\n`;
+  if(ketchupQty > 0 || maioneseQty > 0){
+    if(ketchupQty > 0){
+      const custoKetchup = Math.max(0, ketchupQty - 1) * KETCHUP_PRICE;
+      c += `🔹 Ketchup: ${ketchupQty}x (1º grátis${custoKetchup>0?`, + ${brlB(custoKetchup)}`:''})\n`;
+    }
     if(maioneseQty > 0){
       const custoMaionese = Math.max(0, maioneseQty - 1) * MAIONESE_PRICE;
       c += `🔹 Maionese Temperada: ${maioneseQty}x (1ª grátis${custoMaionese>0?`, + ${brlB(custoMaionese)}`:''})\n`;
@@ -4125,7 +4149,7 @@ function gerarComandaBuilder(){
 
   if(fulfillment === 'entrega'){
     c += quebrarTextoB(`📍 Endereço: ${endereco}`, LARG, '') + '\n';
-    if(fee > 0) c += `🛵 Taxa de entrega: ${brlB(fee)}\n`;
+    if(fee > 0) c += `🛵 Taxa de entrega: ${brlB(fee)}${builderSitio() ? ' (sítio)' : ''}\n`;
   } else {
     c += `🏠 *RETIRADA NO BALCÃO*\n`;
   }
