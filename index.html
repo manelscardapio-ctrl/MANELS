@@ -10,9 +10,21 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Manel's Pizzaria — Faça seu Pedido</title>
+<meta name="theme-color" content="#F2E5D3">
+<meta name="description" content="Peça pizzas, calzones, esfihas e mais da Manel's Pizzaria direto pelo site, com entrega ou retirada.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="Manel's Pizzaria">
+<meta property="og:title" content="Manel's Pizzaria — Faça seu Pedido">
+<meta property="og:description" content="Veja o cardápio e faça seu pedido online: pizzas, calzones, esfihas e mais.">
+<meta property="og:url" content="https://www.manelspizzaria.com.br/">
+<meta property="og:image" content="https://www.manelspizzaria.com.br/logo-manels.jpg">
+<meta property="og:image:width" content="500">
+<meta property="og:image:height" content="500">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
@@ -111,7 +123,6 @@ a{color:inherit;}
 .stop-badge{display:none;}
 .section-head{display:none;}
 .section-desc{font-size:14px; color:var(--ink-soft); margin:0 0 .9rem; font-style:normal;}
-.section-top-img{display:none;}
 
 .panel{background:transparent; border:none; padding:0; margin:0;}
 .field-label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin:1rem 0 .5rem;}
@@ -539,7 +550,6 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
     <p class="section-desc">Tamanho único.</p>
     <div class="panel">
-      <img class="section-top-img" src="topo-calzones.jpg" alt="Calzones">
       <span class="field-label">Escolha o sabor</span>
       <div id="calzone-flavor-grid" class="flavor-grid"></div>
       <span class="field-label">Quantidade</span>
@@ -609,7 +619,6 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     </div>
     <p class="section-desc">Monte seu combo misturando os sabores que quiser.</p>
     <div class="panel">
-      <img class="section-top-img" src="topo-esfihas.jpg" alt="Esfihas">
       <span class="field-label">Monte seu combo — mínimo de 5 esfihas, na quantidade e nos sabores que quiser</span>
       <div id="esfiha-flavors"></div>
       <div class="esf-progress" id="esfiha-progress">0 esfihas selecionadas (mínimo 5)</div>
@@ -681,10 +690,14 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         </div>
       </div>
       <div id="cart-items" data-wstep="1"></div>
-      <label class="complement-toggle" for="want-ketchup" data-wstep="2">
-        <input type="checkbox" id="want-ketchup" onchange="toggleKetchup(this.checked)">
-        <span>Quer <b>Ketchup</b>? <br><small>Grátis</small></span>
-      </label>
+      <div class="complement-toggle" data-wstep="2" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
+        <span>Quer <b>Ketchup</b>? <br><small>O 1º é grátis · a partir do 2º, + R$ 0,50 cada</small></span>
+        <div class="stepper">
+          <button class="step-btn" onclick="changeKetchupQty(-1)">-</button>
+          <span class="step-val" id="ketchup-qty">0</span>
+          <button class="step-btn" onclick="changeKetchupQty(1)">+</button>
+        </div>
+      </div>
       <div class="complement-toggle" data-wstep="2" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
         <span>Quer <b>Maionese Temperada</b>? <br><small>A 1ª é grátis · a partir da 2ª, + R$ 1,00 cada</small></span>
         <div class="stepper">
@@ -696,6 +709,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div id="cart-summary" data-wstep="1 2" style="display:none;">
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
+        <div class="summary-line" id="cart-ketchup-line" style="display:none;"><span>Ketchup (adicionais):</span><span id="cart-ketchup">R$ 0,00</span></div>
         <div class="summary-line" id="cart-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="cart-maionese">R$ 0,00</span></div>
         <div class="summary-line" id="cart-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="cart-cupom">-R$ 0,00</span></div>
         <div class="summary-line" id="cart-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="cart-desconto">-R$ 0,00</span></div>
@@ -739,6 +753,11 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       </div>
 
       <div id="endereco-field" class="field-group" data-wstep="4">
+        <span class="field-label">Onde será a entrega? *</span>
+        <div class="fulfill-row" id="zona-row">
+          <button class="fulfill-btn active" id="zona-cidade" onclick="selectDeliveryZone('cidade')">🏙️ Na cidade</button>
+          <button class="fulfill-btn" id="zona-sitio" onclick="selectDeliveryZone('sitio')">🌾 No sítio</button>
+        </div>
         <span class="field-label">Endereço para entrega *</span>
         <div class="geo-guia" id="geo-guia">
           <div class="geo-guia-titulo">📍 COMPARTILHE SUA LOCALIZAÇÃO (GPS)</div>
@@ -763,7 +782,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <input type="text" id="chk-referencia" maxlength="120" placeholder="Ex: casa azul, em frente à praça" oninput="this.classList.remove('field-error')" />
           <input type="hidden" id="chk-endereco" value="" />
         </div>
-        <div class="note-box"><b>Atenção:</b> pedidos abaixo de R$ 15,00 têm taxa de entrega de R$ 3,00. A partir de R$ 15,00, a entrega é grátis.</div>
+        <div class="note-box" id="entrega-note"><b>Atenção:</b> pedidos abaixo de R$ 15,00 têm taxa de entrega de R$ 3,00. A partir de R$ 15,00, a entrega é grátis.</div>
       </div>
       <div id="retirada-note" class="note-box" data-wstep="4" style="display:none;">
         <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
@@ -854,6 +873,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div id="wz-totais" data-wstep="7">
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
+      <div class="summary-line" id="chk-ketchup-line" style="display:none;"><span>Ketchup (adicionais):</span><span id="chk-ketchup">R$ 0,00</span></div>
       <div class="summary-line" id="chk-maionese-line" style="display:none;"><span>Maionese Temperada (adicionais):</span><span id="chk-maionese">R$ 0,00</span></div>
       <div class="summary-line" id="chk-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="chk-cupom">-R$ 0,00</span></div>
       <div class="summary-line" id="chk-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="chk-desconto">-R$ 0,00</span></div>
@@ -954,8 +974,10 @@ let COMBO_NOTE_CONFIG = {}; // { "2 Brotinhos por R$30": { needsNote:true, noteH
 // (categoria "borda") e o preço de cada uma vem do Supabase, editável no admin.html.
 const DISQUETES_PRICE = 1.00;
 const MAIONESE_PRICE = 1.00;
+const KETCHUP_PRICE = 0.50;
 const DELIVERY_FEE = 3.00;
 const FREE_DELIVERY_THRESHOLD = 15.00;
+const SITIO_DELIVERY_FEE = 5.00; // entrega no sítio: valor único, cobrado sempre
 const STORE_PHONE_DISPLAY = "88 9 9218-2784";
 const WHATSAPP_NUMBER = "5588992182784";
 const PICKUP_ADDRESS = "Rua Joaquim Soares da Silva, 641, Centro";
@@ -969,6 +991,7 @@ const PEDIDOS_SUPABASE_ANON_KEY = "sb_publishable_ockSNlwXiqu24_AaNX6tYQ_lQPQSv_
 let cart = [];
 let cartIdCounter = 1;
 let fulfillment = 'entrega';
+let deliveryZone = 'cidade'; // 'cidade' | 'sitio'
 
 // Dados de localização automática do cliente (GPS + Geocoding Reverso)
 let userGeoLat = null;
@@ -980,7 +1003,7 @@ let payMode = 'uma';        // 'uma' = uma forma de pagamento | 'dividir' = duas
 let splitA = '';            // 1ª forma (PIX / Dinheiro / Débito / Crédito)
 let splitB = '';            // 2ª forma (paga o restante)
 let splitTrocoNeed = null;  // troco da parte em dinheiro: true / false / null
-let wantKetchup = false;
+let ketchupQty = 0;
 let maioneseQty = 0;
 // ===== Resgate de pontos de fidelidade =====
 let pontosDisponiveis = 0;      // saldo do cliente logado (0 se não logado)
@@ -1303,9 +1326,9 @@ async function renderCarrossel(comboKeys){
 
   if(slidesManuais.length){
     secao.style.display = '';
-    wrap.innerHTML = slidesManuais.map(s => `
+    wrap.innerHTML = slidesManuais.map((s, i) => `
       <div class="carrossel-slide" onclick="${s.abre_modal ? `openModal('${s.abre_modal}')` : ''}">
-        ${s.imagem_url ? `<img src="${s.imagem_url}" alt="${(s.titulo||'').replace(/"/g,'&quot;')}">` : `<div class="carrossel-slide-fallback">🍕</div>`}
+        ${s.imagem_url ? `<img src="${s.imagem_url}" alt="${(s.titulo||'').replace(/"/g,'&quot;')}" decoding="async"${i > 0 ? ' loading="lazy"' : ''}>` : `<div class="carrossel-slide-fallback">🍕</div>`}
         <div class="carrossel-slide-info">
           <div class="carrossel-slide-nome">${s.titulo || ''}</div>
           ${s.subtitulo ? `<div style="font-size:13px; color:var(--ink-soft); margin-top:.2rem;">${s.subtitulo}</div>` : ''}
@@ -1327,14 +1350,14 @@ async function renderCarrossel(comboKeys){
   }
   secao.style.display = '';
 
-  wrap.innerHTML = comboKeys.map(nome => {
+  wrap.innerHTML = comboKeys.map((nome, i) => {
     const img = (PRODUCT_IMAGES.combos && PRODUCT_IMAGES.combos[nome]) || '';
     const precoOriginal = MENU_ORIGINAL.combos && MENU_ORIGINAL.combos[nome];
     const preco = MENU.combos[nome];
     const temPromo = precoOriginal && precoOriginal > preco;
     return `
       <div class="carrossel-slide" onclick="abrirComboNoCarrinho('${nome.replace(/'/g,"\\'")}')">
-        ${img ? `<img src="${img}" alt="${nome}">` : `<div class="carrossel-slide-fallback">🍕</div>`}
+        ${img ? `<img src="${img}" alt="${nome}" decoding="async"${i > 0 ? ' loading="lazy"' : ''}>` : `<div class="carrossel-slide-fallback">🍕</div>`}
         <div class="carrossel-slide-info">
           <div class="carrossel-slide-nome">${nome}</div>
           <div class="carrossel-slide-preco">
@@ -1518,7 +1541,7 @@ const CARRINHO_PRE_LOGIN_KEY = 'manels_carrinho_pre_login';
 function salvarCarrinhoAntesDoLogin(){
   try{
     if(cart.length === 0) return;
-    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, paymentMethod: (payMode === 'dividir' ? '' : paymentMethod), wantKetchup, maioneseQty }));
+    localStorage.setItem(CARRINHO_PRE_LOGIN_KEY, JSON.stringify({ cart, cartIdCounter, fulfillment, deliveryZone, paymentMethod: (payMode === 'dividir' ? '' : paymentMethod), ketchupQty, maioneseQty }));
   } catch(e){
     console.error('Não foi possível guardar o carrinho antes do login:', e);
   }
@@ -1534,9 +1557,11 @@ function restaurarCarrinhoAposLogin(){
       cartIdCounter = dados.cartIdCounter || (cart.length + 1);
       if(dados.fulfillment) fulfillment = dados.fulfillment;
       if(dados.paymentMethod) paymentMethod = dados.paymentMethod;
-      if(dados.wantKetchup){ wantKetchup = true; const k = document.getElementById('want-ketchup'); if(k) k.checked = true; }
+      const ketchupSalvo = Math.max(0, parseInt(dados.ketchupQty, 10) || (dados.wantKetchup ? 1 : 0)); // wantKetchup = formato antigo (caixinha)
+      if(ketchupSalvo > 0){ ketchupQty = ketchupSalvo; const k = document.getElementById('ketchup-qty'); if(k) k.textContent = ketchupQty; }
       if(dados.maioneseQty > 0){ maioneseQty = dados.maioneseQty; const m = document.getElementById('maionese-qty'); if(m) m.textContent = maioneseQty; }
       selectFulfillment(fulfillment);
+      selectDeliveryZone(dados.deliveryZone === 'sitio' ? 'sitio' : 'cidade');
       if(paymentMethod) selectPayment(paymentMethod);
       renderCart();
       // A pessoa estava no checkout quando saiu pra logar — volta direto pro passo "Seus dados".
@@ -1672,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   carregarConfigGeral().then(mostrarAvisoTempoEspera);
   verificarLoginIndex();
   aplicarCapasSecoes();
-  await carregarTamanhosPizza();
+  const tamanhosPromise = carregarTamanhosPizza(); // roda junto com a busca do cardápio
 
   document.getElementById('combos').style.display = 'none';
   document.getElementById('nav-combos').style.display = 'none';
@@ -1714,6 +1739,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  await tamanhosPromise; // updatePriceHints e os grids de pizza dependem dos tamanhos
   updatePriceHints();
   renderCalzoneFlavorGrid();
   renderBrotinhoFlavorGrid();
@@ -2235,9 +2261,13 @@ function getSubtotal(){ return cart.reduce((s,i)=>s+i.lineTotal,0); }
 function getFee(){
   if(fulfillment !== 'entrega') return 0;
   const sub = getSubtotal();
-  return sub > 0 && sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
+  if(sub <= 0) return 0;
+  if(deliveryZone === 'sitio') return SITIO_DELIVERY_FEE;
+  return sub < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
 }
-function getExtras(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
+function getExtrasKetchup(){ return Math.max(0, ketchupQty - 1) * KETCHUP_PRICE; }
+function getExtrasMaionese(){ return Math.max(0, maioneseQty - 1) * MAIONESE_PRICE; }
+function getExtras(){ return Math.round((getExtrasKetchup() + getExtrasMaionese()) * 100) / 100; }
 function getDescontoPontos(){ return pontosParaDesconto; } // 1 ponto = R$ 1, já limitado nos handlers abaixo
 // Desconto do cupom: sempre entre 0 e o total do pedido (itens + taxa + extras).
 function getDescontoCupom(){
@@ -2448,7 +2478,11 @@ function atualizarTrocoCalculado(){
   }
 }
 
-function toggleKetchup(checked){ wantKetchup = checked; renderCart(); }
+function changeKetchupQty(delta){
+  ketchupQty = Math.max(0, ketchupQty + delta);
+  document.getElementById('ketchup-qty').textContent = ketchupQty;
+  renderCart();
+}
 function changeMaioneseQty(delta){
   maioneseQty = Math.max(0, maioneseQty + delta);
   document.getElementById('maionese-qty').textContent = maioneseQty;
@@ -2501,8 +2535,10 @@ function renderCart(){
   document.getElementById('cart-subtotal').textContent = brl(subtotal);
   document.getElementById('cart-fee-line').style.display = fee > 0 ? 'flex' : 'none';
   document.getElementById('cart-fee').textContent = brl(fee);
-  document.getElementById('cart-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
-  document.getElementById('cart-maionese').textContent = brl(extras);
+  document.getElementById('cart-ketchup-line').style.display = getExtrasKetchup() > 0 ? 'flex' : 'none';
+  document.getElementById('cart-ketchup').textContent = brl(getExtrasKetchup());
+  document.getElementById('cart-maionese-line').style.display = getExtrasMaionese() > 0 ? 'flex' : 'none';
+  document.getElementById('cart-maionese').textContent = brl(getExtrasMaionese());
   document.getElementById('cart-cupom-line').style.display = descontoCupom > 0 ? 'flex' : 'none';
   document.getElementById('cart-cupom').textContent = '-' + brl(descontoCupom);
   document.getElementById('cart-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
@@ -2517,8 +2553,10 @@ function renderCart(){
   document.getElementById('chk-subtotal').textContent = brl(subtotal);
   document.getElementById('chk-fee-line').style.display = fee > 0 ? 'flex' : 'none';
   document.getElementById('chk-fee').textContent = brl(fee);
-  document.getElementById('chk-maionese-line').style.display = extras > 0 ? 'flex' : 'none';
-  document.getElementById('chk-maionese').textContent = brl(extras);
+  document.getElementById('chk-ketchup-line').style.display = getExtrasKetchup() > 0 ? 'flex' : 'none';
+  document.getElementById('chk-ketchup').textContent = brl(getExtrasKetchup());
+  document.getElementById('chk-maionese-line').style.display = getExtrasMaionese() > 0 ? 'flex' : 'none';
+  document.getElementById('chk-maionese').textContent = brl(getExtrasMaionese());
   document.getElementById('chk-cupom-line').style.display = descontoCupom > 0 ? 'flex' : 'none';
   document.getElementById('chk-cupom').textContent = '-' + brl(descontoCupom);
   document.getElementById('chk-desconto-line').style.display = desconto > 0 ? 'flex' : 'none';
@@ -2575,6 +2613,16 @@ function selectFulfillment(type){
   document.getElementById('fulfill-retirada').classList.toggle('active', type==='retirada');
   document.getElementById('endereco-field').style.display = type==='entrega' ? 'block' : 'none';
   document.getElementById('retirada-note').style.display = type==='retirada' ? 'block' : 'none';
+  renderCart();
+}
+
+function selectDeliveryZone(zona){
+  deliveryZone = (zona === 'sitio') ? 'sitio' : 'cidade';
+  document.getElementById('zona-cidade').classList.toggle('active', deliveryZone === 'cidade');
+  document.getElementById('zona-sitio').classList.toggle('active', deliveryZone === 'sitio');
+  document.getElementById('entrega-note').innerHTML = deliveryZone === 'sitio'
+    ? `<b>Atenção:</b> entregas no sítio têm taxa fixa de ${brl(SITIO_DELIVERY_FEE)}.`
+    : `<b>Atenção:</b> pedidos abaixo de ${brl(FREE_DELIVERY_THRESHOLD)} têm taxa de entrega de ${brl(DELIVERY_FEE)}. A partir de ${brl(FREE_DELIVERY_THRESHOLD)}, a entrega é grátis.`;
   renderCart();
 }
 
@@ -2689,10 +2737,13 @@ function gerarComanda(){
     }
   });
 
-  if(wantKetchup || maioneseQty > 0){
-    if(wantKetchup){ c += `🔹 Ketchup\n`; }
+  if(ketchupQty > 0 || maioneseQty > 0){
+    if(ketchupQty > 0){
+      const custoKetchup = getExtrasKetchup();
+      c += `🔹 Ketchup: ${ketchupQty}x (1º grátis${custoKetchup > 0 ? `, + ${brl(custoKetchup)}` : ''})\n`;
+    }
     if(maioneseQty > 0){
-      const custoMaionese = Math.max(0, maioneseQty - 1) * MAIONESE_PRICE;
+      const custoMaionese = getExtrasMaionese();
       c += `🔹 Maionese Temperada: ${maioneseQty}x (1ª grátis${custoMaionese > 0 ? `, + ${brl(custoMaionese)}` : ''})\n`;
     }
   }
@@ -2716,7 +2767,7 @@ function gerarComanda(){
       const gpsInfo = userGeoAcc ? ` (GPS ±${Math.round(userGeoAcc)} m${document.getElementById('chk-confirma-local')?.checked ? ' · cliente no local' : ''})` : '';
       c += `🗺️ Mapa: https://www.google.com/maps?q=${userGeoLat},${userGeoLng}${gpsInfo}\n`;
     }
-    if(fee > 0){ c += `🛵 Taxa de entrega: ${brl(fee)}\n`; }
+    if(fee > 0){ c += `🛵 Taxa de entrega: ${brl(fee)}${deliveryZone === 'sitio' ? ' (sítio)' : ''}\n`; }
   } else {
     c += `🏠 *RETIRADA NO BALCÃO*\n`;
   }
@@ -3281,15 +3332,15 @@ function wzMontarRevisao(){
   partes.push(bloco('Itens', 1, itens || '<i>Nenhum item</i>'));
 
   const comp = [];
-  if(wantKetchup) comp.push('Ketchup (grátis)');
-  if(maioneseQty > 0) comp.push(`Maionese temperada: ${maioneseQty}x` + (maioneseQty > 1 ? ` (+ ${brl(getExtras())})` : ' (grátis)'));
+  if(ketchupQty > 0) comp.push(`Ketchup: ${ketchupQty}x` + (ketchupQty > 1 ? ` (+ ${brl(getExtrasKetchup())})` : ' (grátis)'));
+  if(maioneseQty > 0) comp.push(`Maionese temperada: ${maioneseQty}x` + (maioneseQty > 1 ? ` (+ ${brl(getExtrasMaionese())})` : ' (grátis)'));
   partes.push(bloco('Complementos', 2, comp.length ? comp.join('<br>') : '<i>Nenhum</i>'));
 
   partes.push(bloco('Seus dados', 3, `${wzEsc(v('chk-nome'))}<small>${wzEsc(v('chk-telefone'))}</small>`));
 
   let ent;
   if(fulfillment === 'entrega'){
-    ent = `🛵 <b>Entrega</b><small>${wzEsc(v('chk-endereco'))}</small>${wzEntregaExtraRevisao()}`;
+    ent = `🛵 <b>Entrega${deliveryZone === 'sitio' ? ' no sítio' : ''}</b><small>${wzEsc(v('chk-endereco'))}</small>${wzEntregaExtraRevisao()}`;
   } else {
     ent = `🏠 <b>Retirar no balcão</b><small>Rua Joaquim Soares da Silva, 641, Centro</small>`;
   }
