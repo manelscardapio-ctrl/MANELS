@@ -557,7 +557,7 @@ function carregarAbaSobDemanda(key){
 function renderGrade(catKey){
   const grade = document.getElementById(`grade-${catKey}`);
   const itens = produtos.filter(p => p.category === catKey);
-  const isPizza = catKey === 'pizza';
+  const isPizza = catKey === 'pizza' || catKey === 'borda'; // preço por tamanho (pizza e borda)
   const isCombo = catKey === 'combo';
 
   grade.innerHTML = itens.map(p => cardProdutoHTML(p, isPizza, isCombo)).join('')
@@ -697,8 +697,9 @@ function cardProdutoHTML(p, isPizza, isCombo){
   const tamanhosAtivos = TAMANHOS_PIZZA.filter(t => t.ativo);
   const precosHTML = isPizza ? `
     <div class="linha-precos">
-      ${tamanhosAtivos.map(t => `<div class="campo"><label>${t.rotulo}</label><input type="number" step="0.01" id="preco-${t.chave}-${p.id}" value="${precoPizza(p,t.chave)}"></div>`).join('')}
+      ${tamanhosAtivos.map(t => `<div class="campo"><label>${t.rotulo}</label><input type="number" step="0.01" id="preco-${t.chave}-${p.id}" value="${precoPizza(p,t.chave)}"${p.category==='borda' && precoUnico(p) > 0 ? ` placeholder="${precoUnico(p)}"` : ''}></div>`).join('')}
     </div>
+    ${p.category==='borda' ? `<small style="display:block; color:#777; margin:2px 0 8px;">Preço da borda em cada tamanho de pizza.${precoUnico(p) > 0 ? ` Tamanho em branco = usa o preço padrão (R$ ${precoUnico(p)}).` : ''}</small>` : ''}
   ` : `
     <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco-unico-${p.id}" value="${precoUnico(p)}"></div>
   `;
@@ -868,7 +869,7 @@ async function moverProdutoOrdem(id, direcao){
 async function salvarProduto(id){
   const p = produtos.find(x => x.id === id);
   if(!p) return;
-  const isPizza = p.category === 'pizza';
+  const isPizza = p.category === 'pizza' || p.category === 'borda'; // preço por tamanho
   const isCombo = p.category === 'combo';
 
   const ordemVal = document.getElementById(`ordem-${id}`).value;
@@ -3475,6 +3476,40 @@ function iniciarComandas(){
 /* ==================== MONTAR / EDITAR PEDIDO MANUALMENTE ==================== */
 let MENU = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
 let PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+// ---- Borda recheada com preço por tamanho (mesmo modelo das pizzas) ----
+// BORDA_TAMANHOS[nome] = { M: 8, G: 10, ... }. Borda sem preço por tamanho (cadastro antigo)
+// continua usando o preço único (MENU.bordas[nome]) em todos os tamanhos.
+let BORDA_TAMANHOS = {};
+function extrairPrecosBorda(effective){
+  const unico = Number(effective && effective.unico) > 0 ? Number(effective.unico) : 0;
+  const porTamanho = {};
+  Object.keys(effective || {}).forEach(k => {
+    if(k === 'unico') return;
+    const v = Number(effective[k]);
+    if(v > 0) porTamanho[k] = v;
+  });
+  const valores = Object.values(porTamanho);
+  if(valores.length === 0) return { fallback: unico, porTamanho: null };
+  // Se faltar o preço de algum tamanho, usa o preço único; sem ele, o MAIOR (nunca cobra a menos).
+  return { fallback: unico > 0 ? unico : Math.max(...valores), porTamanho };
+}
+// Preço efetivo da borda quando há promoção: a promoção só troca os tamanhos que ela define.
+// Promoção antiga de preço único (promo.unico) vale para todos os tamanhos.
+function precosEfetivosBorda(prices, promo){
+  const out = { ...(prices || {}) };
+  if(!promo) return out;
+  if(Number(promo.unico) > 0){
+    Object.keys(out).forEach(k => { out[k] = Number(promo.unico); });
+    out.unico = Number(promo.unico);
+  }
+  Object.keys(promo).forEach(k => { if(k !== 'unico' && Number(promo[k]) > 0) out[k] = Number(promo[k]); });
+  return out;
+}
+function precoBorda(nome, tamanho){
+  const t = BORDA_TAMANHOS[nome];
+  if(t && t[tamanho] > 0) return t[tamanho];
+  return (MENU.bordas && MENU.bordas[nome]) || 0;
+}
 const CATEGORY_DB_TO_MENU = { pizza:'pizzas', calzone:'calzones', brotinho:'brotinho', esfiha:'esfihas', bebida:'bebidas', combo:'combos', borda:'bordas' };
 const DISQUETES_PRICE = 1.00;
 const MAIONESE_PRICE = 1.00;
@@ -3507,12 +3542,18 @@ async function carregarMenuBuilder(){
   if(error){ console.error('Erro ao carregar produtos para montar pedido:', error); return; }
   const novoMenu = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
   const novoStock = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
+  const novaBordaTam = {};
   (data || []).forEach(p => {
     const key = CATEGORY_DB_TO_MENU[p.category];
     if(!key || !p.name || !p.prices) return;
     const hasPromo = p.promo_active === true && p.promo_prices && Object.keys(p.promo_prices).length > 0;
     const effective = hasPromo ? p.promo_prices : p.prices;
     novoMenu[key][p.name] = (key === 'pizzas') ? effective : (effective.unico ?? 0);
+    if(key === 'bordas'){
+      const r = extrairPrecosBorda(hasPromo ? precosEfetivosBorda(p.prices, p.promo_prices) : p.prices);
+      novoMenu[key][p.name] = r.fallback;
+      if(r.porTamanho) novaBordaTam[p.name] = r.porTamanho;
+    }
     const stockType = p.stock_type || 'infinito';
     const stockQty = p.stock_qty;
     const zeroBehavior = p.stock_zero_behavior || 'esgotado';
@@ -3520,6 +3561,7 @@ async function carregarMenuBuilder(){
     novoStock[key][p.name] = { id: p.id, infinito: stockType !== 'limitado', qty: stockType === 'limitado' ? (stockQty || 0) : null, esgotado };
   });
   MENU = novoMenu;
+  BORDA_TAMANHOS = novaBordaTam;
   PRODUCT_STOCK = novoStock;
 }
 
@@ -3634,7 +3676,7 @@ function reconstruirCartDeItens(itens){
       let unit = 0;
       sabores.forEach(f => unit += (MENU.pizzas[f]?.[item.tamanho] || 0));
       unit = sabores.length ? unit / sabores.length : 0;
-      if(item.borda) unit += (MENU.bordas[item.borda] || 0);
+      if(item.borda) unit += precoBorda(item.borda, item.tamanho);
       const tamanhoLabel = rotuloTamanho(item.tamanho) || item.tamanho || '';
       return { type:'pizza', qty:item.quantidade, size:item.tamanho, flavors:sabores, crust:item.borda||null, unitPrice:unit, lineTotal:item.preco ?? unit*item.quantidade, label:`Pizza ${tamanhoLabel} (${sabores.length} sabor${sabores.length>1?'es':''})`, detail:'' };
     }
@@ -3725,7 +3767,7 @@ function renderBuilderFormItem(){
       <div style="display:flex; gap:0; flex-wrap:wrap; align-items:flex-end;">
         <div class="campo-grupo">
           <label class="campo-lbl">Tamanho</label>
-          <select id="bp-tamanho" onchange="renderBuilderPizzaSabores()" style="padding:6px;">${tamanhosAtivos.map(t => `<option value="${t.chave}">${t.rotulo}</option>`).join('')}</select>
+          <select id="bp-tamanho" onchange="renderBuilderPizzaSabores(); atualizarPrecosBordaBuilder()" style="padding:6px;">${tamanhosAtivos.map(t => `<option value="${t.chave}">${t.rotulo}</option>`).join('')}</select>
         </div>
         <div class="campo-grupo">
           <label class="campo-lbl">Quantos sabores</label>
@@ -3744,7 +3786,7 @@ function renderBuilderFormItem(){
       <div id="bp-sabores-wrap"></div>
       <div class="campo-grupo" style="margin-top:4px;">
         <label class="campo-lbl">Borda recheada</label>
-        <select id="bp-borda" style="padding:6px;"><option value="">Sem borda</option>${Object.keys(MENU.bordas).map(b=>`<option value="${b.replace(/"/g,'&quot;')}">${b} (+${brlB(MENU.bordas[b])})</option>`).join('')}</select>
+        <select id="bp-borda" style="padding:6px;"><option value="">Sem borda</option>${Object.keys(MENU.bordas).map(b=>`<option value="${b.replace(/"/g,'&quot;')}">${b} (+${brlB(precoBorda(b, tamanhosAtivos[0]?.chave))})</option>`).join('')}</select>
       </div>
       <br>
       <button class="acao btn-salvar" style="margin-top:8px;" onclick="adicionarBuilderPizza()">Adicionar pizza</button>
@@ -3849,6 +3891,16 @@ function confirmarApesarDoEstoque(nome){
 }
 
 // ---------- adicionar cada tipo de item ao carrinho do builder ----------
+function atualizarPrecosBordaBuilder(){
+  const sel = document.getElementById('bp-borda');
+  const tam = document.getElementById('bp-tamanho');
+  if(!sel || !tam) return;
+  Array.from(sel.options).forEach(o => {
+    if(!o.value) return;
+    o.textContent = `${o.value} (+${brlB(precoBorda(o.value, tam.value))})`;
+  });
+}
+
 function adicionarBuilderPizza(){
   const tamanho = document.getElementById('bp-tamanho').value;
   const qtd = parseInt(document.getElementById('bp-qtd').value, 10) || 1;
@@ -3860,7 +3912,7 @@ function adicionarBuilderPizza(){
   let unit = 0;
   saboresSel.forEach(f => unit += (MENU.pizzas[f]?.[tamanho] || 0));
   unit = saboresSel.length ? unit / saboresSel.length : 0;
-  if(bordaSel) unit += (MENU.bordas[bordaSel] || 0);
+  if(bordaSel) unit += precoBorda(bordaSel, tamanho);
 
   builderCart.push({
     type:'pizza', qty:qtd, size:tamanho, flavors:saboresSel, crust:bordaSel||null,
