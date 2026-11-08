@@ -1381,17 +1381,29 @@ function brlAdmin(v){ return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
 
 async function carregarPedidosParaStats(forcar){
   if(statsPedidosCache && !forcar) return statsPedidosCache;
-  const { data, error } = await supabaseClient
-    .from('pedidos')
-    .select('id, created_at, total, texto_comanda, itens, impresso_em, finalizado_em')
-    .order('created_at', { ascending: true })
-    .limit(5000);
-  if(error){
-    console.error('Erro ao carregar pedidos para estatísticas:', error);
-    statsPedidosCache = [];
-    return statsPedidosCache;
+  // O Supabase devolve no máximo 1000 linhas por consulta (o .limit() não passa disso),
+  // então busca em páginas de 1000 até acabar. O desempate por id mantém a ordem estável
+  // entre as páginas (sem ele, pedidos com o mesmo horário poderiam repetir ou sumir).
+  const TAMANHO_PAGINA = 1000;
+  const MAX_PAGINAS = 200; // trava de segurança: 200 mil pedidos
+  const todos = [];
+  for(let pagina = 0; pagina < MAX_PAGINAS; pagina++){
+    const inicio = pagina * TAMANHO_PAGINA;
+    const { data, error } = await supabaseClient
+      .from('pedidos')
+      .select('id, created_at, total, texto_comanda, itens, impresso_em, finalizado_em')
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(inicio, inicio + TAMANHO_PAGINA - 1);
+    if(error){
+      // Não guarda resultado incompleto no cache: da próxima vez tenta de novo.
+      console.error('Erro ao carregar pedidos para estatísticas (página ' + (pagina + 1) + '):', error);
+      return [];
+    }
+    if(data && data.length) todos.push(...data);
+    if(!data || data.length < TAMANHO_PAGINA) break;
   }
-  statsPedidosCache = data || [];
+  statsPedidosCache = todos;
   return statsPedidosCache;
 }
 
