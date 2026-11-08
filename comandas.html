@@ -89,6 +89,24 @@
   .btn-ok{ background:#e9e9e9; color:#555; }
   .btn-excluir{ background:#c03a3a; color:#fff; }
 
+  /* ---- grade de pedidos (hoje / todos) ---- */
+  .grade-pedidos{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
+  .grade-pedidos .data-cabecalho{ grid-column:1/-1; }
+  .caixa-pedido{ background:#fff; color:#222; border-radius:10px; border-left:6px solid #c4562a; box-shadow:0 2px 6px rgba(0,0,0,.25); padding:10px 12px; cursor:pointer; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .caixa-pedido:hover{ background:#faf6f0; }
+  .caixa-pedido.status-em_andamento{ border-left-color:#2f6fb0; }
+  .caixa-pedido.status-rota_entrega{ border-left-color:#8a5ab5; }
+  .caixa-pedido.status-finalizado_pago{ border-left-color:#3a7d4a; }
+  .caixa-pedido.atrasado{ box-shadow:0 0 0 3px #e05a3a, 0 2px 6px rgba(0,0,0,.25); }
+  .caixa-nome{ font-weight:bold; font-size:.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .caixa-linha{ display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:.78rem; color:#666; }
+  .caixa-valor{ font-weight:bold; color:#c4562a; font-size:.95rem; white-space:nowrap; }
+  .caixa-pedido .selo{ font-size:.68rem; font-weight:bold; padding:2px 9px; border-radius:12px; white-space:nowrap; align-self:flex-start; }
+  #grade-rodape{ text-align:center; margin:16px 0 30px; font-size:.82rem; opacity:.9; }
+  #modal-comanda{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:800; overflow:auto; padding:20px; }
+  .modal-comanda-caixa{ max-width:780px; margin:0 auto; }
+  .modal-comanda-topo{ display:flex; justify-content:flex-end; margin-bottom:8px; }
+
   #vazio{ text-align:center; padding:60px 20px; opacity:.6; }
   #tela-senha{ position:fixed; inset:0; background:var(--dark-green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:999; }
   #tela-senha input{ font-family:inherit; font-size:1rem; padding:10px 14px; border-radius:6px; border:none; width:220px; text-align:center; }
@@ -209,6 +227,8 @@
   <div class="barra-acoes">
     <input type="text" id="busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderizar()">
     <button class="btn-topo" onclick="abrirNovoPedido()">➕ Novo Pedido</button>
+    <button class="btn-topo" onclick="verPedidosHoje()">📆 Pedidos de hoje</button>
+    <button class="btn-topo" onclick="verTodosPedidos()">📚 Ver todos os pedidos</button>
     <button class="btn-topo" onclick="imprimirTodosPendentes()">🖨️ Imprimir todos os pendentes</button>
     <button class="btn-topo" onclick="exportarExcel()">📊 Exportar Excel</button>
   </div>
@@ -221,7 +241,24 @@
   </div>
 
   <div class="grade" id="lista"></div>
+
+  <div class="barra-acoes" id="barra-grade" style="display:none;">
+    <strong id="grade-titulo"></strong>
+    <span id="grade-status" style="font-size:.8rem; opacity:.85;"></span>
+  </div>
+  <div class="grade-pedidos" id="lista-grade" style="display:none;"></div>
+  <div id="grade-rodape" style="display:none;">
+    <span id="grade-contagem"></span>
+    <button class="btn-topo" id="grade-mais" onclick="mostrarMaisGrade()" style="margin-left:8px;"></button>
+  </div>
   <div id="vazio">Nenhum pedido no momento.</div>
+</div>
+
+<div id="modal-comanda" onclick="if(event.target === this) fecharModalComanda()">
+  <div class="modal-comanda-caixa">
+    <div class="modal-comanda-topo"><button class="btn-topo" onclick="fecharModalComanda()">✕ Fechar</button></div>
+    <div id="modal-comanda-conteudo"></div>
+  </div>
 </div>
 
 <div id="builder-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:900; overflow:auto; padding:20px;">
@@ -444,11 +481,14 @@ function capturarEdicoes(){
 }
 
 function mudarAba(aba){
+  const veioDaGrade = modoAtual === 'grade';
+  if(veioDaGrade){ gradeCarga++; fecharModalComanda(); pedidosGrade = []; gradeLista = []; gradeCompletos = new Set(); gradeVisiveisAnterior = 0; }
   modoAtual = aba;
   document.getElementById('tab-novos').classList.toggle('active', aba === 'novos');
   document.getElementById('tab-historico').classList.toggle('active', aba === 'historico');
   document.getElementById('filtro-dia').style.display = aba === 'historico' ? 'flex' : 'none';
   if(aba === 'historico') carregarHistorico();
+  if(veioDaGrade && aba === 'novos') carregarPedidosAtivos(); // o que mudou na grade precisa refletir aqui
   renderizar();
 }
 
@@ -459,7 +499,7 @@ function pedidoNumero(p, listaOrdenada){
 
 function renderizarResumoDia(){
   const hojeStr = new Date().toDateString();
-  const doDia = [...pedidosAtivos, ...pedidosHistorico].filter(p => chaveDia(p.created_at) === hojeStr);
+  const doDia = [...pedidosAtivos, ...pedidosHistorico, ...(typeof pedidosGrade !== 'undefined' ? pedidosGrade : [])].filter(p => chaveDia(p.created_at) === hojeStr);
   const unicos = Array.from(new Map(doDia.map(p => [p.id, p])).values());
   const qtd = unicos.length;
   document.getElementById('resumo-dia').innerHTML = `
@@ -507,37 +547,12 @@ function escHtmlPasta(t){
   return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function renderizar(){
-  renderizarResumoDia();
-  const edicoesAtuais = capturarEdicoes();
-  let lista = modoAtual === 'novos' ? pedidosAtivos : pedidosHistorico;
-  lista = filtrarBusca(lista);
-  const listaOrdenadaAsc = [...lista].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-
-  vazioEl.style.display = lista.length ? 'none' : 'block';
-  vazioEl.textContent = modoAtual === 'novos' ? 'Nenhum pedido ativo no momento.' : 'Nenhum pedido encontrado.';
-
-  listaEl.innerHTML = '';
-  let ultimoDia = null;
-  const agora = new Date();
-
-  lista.forEach(p => {
-    const dia = chaveDia(p.created_at);
-    if(dia !== ultimoDia){
-      const cab = document.createElement('div');
-      cab.className = 'data-cabecalho';
-      cab.textContent = formatarDataLonga(p.created_at);
-      listaEl.appendChild(cab);
-      ultimoDia = dia;
-    }
-
+function criarElementoPedido(p, valorTextarea, numero, aberta){
+    const agora = new Date();
     const minutosParado = (agora - new Date(p.created_at)) / 60000;
     const atrasado = p.status === 'novo' && minutosParado > MINUTOS_ATRASO;
-    const valorTextarea = edicoesAtuais[p.id] !== undefined ? edicoesAtuais[p.id] : p.texto_comanda;
-    const numero = pedidoNumero(p, listaOrdenadaAsc);
     const nomeCliente = extrairNomeCliente(valorTextarea);
 
-    const aberta = pastasAbertas.has(String(p.id));
     const ehRetirada = /RETIRADA NO BALC/i.test(valorTextarea || '');
     const div = document.createElement('div');
     div.className = 'pasta-admin status-' + p.status + (atrasado ? ' atrasado' : '') + (aberta ? ' aberta' : '');
@@ -572,7 +587,39 @@ function renderizar(){
         </div>
       </div>
     `;
-    listaEl.appendChild(div);
+    return div;
+}
+
+function renderizar(){
+  if(modoAtual === 'grade'){ renderizarGrade(); return; }
+  esconderGrade();
+  renderizarResumoDia();
+  const edicoesAtuais = capturarEdicoes();
+  let lista = modoAtual === 'novos' ? pedidosAtivos : pedidosHistorico;
+  lista = filtrarBusca(lista);
+  const listaOrdenadaAsc = [...lista].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+  vazioEl.style.display = lista.length ? 'none' : 'block';
+  vazioEl.textContent = modoAtual === 'novos' ? 'Nenhum pedido ativo no momento.' : 'Nenhum pedido encontrado.';
+
+  listaEl.innerHTML = '';
+  let ultimoDia = null;
+  const agora = new Date();
+
+  lista.forEach(p => {
+    const dia = chaveDia(p.created_at);
+    if(dia !== ultimoDia){
+      const cab = document.createElement('div');
+      cab.className = 'data-cabecalho';
+      cab.textContent = formatarDataLonga(p.created_at);
+      listaEl.appendChild(cab);
+      ultimoDia = dia;
+    }
+
+    const valorTextarea = edicoesAtuais[p.id] !== undefined ? edicoesAtuais[p.id] : p.texto_comanda;
+    const numero = pedidoNumero(p, listaOrdenadaAsc);
+    const aberta = pastasAbertas.has(String(p.id));
+    listaEl.appendChild(criarElementoPedido(p, valorTextarea, numero, aberta));
   });
 }
 
@@ -619,7 +666,333 @@ function resetarHistorico(){
   carregarHistorico();
 }
 
-function encontrarPedido(id){ return pedidosAtivos.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id); }
+// ==================== GRADE DE PEDIDOS (hoje / todos) ====================
+// Caixas compactas (nome, horário, situação e valor). Ao tocar, abre a comanda completa
+// (o mesmo cartão de sempre, com todos os botões). A grade carrega só o que as caixas
+// mostram; a comanda completa é buscada no banco na hora de abrir, já com dados atuais.
+const GRADE_LOTE = 300;        // quantas caixas aparecem por vez (as outras vão surgindo ao rolar)
+const GRADE_MAX_TODOS = 10000; // limite do "ver todos": os 10.000 pedidos mais recentes
+const gradeEl = document.getElementById('lista-grade');
+let pedidosGrade = [];
+let gradeTipo = null;          // 'hoje' | 'todos'
+let gradeLimiteAtingido = false;
+let gradeCarregando = false;
+let gradeCarga = 0;            // identifica a carga em andamento (ignora respostas de cargas antigas)
+let gradeLista = [];           // lista filtrada pela busca, na ordem da tela
+let gradeIdx = 0;              // quantas caixas já estão desenhadas
+let gradeUltimoDia = null;
+let gradeNumeros = new Map();  // id -> número do pedido dentro do dia
+let gradeObservador = null;
+let modalPedidoId = null;
+let gradeCompletos = new Set(); // ids cujo pedido já foi buscado por inteiro (a grade só traz o resumo)
+let gradeVisiveisAnterior = 0;  // quantas caixas estavam desenhadas (mantém a rolagem ao atualizar)
+
+// O Supabase devolve no máximo 1000 linhas por consulta: busca em páginas até acabar (ou até o limite).
+async function buscarPedidosEmPaginas({ inicio = null, fim = null, max = GRADE_MAX_TODOS, aoProgredir = null } = {}){
+  const TAMANHO_PAGINA = 1000;
+  const alvo = max + 1; // pede 1 a mais só para saber se existem pedidos além do limite
+  const todos = [];
+  for(let pagina = 0; todos.length < alvo; pagina++){
+    const de = pagina * TAMANHO_PAGINA;
+    const ate = de + Math.min(TAMANHO_PAGINA, alvo - todos.length) - 1;
+    let q = supabaseClient.from('pedidos').select('id, created_at, status, total, texto_comanda');
+    if(inicio) q = q.gte('created_at', inicio);
+    if(fim) q = q.lt('created_at', fim);
+    const { data, error } = await q
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(de, ate);
+    if(error) throw error;
+    if(data && data.length) todos.push(...data);
+    if(aoProgredir) aoProgredir(Math.min(todos.length, max));
+    if(!data || data.length < (ate - de + 1)) break;
+  }
+  let atingiuLimite = false;
+  if(todos.length > max){ todos.length = max; atingiuLimite = true; }
+  return { pedidos: todos, atingiuLimite };
+}
+
+function hojeFortaleza(){
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+function limitesDoDia(valor){ // valor = YYYY-MM-DD (mesma regra do filtro por data)
+  const inicio = `${valor}T00:00:00-03:00`;
+  const [ano, mes, dia] = valor.split('-').map(Number);
+  const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
+  const fim = `${proximoDia.toISOString().slice(0,10)}T00:00:00-03:00`;
+  return { inicio, fim };
+}
+
+function verPedidosHoje(){ carregarGrade('hoje'); }
+function verTodosPedidos(){ carregarGrade('todos'); }
+
+async function carregarGrade(tipo){
+  const minhaCarga = ++gradeCarga;
+  fecharModalComanda();
+  modoAtual = 'grade';
+  gradeTipo = tipo;
+  gradeCarregando = true;
+  gradeLimiteAtingido = false;
+  pedidosGrade = [];
+  gradeNumeros = new Map();
+  gradeCompletos = new Set();
+  gradeLista = []; gradeIdx = 0; gradeVisiveisAnterior = 0;
+  document.getElementById('grade-status').textContent = '';
+  document.getElementById('tab-novos').classList.remove('active');
+  document.getElementById('tab-historico').classList.remove('active');
+  document.getElementById('filtro-dia').style.display = 'none';
+  renderizar(); // mostra a grade vazia com "Carregando..."
+  const statusGrade = document.getElementById('grade-status');
+  try{
+    const opcoes = { max: GRADE_MAX_TODOS, aoProgredir: n => { if(minhaCarga === gradeCarga) statusGrade.textContent = `carregando... ${n.toLocaleString('pt-BR')} pedidos`; } };
+    if(tipo === 'hoje'){ Object.assign(opcoes, limitesDoDia(hojeFortaleza())); }
+    const resultado = await buscarPedidosEmPaginas(opcoes);
+    if(minhaCarga !== gradeCarga) return; // a pessoa trocou de tela durante o carregamento
+    pedidosGrade = resultado.pedidos;
+    gradeLimiteAtingido = resultado.atingiuLimite;
+  }catch(e){
+    if(minhaCarga !== gradeCarga) return;
+    console.error(e);
+    gradeCarregando = false;
+    statusGrade.textContent = 'Erro ao carregar os pedidos — veja o console.';
+    return;
+  }
+  gradeCarregando = false;
+  recalcularNumerosGrade();
+  renderizar();
+}
+
+// "Pedido #N" = posição do pedido dentro do próprio dia (igual ao filtro por data).
+function recalcularNumerosGrade(){
+  const porDia = new Map();
+  pedidosGrade.forEach(p => {
+    const k = chaveDia(p.created_at);
+    if(!porDia.has(k)) porDia.set(k, []);
+    porDia.get(k).push(p);
+  });
+  gradeNumeros = new Map();
+  porDia.forEach(lista => {
+    lista.sort((a, b) => (new Date(a.created_at) - new Date(b.created_at)) || (a.id - b.id))
+         .forEach((p, i) => gradeNumeros.set(p.id, i + 1));
+  });
+}
+
+// Se o mesmo pedido também está nas listas de Ativos/Histórico, mantém essas cópias iguais à da grade.
+function sincronizarCopiasDaGrade(){
+  if(!pedidosGrade.length) return;
+  const porId = new Map(pedidosGrade.map(p => [p.id, p]));
+  [pedidosAtivos, pedidosHistorico].forEach(lista => lista.forEach((o, i) => {
+    const g = porId.get(o.id);
+    if(g && g !== o) Object.assign(o, g);
+  }));
+}
+
+function esconderGrade(){
+  gradeEl.style.display = 'none';
+  if(gradeEl.firstChild) gradeEl.innerHTML = '';
+  document.getElementById('barra-grade').style.display = 'none';
+  document.getElementById('grade-rodape').style.display = 'none';
+  listaEl.style.display = '';
+}
+
+function renderizarGrade(){
+  renderizarResumoDia();
+  // Importante: esvazia a lista normal, senão ficariam caixas de texto duplicadas (mesmo data-id) escondidas.
+  listaEl.innerHTML = '';
+  listaEl.style.display = 'none';
+  vazioEl.style.display = 'none';
+  gradeEl.style.display = 'grid';
+  document.getElementById('barra-grade').style.display = 'flex';
+  document.getElementById('grade-titulo').textContent = gradeTipo === 'hoje' ? '📆 Pedidos de hoje' : '📚 Todos os pedidos';
+  sincronizarCopiasDaGrade();
+  gradeEl.innerHTML = '';
+  gradeIdx = 0; gradeUltimoDia = null;
+  gradeLista = filtrarBusca(pedidosGrade); // a busca olha TODOS os pedidos carregados, não só os já desenhados
+  if(modalPedidoId != null) renderizarModalComanda();
+  const statusGrade = document.getElementById('grade-status');
+  if(gradeCarregando){
+    if(!statusGrade.textContent) statusGrade.textContent = 'carregando...';
+    document.getElementById('grade-rodape').style.display = 'none';
+    return;
+  }
+  const total = pedidosGrade.length;
+  const filtrando = gradeLista.length !== total;
+  statusGrade.textContent = filtrando
+    ? `${gradeLista.length.toLocaleString('pt-BR')} encontrados de ${total.toLocaleString('pt-BR')}`
+    : (gradeLimiteAtingido
+        ? `${total.toLocaleString('pt-BR')} pedidos — limite atingido: existem pedidos mais antigos que não aparecem aqui`
+        : `${total.toLocaleString('pt-BR')} pedido(s)`);
+  if(!gradeLista.length){
+    vazioEl.style.display = 'block';
+    vazioEl.textContent = gradeTipo === 'hoje' && !total ? 'Nenhum pedido hoje ainda.' : 'Nenhum pedido encontrado.';
+    document.getElementById('grade-rodape').style.display = 'none';
+    return;
+  }
+  acrescentarGrade(Math.max(gradeVisiveisAnterior, GRADE_LOTE));
+  atualizarRodapeGrade();
+}
+
+function criarCaixaPedido(p){
+  const texto = p.texto_comanda || '';
+  const nome = extrairNomeCliente(texto) || 'Cliente sem nome';
+  const minutosParado = (new Date() - new Date(p.created_at)) / 60000;
+  const atrasado = p.status === 'novo' && minutosParado > MINUTOS_ATRASO;
+  const div = document.createElement('div');
+  div.className = 'caixa-pedido status-' + p.status + (atrasado ? ' atrasado' : '');
+  div.setAttribute('role', 'button');
+  div.tabIndex = 0;
+  div.dataset.caixa = String(p.id);
+  div.onclick = () => abrirComandaDaGrade(p.id);
+  div.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrirComandaDaGrade(p.id); } };
+  div.innerHTML = `
+    <div class="caixa-nome" title="${escHtmlPasta(nome)}">📁 ${escHtmlPasta(nome)}</div>
+    <div class="caixa-linha"><span>🕒 ${formatarHora(p.created_at)}${atrasado ? ' ⚠️' : ''}</span><span class="caixa-valor">R$ ${(p.total||0).toFixed(2).replace('.',',')}</span></div>
+    <span class="selo selo-status ${p.status}">${STATUS_LABELS[p.status] || p.status}</span>
+  `;
+  return div;
+}
+
+function acrescentarGrade(qtd){
+  const fim = Math.min(gradeIdx + qtd, gradeLista.length);
+  const frag = document.createDocumentFragment();
+  for(; gradeIdx < fim; gradeIdx++){
+    const p = gradeLista[gradeIdx];
+    const dia = chaveDia(p.created_at);
+    if(dia !== gradeUltimoDia){
+      const cab = document.createElement('div');
+      cab.className = 'data-cabecalho';
+      cab.textContent = formatarDataLonga(p.created_at);
+      frag.appendChild(cab);
+      gradeUltimoDia = dia;
+    }
+    frag.appendChild(criarCaixaPedido(p));
+  }
+  gradeEl.appendChild(frag);
+  gradeVisiveisAnterior = gradeIdx;
+}
+
+function mostrarMaisGrade(){
+  if(modoAtual !== 'grade' || gradeIdx >= gradeLista.length) return;
+  acrescentarGrade(GRADE_LOTE);
+  atualizarRodapeGrade();
+}
+
+function atualizarRodapeGrade(){
+  const rodape = document.getElementById('grade-rodape');
+  const falta = gradeLista.length - gradeIdx;
+  rodape.style.display = 'block';
+  document.getElementById('grade-contagem').textContent = `Mostrando ${gradeIdx.toLocaleString('pt-BR')} de ${gradeLista.length.toLocaleString('pt-BR')}`;
+  const botao = document.getElementById('grade-mais');
+  botao.style.display = falta > 0 ? '' : 'none';
+  botao.textContent = `Mostrar mais ${Math.min(GRADE_LOTE, falta).toLocaleString('pt-BR')}`;
+  // As caixas seguintes aparecem sozinhas ao rolar até o fim (o botão fica como alternativa).
+  if(typeof IntersectionObserver !== 'undefined' && falta > 0){
+    if(!gradeObservador){
+      gradeObservador = new IntersectionObserver(entradas => { if(entradas.some(e => e.isIntersecting)) mostrarMaisGrade(); }, { rootMargin: '600px' });
+    }
+    gradeObservador.unobserve(rodape); gradeObservador.observe(rodape); // reobservar dispara a checagem de novo
+  }
+}
+
+// ---- comanda completa (abre ao tocar numa caixa) ----
+async function abrirComandaDaGrade(id){
+  modalPedidoId = id;
+  const modal = document.getElementById('modal-comanda');
+  const conteudo = document.getElementById('modal-comanda-conteudo');
+  conteudo.innerHTML = '<p style="color:#fff; padding:20px;">Carregando comanda...</p>';
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // Busca o pedido completo agora (a grade só tem o resumo): garante itens e dados atuais para editar, imprimir etc.
+  const { data, error } = await supabaseClient.from('pedidos').select('*').eq('id', id).maybeSingle();
+  if(modalPedidoId !== id) return; // fechou ou abriu outro enquanto carregava
+  if(error){
+    console.error(error);
+    conteudo.innerHTML = '<p style="color:#fff; padding:20px;">Não foi possível carregar a comanda. Feche e tente de novo.</p>';
+    return;
+  }
+  if(!data){
+    pedidosGrade = pedidosGrade.filter(p => p.id !== id);
+    fecharModalComanda();
+    renderizar();
+    alert('Esse pedido não existe mais (pode ter sido excluído).');
+    return;
+  }
+  const idx = pedidosGrade.findIndex(p => p.id === id);
+  if(idx >= 0) pedidosGrade[idx] = data; else pedidosGrade.push(data);
+  gradeCompletos.add(id);
+  renderizarModalComanda();
+}
+
+function renderizarModalComanda(){
+  const p = pedidosGrade.find(x => x.id === modalPedidoId);
+  if(!p || !gradeCompletos.has(p.id)) return; // ainda só com o resumo: espera a busca completa
+  const edicoes = capturarEdicoes(); // preserva o que estiver sendo digitado
+  const valorTextarea = edicoes[p.id] !== undefined ? edicoes[p.id] : p.texto_comanda;
+  const el = criarElementoPedido(p, valorTextarea, gradeNumeros.get(p.id) || 1, true);
+  const cab = el.querySelector('.pasta-cab');
+  if(cab){ cab.removeAttribute('onclick'); cab.style.cursor = 'default'; }
+  const seta = el.querySelector('.pasta-seta'); if(seta) seta.style.display = 'none';
+  const conteudo = document.getElementById('modal-comanda-conteudo');
+  conteudo.innerHTML = '';
+  conteudo.appendChild(el);
+}
+
+function fecharModalComanda(){
+  modalPedidoId = null;
+  const modal = document.getElementById('modal-comanda');
+  if(modal) modal.style.display = 'none';
+  const conteudo = document.getElementById('modal-comanda-conteudo');
+  if(conteudo) conteudo.innerHTML = ''; // não deixa uma caixa de texto escondida e desatualizada na página
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape' || modalPedidoId == null) return;
+  const construtor = document.getElementById('builder-overlay');
+  if(construtor && construtor.style.display !== 'none') return; // o editor de itens fecha primeiro
+  fecharModalComanda();
+});
+
+// Depois de editar itens (ou criar um pedido novo) com a grade aberta, atualiza o que está na tela.
+async function atualizarGradeAposSalvar(idEditado){
+  if(modoAtual !== 'grade') return;
+  if(idEditado){
+    const { data } = await supabaseClient.from('pedidos').select('*').eq('id', idEditado).maybeSingle();
+    if(data){
+      const idx = pedidosGrade.findIndex(p => p.id === idEditado);
+      if(idx >= 0) pedidosGrade[idx] = data;
+      gradeCompletos.add(idEditado);
+      const caixaTexto = document.querySelector(`textarea[data-id="${idEditado}"]`);
+      if(caixaTexto) caixaTexto.value = data.texto_comanda || ''; // senão o "preservar digitação" recapturaria o texto antigo
+      renderizar();
+    }
+  } else {
+    await carregarGrade(gradeTipo); // pedido novo: recarrega a grade
+  }
+}
+
+// Mantém a grade em dia com o que chega em tempo real (pedido novo, status mudou, excluído).
+function sincronizarGradeRealtime(evento, registro){
+  if(modoAtual !== 'grade') return;
+  if(evento === 'INSERT'){
+    const ehHoje = chaveDia(registro.created_at) === new Date().toDateString();
+    if((gradeTipo === 'todos' || ehHoje) && !pedidosGrade.some(p => p.id === registro.id)){
+      pedidosGrade.unshift(registro);
+      gradeCompletos.add(registro.id);
+      recalcularNumerosGrade();
+    }
+  } else if(evento === 'UPDATE'){
+    const idx = pedidosGrade.findIndex(p => p.id === registro.id);
+    if(idx >= 0){ pedidosGrade[idx] = registro; gradeCompletos.add(registro.id); }
+  } else if(evento === 'DELETE'){
+    pedidosGrade = pedidosGrade.filter(p => p.id !== registro.id);
+    if(modalPedidoId === registro.id) fecharModalComanda();
+  }
+}
+
+function encontrarPedido(id){
+  if(modoAtual === 'grade'){ const g = pedidosGrade.find(p => p.id === id); if(g) return g; }
+  return pedidosAtivos.find(p => p.id === id) || pedidosHistorico.find(p => p.id === id);
+}
 
 async function mudarStatus(id, novoStatus){
   const item = encontrarPedido(id);
@@ -700,6 +1073,8 @@ async function excluirPedido(id){
   }
   pedidosAtivos = pedidosAtivos.filter(p => p.id !== id);
   pedidosHistorico = pedidosHistorico.filter(p => p.id !== id);
+  pedidosGrade = pedidosGrade.filter(p => p.id !== id);
+  if(modalPedidoId === id) fecharModalComanda();
   renderizar();
 }
 
@@ -987,9 +1362,9 @@ function imprimirTodosPendentes(){
 }
 
 function exportarExcel(){
-  const todos = [...pedidosHistorico];
+  const todos = modoAtual === 'grade' ? [...pedidosGrade] : [...pedidosHistorico];
   // garante que os ativos também entrem, mesmo que o histórico não tenha sido aberto ainda
-  pedidosAtivos.forEach(p => { if(!todos.some(x => x.id === p.id)) todos.push(p); });
+  if(modoAtual !== 'grade') pedidosAtivos.forEach(p => { if(!todos.some(x => x.id === p.id)) todos.push(p); });
   todos.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
   const linhas = todos.map(p => ({
@@ -1029,7 +1404,8 @@ function iniciar(){
       } else {
         pedidosHistorico.unshift(payload.new);
       }
-      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+      sincronizarGradeRealtime('INSERT', payload.new);
+      if(modoAtual === 'novos' || modoAtual === 'grade') renderizar(); else renderizarResumoDia();
       tocarAviso();
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, payload => {
@@ -1046,12 +1422,14 @@ function iniciar(){
       pedidosHistorico = pedidosHistorico.some(p => p.id === payload.new.id)
         ? atualizarLista(pedidosHistorico)
         : pedidosHistorico;
-      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+      sincronizarGradeRealtime('UPDATE', payload.new);
+      if(modoAtual === 'novos' || modoAtual === 'grade') renderizar(); else renderizarResumoDia();
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'pedidos' }, payload => {
       pedidosAtivos = pedidosAtivos.filter(p => p.id !== payload.old.id);
       pedidosHistorico = pedidosHistorico.filter(p => p.id !== payload.old.id);
-      if(modoAtual === 'novos') renderizar(); else renderizarResumoDia();
+      sincronizarGradeRealtime('DELETE', payload.old);
+      if(modoAtual === 'novos' || modoAtual === 'grade') renderizar(); else renderizarResumoDia();
     })
     .subscribe(status => {
       if(status === 'SUBSCRIBED'){ statusEl.textContent = '🟢 conectado — aguardando pedidos'; statusEl.className = 'ok'; }
@@ -1882,6 +2260,7 @@ async function salvarBuilder(){
   const botao = document.querySelector('#builder-modal .btn-salvar');
   if(botao){ botao.disabled = true; botao.textContent = 'Salvando...'; }
 
+  const idEditadoParaGrade = builderEditingId;
   const novosItens = construirItensEstruturadosBuilder();
   const { texto, total } = gerarComandaBuilder();
   const baixasNovas = extrairBaixasDeItens(novosItens);
@@ -1916,6 +2295,7 @@ async function salvarBuilder(){
   await carregarMenuBuilder();
   await carregarPedidosAtivos();
   await carregarHistorico();
+  await atualizarGradeAposSalvar(idEditadoParaGrade);
   if(botao){ botao.disabled = false; botao.textContent = '💾 Salvar Pedido'; }
 }
 
