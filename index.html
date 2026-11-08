@@ -1033,6 +1033,41 @@ if(SUPABASE_CONFIGURED && window.supabase){
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+// ---- Borda recheada com preço por tamanho (mesmo modelo das pizzas) ----
+// BORDA_TAMANHOS[nome] = { M: 8, G: 10, ... }. Borda sem preço por tamanho (cadastro antigo)
+// continua usando o preço único (MENU.bordas[nome]) em todos os tamanhos.
+let BORDA_TAMANHOS = {};
+function extrairPrecosBorda(effective){
+  const unico = Number(effective && effective.unico) > 0 ? Number(effective.unico) : 0;
+  const porTamanho = {};
+  Object.keys(effective || {}).forEach(k => {
+    if(k === 'unico') return;
+    const v = Number(effective[k]);
+    if(v > 0) porTamanho[k] = v;
+  });
+  const valores = Object.values(porTamanho);
+  if(valores.length === 0) return { fallback: unico, porTamanho: null };
+  // Se faltar o preço de algum tamanho, usa o preço único; sem ele, o MAIOR (nunca cobra a menos).
+  return { fallback: unico > 0 ? unico : Math.max(...valores), porTamanho };
+}
+// Preço efetivo da borda quando há promoção: a promoção só troca os tamanhos que ela define.
+// Promoção antiga de preço único (promo.unico) vale para todos os tamanhos.
+function precosEfetivosBorda(prices, promo){
+  const out = { ...(prices || {}) };
+  if(!promo) return out;
+  if(Number(promo.unico) > 0){
+    Object.keys(out).forEach(k => { out[k] = Number(promo.unico); });
+    out.unico = Number(promo.unico);
+  }
+  Object.keys(promo).forEach(k => { if(k !== 'unico' && Number(promo[k]) > 0) out[k] = Number(promo[k]); });
+  return out;
+}
+function precoBorda(nome, tamanho){
+  const t = BORDA_TAMANHOS[nome];
+  if(t && t[tamanho] > 0) return t[tamanho];
+  return (MENU.bordas && MENU.bordas[nome]) || 0;
+}
+
 const CATEGORY_DB_TO_MENU = { pizza:'pizzas', calzone:'calzones', brotinho:'brotinho', esfiha:'esfihas', bebida:'bebidas', combo:'combos', borda:'bordas' };
 
 /* ==================== CARDÁPIO DE EMERGÊNCIA (ÚLTIMO RECURSO) ==================== */
@@ -1209,6 +1244,7 @@ async function loadMenuFromDatabase(){
   const newDescriptions = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
   const newPromoLabels = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
   const newComboNotes = {};
+  const newBordaTam = {};
   const newStock = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
 
   data.forEach(p => {
@@ -1233,6 +1269,12 @@ async function loadMenuFromDatabase(){
     newMenu[key][p.name] = (key === 'pizzas')
       ? effective
       : (effective.unico ?? 0);
+
+    if(key === 'bordas'){
+      const r = extrairPrecosBorda(hasPromo ? precosEfetivosBorda(p.prices, p.promo_prices) : p.prices);
+      newMenu[key][p.name] = r.fallback;
+      if(r.porTamanho) newBordaTam[p.name] = r.porTamanho;
+    }
 
     newOriginal[key][p.name] = (key === 'pizzas')
       ? p.prices
@@ -1261,6 +1303,7 @@ async function loadMenuFromDatabase(){
   }
 
   MENU = newMenu;
+  BORDA_TAMANHOS = newBordaTam;
   MENU_ORIGINAL = newOriginal;
   PRODUCT_IMAGES = newImages;
   PRODUCT_DESCRIPTIONS = newDescriptions;
@@ -1272,7 +1315,8 @@ async function loadMenuFromDatabase(){
   // usar como rede de segurança se o Supabase falhar numa próxima visita.
   salvarCardapioCache({
     menu: newMenu, menuOriginal: newOriginal, images: newImages,
-    descriptions: newDescriptions, promoLabels: newPromoLabels, comboNotes: newComboNotes
+    descriptions: newDescriptions, promoLabels: newPromoLabels, comboNotes: newComboNotes,
+    bordaTamanhos: newBordaTam
   });
 
   return data;
@@ -1719,6 +1763,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       PRODUCT_DESCRIPTIONS = cache.descriptions;
       PROMO_LABELS = cache.promoLabels;
       COMBO_NOTE_CONFIG = cache.comboNotes || {};
+      BORDA_TAMANHOS = cache.bordaTamanhos || {};
       // Sem conexão com o Supabase não dá pra confiar no estoque salvo — trata
       // tudo como disponível pra não travar vendas por causa de um dado desatualizado.
       PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
@@ -1730,6 +1775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       MENU_ORIGINAL = JSON.parse(JSON.stringify(EMERGENCY_MENU));
       PRODUCT_IMAGES = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
       PRODUCT_DESCRIPTIONS = EMERGENCY_DESCRIPTIONS;
+      BORDA_TAMANHOS = {};
       PROMO_LABELS = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
       COMBO_NOTE_CONFIG = {};
       PRODUCT_STOCK = { pizzas:{}, calzones:{}, brotinho:{}, esfihas:{}, bebidas:{}, combos:{}, bordas:{} };
@@ -1811,6 +1857,7 @@ function renderPizzaHomeCards(){
 function renderPizzaCrustOptions(){
   const section = document.getElementById('crust-section');
   const row = document.getElementById('pizza-crust-row');
+  if(!section || !row) return;
   const nomes = Object.keys(MENU.bordas || {});
   if(nomes.length === 0){
     section.style.display = 'none';
@@ -1822,7 +1869,7 @@ function renderPizzaCrustOptions(){
   const bordasEsgotadas = nomesEsgotados('bordas');
   const semBordaBtn = `<button type="button" class="opt-btn${pizzaCrust===null?' active':''}" onclick="selectPizzaCrust(null)">Sem borda</button>`;
   const bordaBtns = nomes.map(nome => {
-    const preco = MENU.bordas[nome];
+    const preco = precoBorda(nome, pizzaState.size);
     const esgotado = bordasEsgotadas.has(nome);
     if(esgotado) return `<button type="button" class="opt-btn" disabled style="opacity:.5;cursor:not-allowed;">${nome} — ESGOTADO</button>`;
     return `<button type="button" class="opt-btn${pizzaCrust===nome?' active':''}" onclick="selectPizzaCrust('${nome.replace(/'/g,"\\'")}')">${nome} (+${brl(preco)})</button>`;
@@ -1838,6 +1885,7 @@ function selectPizzaCrust(nome){
 
 function selectPizzaSize(size){
   pizzaState.size = size;
+  renderPizzaCrustOptions(); // o preço da borda depende do tamanho
   document.querySelectorAll('#pizza-size-row .size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
   const btn2 = document.getElementById('pizza-style-2');
   const btn3 = document.getElementById('pizza-style-3');
@@ -2000,7 +2048,7 @@ function getPizzaUnitPrice(){
     sum += MENU.pizzas[pizzaState.flavors[i]][pizzaState.size];
   }
   let unit = sum / pizzaState.style;
-  if(pizzaCrust && MENU.bordas[pizzaCrust]) unit += MENU.bordas[pizzaCrust];
+  if(pizzaCrust && MENU.bordas[pizzaCrust]) unit += precoBorda(pizzaCrust, pizzaState.size);
   return unit;
 }
 
