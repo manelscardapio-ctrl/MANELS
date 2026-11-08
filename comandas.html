@@ -90,7 +90,7 @@
   .btn-excluir{ background:#c03a3a; color:#fff; }
 
   /* ---- grade de pedidos (hoje / todos) ---- */
-  .grade-pedidos{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
+  .grade-pedidos{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; } /* 140px: no celular cabem 2 caixas por linha */
   .grade-pedidos .data-cabecalho{ grid-column:1/-1; }
   .caixa-pedido{ background:#fff; color:#222; border-radius:10px; border-left:6px solid #c4562a; box-shadow:0 2px 6px rgba(0,0,0,.25); padding:10px 12px; cursor:pointer; display:flex; flex-direction:column; gap:6px; min-width:0; }
   .caixa-pedido:hover{ background:#faf6f0; }
@@ -99,9 +99,15 @@
   .caixa-pedido.status-finalizado_pago{ border-left-color:#3a7d4a; }
   .caixa-pedido.atrasado{ box-shadow:0 0 0 3px #e05a3a, 0 2px 6px rgba(0,0,0,.25); }
   .caixa-nome{ font-weight:bold; font-size:.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .caixa-linha{ display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:.78rem; color:#666; }
+  .caixa-linha{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:2px 6px; font-size:.78rem; color:#666; }
   .caixa-valor{ font-weight:bold; color:#c4562a; font-size:.95rem; white-space:nowrap; }
   .caixa-pedido .selo{ font-size:.68rem; font-weight:bold; padding:2px 9px; border-radius:12px; white-space:nowrap; align-self:flex-start; }
+  @media (max-width: 480px){
+    .grade-pedidos{ gap:8px; }
+    .caixa-pedido{ padding:8px 10px; border-left-width:5px; }
+    .caixa-nome{ font-size:.85rem; }
+    .caixa-valor{ font-size:.88rem; }
+  }
   #grade-rodape{ text-align:center; margin:16px 0 30px; font-size:.82rem; opacity:.9; }
   #modal-comanda{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:800; overflow:auto; padding:20px; }
   .modal-comanda-caixa{ max-width:780px; margin:0 auto; }
