@@ -22,6 +22,8 @@
 <meta property="og:image:width" content="500">
 <meta property="og:image:height" content="500">
 <meta name="twitter:card" content="summary">
+<link rel="preload" as="image" href="splash-logo.webp">
+<link rel="preload" as="image" href="splash-pizza.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -327,6 +329,54 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .geo-guia{background:#FFF3D6; border:2px solid var(--gold); padding:1rem 1.05rem; text-align:center;}
 .geo-guia-titulo{font-family:'Fraunces',serif; font-size:19px; font-weight:800; line-height:1.25; color:var(--accent-dark); margin-bottom:.4rem;}
 .geo-guia-texto{font-size:16px; line-height:1.45; color:var(--ink);}
+
+/* ==================== TELAS: CARREGAMENTO + ESTAMOS FECHADOS ==================== */
+.tela-manels{
+  position:fixed; inset:0; z-index:100000; background:#F2E4D9; color:#5B4C3D;
+  display:flex; flex-direction:column; align-items:center; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  border-top:6px solid #174D33; text-align:center; font-family:'Work Sans',sans-serif;
+  padding:0 1.5rem; transition:opacity .45s ease, visibility .45s ease;
+}
+.tela-manels.some{ opacity:0; visibility:hidden; pointer-events:none; }
+.tela-manels h1{ font-family:'Fraunces',serif; font-weight:800; color:#174D33; line-height:1.06; letter-spacing:-.01em; }
+.tela-rodape{ margin-top:auto; padding:1.4rem 0 1.6rem; width:100%; font-size:14px; color:#5B4C3D; }
+.tela-rodape::before{ content:""; display:block; width:52px; height:1px; background:rgba(43,33,24,.16); margin:0 auto 1rem; }
+
+/* --- carregamento --- */
+#tela-carregando{ z-index:100001; justify-content:flex-start; }
+#tela-carregando .sp-logo{ width:min(80vw,330px); height:auto; margin-top:clamp(1.2rem,6vh,3.2rem); display:block; }
+#tela-carregando .sp-pizza{ width:clamp(88px,26vw,116px); height:auto; margin:clamp(1.4rem,6vh,3rem) 0 clamp(1.4rem,5vh,2.6rem); animation:sp-gira 3.2s cubic-bezier(.55,.1,.35,.9) infinite; }
+#tela-carregando h1{ font-size:clamp(34px,10vw,46px); }
+#tela-carregando .sp-sub{ margin-top:1rem; font-size:clamp(16px,4.4vw,19px); line-height:1.5; }
+#tela-carregando .sp-espera{ margin-top:1.8rem; font-size:17px; font-weight:500; color:#174D33; }
+.sp-dots{ display:flex; gap:9px; justify-content:center; margin-top:.9rem; }
+.sp-dots i{ width:9px; height:9px; border-radius:50%; background:#A8532B; animation:sp-pulsa 1.2s ease-in-out infinite; }
+.sp-dots i:nth-child(2){ background:#EFCB7A; animation-delay:.2s; }
+.sp-dots i:nth-child(3){ background:#D9CBBE; animation-delay:.4s; }
+@keyframes sp-gira{ 0%{ transform:rotate(0); } 70%,100%{ transform:rotate(360deg); } }
+@keyframes sp-pulsa{ 0%,100%{ transform:scale(.7); opacity:.45; } 50%{ transform:scale(1.25); opacity:1; } }
+
+/* --- estamos fechados --- */
+#tela-fechado{ z-index:100000; }
+#tela-fechado .fc-in{ width:100%; max-width:440px; display:flex; flex-direction:column; align-items:center; padding-top:1.6rem; }
+#tela-fechado .fc-logo{ width:min(52vw,190px); height:auto; display:block; }
+#tela-fechado .fc-selo{ margin-top:1.4rem; background:#EBD5C8; color:#EE3333; font-weight:800; font-size:clamp(20px,6vw,26px); letter-spacing:.04em; padding:.7rem 1.6rem; border-radius:18px; }
+#tela-fechado h1{ margin-top:1.8rem; font-size:clamp(42px,13vw,56px); }
+#tela-fechado .fc-ilus{ width:100%; max-width:380px; height:auto; margin-top:1.6rem; display:block; border-radius:50%; }
+#tela-fechado .fc-texto{ margin-top:1.6rem; font-size:clamp(16px,4.4vw,18px); line-height:1.55; }
+.fc-ticket{ position:relative; width:100%; margin-top:1.8rem; background:#174D33; border-radius:28px; padding:1.3rem 1rem 1.7rem; color:#fff; }
+.fc-ticket .fc-esp{ font-size:15px; color:#F2E4D9; letter-spacing:.02em; }
+.fc-ticket .fc-linha{ margin:1rem 0 1.1rem; border-top:2px dashed rgba(242,228,217,.35); position:relative; }
+.fc-ticket .fc-linha::before, .fc-ticket .fc-linha::after{ content:""; position:absolute; top:-12px; width:24px; height:24px; border-radius:50%; background:#F2E4D9; }
+.fc-ticket .fc-linha::before{ left:-1rem; margin-left:-12px; }
+.fc-ticket .fc-linha::after{ right:-1rem; margin-right:-12px; }
+.fc-ticket .fc-dias{ font-weight:800; font-size:clamp(20px,5.6vw,24px); }
+.fc-ticket .fc-hora{ font-family:'Fraunces',serif; font-weight:800; font-size:clamp(44px,13vw,58px); color:#EFCB7A; line-height:1.1; margin-top:.2rem; }
+#tela-fechado .fc-duvida{ margin-top:1.4rem; font-size:16px; }
+.fc-zap{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:.9rem; padding:1.05rem; border:2px solid #174D33; border-radius:18px; background:transparent; color:#174D33; font-weight:800; font-size:17px; text-decoration:none; }
+.fc-zap:active{ background:rgba(23,77,51,.08); }
+.fc-ver{ margin-top:1.1rem; background:none; border:none; color:#5B4C3D; font-size:14.5px; text-decoration:underline; cursor:pointer; padding:.4rem; font-family:inherit; }
+@media (prefers-reduced-motion:reduce){ #tela-carregando .sp-pizza, .sp-dots i{ animation:none; } .tela-manels{ transition:none; } }
 </style>
 
 <style id="fix-fotos-sem-corte">
@@ -350,6 +400,141 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 
 </head>
 <body>
+
+<!-- ===== TELA DE CARREGAMENTO ===== -->
+<div id="tela-carregando" class="tela-manels" role="status" aria-live="polite" aria-label="Carregando o cardápio">
+  <img class="sp-logo" src="splash-logo.webp" alt="Manel's Pizzaria" width="351" height="280">
+  <img class="sp-pizza" src="splash-pizza.webp" alt="" width="280" height="280">
+  <h1>Chegue mais.<br>A casa é sua.</h1>
+  <p class="sp-sub">Estamos preparando o cardápio<br>para o seu próximo momento gostoso.</p>
+  <div class="sp-espera">Só um instante…</div>
+  <div class="sp-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="tela-rodape">Feito com carinho. Servido em família.</div>
+</div>
+
+<!-- ===== TELA DE ESTAMOS FECHADOS ===== -->
+<div id="tela-fechado" class="tela-manels some" role="dialog" aria-modal="true" aria-label="Estamos fechados">
+  <div class="fc-in">
+    <img class="fc-logo" src="splash-logo.webp" alt="Manel's Pizzaria" width="351" height="280">
+    <div class="fc-selo">ESTAMOS FECHADOS</div>
+    <h1>Ué, cadê<br>a pizza?</h1>
+    <img class="fc-ilus" src="splash-entregador.webp" alt="Entregador da Manel's com a bolsa térmica vazia" width="760" height="614">
+    <p class="fc-texto">O forno está descansando por aqui.<br>Voltamos no próximo horário para<br>matar a sua fome com carinho.</p>
+    <div class="fc-ticket">
+      <div class="fc-esp">Esperamos você</div>
+      <div class="fc-linha"></div>
+      <div class="fc-dias">Sexta, sábado e domingo</div>
+      <div class="fc-hora">18h às 21h</div>
+    </div>
+    <div class="fc-duvida">Ficou com alguma dúvida?</div>
+    <a class="fc-zap" id="fc-zap" href="#" target="_blank" rel="noopener">Falar no WhatsApp</a>
+    <button type="button" class="fc-ver" id="fc-ver" style="display:none">Ver o cardápio e encomendar para depois</button>
+  </div>
+  <div class="tela-rodape">Feito com carinho. Servido em família.</div>
+</div>
+
+<script>
+/* ==================== CONTROLE DAS TELAS (carregamento + fechado) ====================
+   O horário vem da tabela horario_funcionamento (admin). Para testar sem esperar o horário: abra o site com  ?tela=fechado  ou  ?tela=carregando */
+(function(){
+  var DIAS_ABERTOS = [5, 6, 0];          // PADRÃO (só vale se o admin/banco não responder): sexta, sábado, domingo
+  var ABRE_H = 18, FECHA_H = 21;         // PADRÃO: das 18h às 21h. O horário real vem do admin (Horário de Funcionamento)
+  var FUSO = 'America/Fortaleza';
+  var PERMITIR_ENCOMENDA_FECHADO = true; // true = mostra o link "Ver o cardápio e encomendar para depois"
+  var TEMPO_MINIMO_MS = 3000;           // a tela de carregamento fica no mínimo 3 segundos
+  var TEMPO_MAXIMO_MS = 8000;            // segurança: nunca prende o cliente na tela de carregamento
+  var WA = 'https://wa.me/5588992182784?text=' + encodeURIComponent('Olá! Vi que vocês estão fechados e queria tirar uma dúvida.');
+
+  var t0 = Date.now();
+  var params = new URLSearchParams(location.search);
+  var teste = params.get('tela');
+  var splash = document.getElementById('tela-carregando');
+  var fechado = document.getElementById('tela-fechado');
+  var dispensouFechado = false, finalizado = false;
+
+  function agora(){
+    try{
+      var p = new Intl.DateTimeFormat('en-US', { timeZone:FUSO, weekday:'short', hour:'numeric', minute:'numeric', hourCycle:'h23' }).formatToParts(new Date());
+      var o = {}; p.forEach(function(x){ o[x.type] = x.value; });
+      var dia = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 }[o.weekday];
+      return { dia: dia, min: (parseInt(o.hour,10) % 24) * 60 + parseInt(o.minute,10) };
+    }catch(e){
+      var d = new Date(); return { dia: d.getDay(), min: d.getHours() * 60 + d.getMinutes() };
+    }
+  }
+  // Horários vindos do admin (tabela horario_funcionamento). null = ainda não carregou / falhou -> usa o padrão fixo acima
+  var HORARIOS = null;
+  function paraMin(t){ if(!t) return null; var p = String(t).split(':'); return parseInt(p[0],10) * 60 + (parseInt(p[1],10) || 0); }
+  function calcAberto(horarios, a){
+    if(!horarios){
+      return DIAS_ABERTOS.indexOf(a.dia) !== -1 && a.min >= ABRE_H * 60 && a.min < FECHA_H * 60;
+    }
+    var h = null;
+    horarios.forEach(function(x){ if(Number(x.dia_semana) === a.dia) h = x; });
+    if(!h || h.fechado) return false;
+    var abre = paraMin(h.hora_abertura), fecha = paraMin(h.hora_fechamento);
+    if(abre === null || fecha === null) return false;
+    if(fecha <= abre) fecha += 1440;      // fecha depois da meia-noite (ou 00:00)
+    return a.min >= abre && a.min < fecha;
+  }
+  window.__calcAberto = calcAberto; // só para testes
+  function lojaAberta(){
+    if(teste === 'fechado') return false;
+    return calcAberto(HORARIOS, agora());
+  }
+  function buscarHorarios(){
+    return new Promise(function(resolve){
+      var fim = setTimeout(resolve, 3000);   // não espera mais que 3s pelo banco
+      try{
+        if(typeof supabaseClient === 'undefined' || !supabaseClient){ clearTimeout(fim); return resolve(); }
+        supabaseClient.from('horario_funcionamento').select('*').then(function(r){
+          clearTimeout(fim);
+          if(r && !r.error && r.data && r.data.length) HORARIOS = r.data;
+          resolve();
+        }, function(){ clearTimeout(fim); resolve(); });
+      }catch(e){ clearTimeout(fim); resolve(); }
+    });
+  }
+
+  function travarRolagem(sim){ document.documentElement.style.overflow = sim ? 'hidden' : ''; }
+  function mostrarFechado(){
+    fechado.classList.remove('some'); travarRolagem(true);
+  }
+  function esconderFechado(){
+    fechado.classList.add('some'); travarRolagem(false);
+  }
+  function esconderSplash(){
+    splash.classList.add('some');
+    setTimeout(function(){ splash.style.display = 'none'; }, 600);
+  }
+
+  document.getElementById('fc-zap').href = WA;
+  var btnVer = document.getElementById('fc-ver');
+  if(PERMITIR_ENCOMENDA_FECHADO){
+    btnVer.style.display = '';
+    btnVer.addEventListener('click', function(){ dispensouFechado = true; esconderFechado(); });
+  }
+
+  // Chamada pelo site quando o cardápio terminou de carregar
+  window.finalizarSplash = function(){
+    if(finalizado || teste === 'carregando') return;
+    finalizado = true;
+    var espera = Math.max(0, TEMPO_MINIMO_MS - (Date.now() - t0));
+    Promise.all([ buscarHorarios(), new Promise(function(r){ setTimeout(r, espera); }) ]).then(function(){
+      if(!lojaAberta()) mostrarFechado();   // a tela de fechado entra por baixo enquanto o carregamento some
+      esconderSplash();
+    });
+  };
+  // Segurança: se algo travar, libera o site depois de alguns segundos
+  setTimeout(function(){ if(!finalizado) window.finalizarSplash(); }, TEMPO_MAXIMO_MS);
+
+  // Se a loja abrir enquanto o cliente está na tela de fechado, ela some sozinha
+  setInterval(function(){
+    if(!finalizado || dispensouFechado || teste === 'fechado' || fechado.classList.contains('some')) return;
+    buscarHorarios().then(function(){ if(lojaAberta()) esconderFechado(); });
+  }, 60000);
+})();
+</script>
 
 <div class="topbar">
   <div class="topbar-inner">
@@ -1797,6 +1982,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateBebidaPreview();
   updatePizzaPreview();
   await refreshAllUI();
+  if(window.finalizarSplash) window.finalizarSplash(); // esconde a tela de carregamento (ou mostra "estamos fechados")
 });
 
 /* ==================== PIZZA ==================== */
