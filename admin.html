@@ -301,6 +301,50 @@ details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; mar
 #config-comandas #builder-modal .btn-salvar:disabled { opacity:.6; cursor:not-allowed; }
 
 
+/* ===== PAINEL DE VISITAS (tela Início) ===== */
+.pv{ margin-top:30px; max-width:900px; }
+.pv-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.pv-head h3{ margin:0; font-size:1.25rem; }
+.pv-filtros{ display:flex; gap:6px; flex-wrap:wrap; }
+.pv-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+.pv-online{ background:var(--pine); color:#fff; border-radius:var(--radius-sm); padding:14px; display:flex; flex-direction:column; gap:3px; }
+.pv-online .pv-big{ font-family:'Fraunces',serif; font-size:2rem; font-weight:800; line-height:1.1; display:flex; align-items:center; gap:10px; }
+.pv-online .pv-rot{ font-size:.72rem; color:rgba(255,255,255,.85); }
+.pv-online small{ color:rgba(255,255,255,.7); font-size:.68rem; }
+.pv-dot{ width:11px; height:11px; border-radius:50%; background:#5BD48A; box-shadow:0 0 0 0 rgba(91,212,138,.7); animation:pv-pulso 1.8s infinite; flex:none; }
+@keyframes pv-pulso{ 70%{ box-shadow:0 0 0 10px rgba(91,212,138,0); } 100%{ box-shadow:0 0 0 0 rgba(91,212,138,0); } }
+.pv-destaque{ border-color:var(--terracotta); box-shadow:inset 0 0 0 1px var(--terracotta); }
+.pv-bloco{ margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+.pv-bloco h4{ margin:0 0 4px; font-size:1rem; }
+.pv-sub{ color:var(--ink-soft); font-size:.78rem; margin:0 0 12px; }
+.pv-funil{ display:flex; flex-direction:column; gap:10px; }
+.pv-fn{ display:grid; grid-template-columns:170px 1fr 150px; gap:10px; align-items:center; font-size:.82rem; }
+.pv-fn-barra{ background:#F1EAE0; border-radius:8px; height:26px; position:relative; overflow:hidden; }
+.pv-fn-barra>i{ position:absolute; top:0; bottom:0; left:0; background:var(--terracotta); border-radius:8px; min-width:3px; }
+.pv-fn:last-child .pv-fn-barra>i{ background:var(--ok); }
+.pv-fn-num{ font-size:.78rem; color:var(--ink-soft); }
+.pv-fn-num b{ color:var(--ink); font-size:.92rem; }
+@media (max-width:620px){ .pv-fn{ grid-template-columns:1fr; gap:4px; } }
+.pv-legenda{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-soft); margin-bottom:6px; }
+.pv-legenda i{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+.pv-grafico{ display:flex; align-items:flex-end; gap:3px; height:130px; padding-top:8px; }
+.pv-col{ flex:1; min-width:3px; height:100%; display:flex; align-items:flex-end; }
+.pv-col>b{ display:block; width:100%; background:var(--terracotta); border-radius:3px 3px 0 0; position:relative; min-height:2px; }
+.pv-col>b>u{ position:absolute; left:0; right:0; bottom:0; background:var(--ok); text-decoration:none; }
+.pv-eixo{ display:flex; justify-content:space-between; font-size:.68rem; color:var(--ink-soft); margin-top:4px; }
+.pv-rolagem{ max-height:320px; overflow:auto; margin-top:14px; border:1px solid var(--line); border-radius:var(--radius-sm); }
+.pv-tabela{ width:100%; border-collapse:collapse; font-size:.82rem; }
+.pv-tabela th{ position:sticky; top:0; background:#F7F2EA; text-align:left; font-size:.7rem; color:var(--ink-soft); font-weight:700; padding:8px; border-bottom:1px solid var(--line-strong); }
+.pv-tabela td{ padding:7px 8px; border-bottom:1px solid var(--line); }
+.pv-tabela .n{ text-align:right; white-space:nowrap; }
+.pv-dupla{ display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+@media (max-width:640px){ .pv-dupla{ grid-template-columns:1fr; } }
+.pv-linha{ display:flex; justify-content:space-between; gap:8px; font-size:.82rem; padding:6px 0; border-bottom:1px solid var(--line); }
+.pv-linha span{ color:var(--ink-soft); font-size:.74rem; }
+.pv-aviso{ background:#F7EEE5; border-left:3px solid var(--terracotta); border-radius:4px 8px 8px 4px; padding:12px 14px; font-size:.84rem; color:var(--ink-soft); line-height:1.55; }
+.pv-aviso code{ background:#fff; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:.8rem; color:var(--ink); }
+.pv-nota{ margin-top:18px; font-size:.72rem; color:var(--ink-soft); line-height:1.55; }
+
 /* ===== INÍCIO: atalhos para as outras telas ===== */
 .inicio-intro{ color:var(--ink-soft); font-size:.95rem; margin:0 0 18px; }
 .inicio-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; max-width:900px; }
@@ -471,7 +515,8 @@ function inicioHTML(){
           <span class="ic-desc">${a.desc}</span>
           <span class="ic-abre">Abrir em nova aba ↗</span>
         </a>`).join('')}
-    </div>`;
+    </div>
+    <div id="painel-visitas"></div>`;
 }
 
 async function iniciar(){
@@ -480,6 +525,7 @@ async function iniciar(){
   if(boxInicio && !boxInicio.innerHTML.trim()){
     boxInicio.innerHTML = `<div class="categoria active" data-categoria="inicio">${inicioHTML()}</div>`;
   }
+  iniciarPainelVisitas();
   renderTabs();
   const inicial = CATEGORIAS.find(c => c.key === categoriaAtiva);
   const titulo = document.getElementById('topbar-titulo');
@@ -580,6 +626,7 @@ function renderCategorias(){
 // na primeira vez que você realmente abre aquela aba específica.
 const ABAS_CARREGADAS = {};
 function carregarAbaSobDemanda(key){
+  if(key === 'inicio'){ iniciarPainelVisitas(); return; } // o painel de visitas se atualiza sempre que o Início aparece
   if(ABAS_CARREGADAS[key]) return; // já carregou antes nesta sessão — não busca de novo
   if(key === 'stats'){ ABAS_CARREGADAS.stats = true; renderEstatisticas(); }
   else if(key === 'avaliacoes'){ ABAS_CARREGADAS.avaliacoes = true; renderAvaliacoes(); }
@@ -2440,6 +2487,202 @@ async function uploadSlideImagem(id, inputEl){
   const idx = slidesCarrossel.findIndex(s => s.id === id);
   if(idx >= 0) slidesCarrossel[idx] = data[0];
   desenharListaSlides();
+}
+
+/* ==================== PAINEL DE VISITAS (tela Início) ==================== */
+// Lê a função painel_visitas do Supabase (criada pelo arquivo analytics_visitas.sql).
+// Os dados vêm do rastreio do index.html: visitas, quem está online e o funil até o pedido.
+let pvPeriodo = 7;        // 1 = hoje · 7 · 30 · 365 (dias)
+let pvDados = null;       // último resultado
+let pvErro = null;
+let pvTimer = null;
+let pvSeq = 0;            // descarta respostas antigas se o período mudar no meio da consulta
+let pvUltimaBusca = 0;
+const PV_PERIODOS = [[1, 'Hoje'], [7, '7 dias'], [30, '30 dias'], [365, '12 meses']];
+
+function pvEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function pvN(v){ return Number(v || 0).toLocaleString('pt-BR'); }
+function pvPct(a, b){ return b > 0 ? (a / b) * 100 : 0; }
+function pvPctTxt(a, b){ const p = pvPct(a, b); return (p === 0 || p >= 10 ? p.toFixed(0) : p.toFixed(1)).replace('.', ',') + '%'; }
+function pvRotuloPeriodo(){ return pvPeriodo === 1 ? 'hoje' : pvPeriodo === 365 ? 'nos últimos 12 meses' : `nos últimos ${pvPeriodo} dias`; }
+function pvDiaTxt(iso){
+  const [y, m, d] = iso.split('-');
+  const sem = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short' }).replace('.', '');
+  return `${d}/${m} (${sem})`;
+}
+const PV_MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function mudarPeriodoVisitas(dias){
+  pvPeriodo = dias;
+  pvUltimaBusca = 0;
+  pvRender();
+  pvCarregar();
+}
+
+async function pvCarregar(){
+  const meu = ++pvSeq;
+  pvUltimaBusca = Date.now();
+  try{
+    const { data, error } = await supabaseClient.rpc('painel_visitas', { p_dias: pvPeriodo });
+    if(meu !== pvSeq) return;
+    if(error) throw error;
+    pvDados = data; pvErro = null;
+  }catch(e){
+    if(meu !== pvSeq) return;
+    pvErro = e;
+    console.error('Painel de visitas:', e);
+  }
+  pvRender();
+}
+
+function iniciarPainelVisitas(){
+  pvRender(); // mostra o que já tem (ou "carregando") sem esperar o banco
+  if(Date.now() - pvUltimaBusca > 4000) pvCarregar();
+  if(!pvTimer){
+    // "online agora" se atualiza sozinho, só enquanto o Início está aberto e a aba do navegador visível
+    pvTimer = setInterval(() => {
+      const cont = document.getElementById('conteudo');
+      if(document.hidden || categoriaAtiva !== 'inicio' || !document.getElementById('painel-visitas')) return;
+      if(cont && cont.style.display === 'none') return; // saiu do painel
+      pvCarregar();
+    }, 30000);
+  }
+}
+
+function pvAgruparPorMes(dias){
+  const mapa = new Map();
+  dias.forEach(d => {
+    const k = d.dia.slice(0, 7);
+    const m = mapa.get(k) || { dia:k, visitas:0, pedidos:0 };
+    m.visitas += d.visitas; m.pedidos += d.pedidos;
+    mapa.set(k, m);
+  });
+  return [...mapa.values()];
+}
+
+function pvGrafico(itens, rotuloFn){
+  const max = Math.max(1, ...itens.map(i => i.visitas));
+  const cols = itens.map(i => {
+    const altura = (i.visitas / max) * 100;
+    const verde = i.visitas > 0 ? Math.min(100, (i.pedidos / i.visitas) * 100) : 0;
+    const dica = `${rotuloFn(i)}: ${i.visitas} visita(s)` + (i.pedidos ? `, ${i.pedidos} pedido(s)` : '');
+    return `<div class="pv-col" title="${pvEsc(dica)}"><b style="height:${altura}%">${verde ? `<u style="height:${verde}%"></u>` : ''}</b></div>`;
+  }).join('');
+  return `<div class="pv-grafico">${cols}</div>`;
+}
+
+function pvRender(){
+  const box = document.getElementById('painel-visitas');
+  if(!box) return;
+
+  const filtros = PV_PERIODOS.map(([d, l]) =>
+    `<button class="stat-filtro-btn${pvPeriodo === d ? ' active' : ''}" onclick="mudarPeriodoVisitas(${d})">${l}</button>`).join('');
+  const cabecalho = `<div class="pv-head"><h3>📈 Visitas do site</h3><div class="pv-filtros">${filtros}</div></div>`;
+
+  if(pvErro && !pvDados){
+    const msg = String((pvErro && (pvErro.message || pvErro.code)) || '');
+    const faltaSQL = /painel_visitas|PGRST202|schema cache|does not exist/i.test(msg);
+    const negado = /acesso negado|42501|permission/i.test(msg);
+    box.innerHTML = `<section class="pv">${cabecalho}<div class="pv-aviso">${
+      faltaSQL ? `<b>Falta ativar as estatísticas no banco (só uma vez).</b><br>No Supabase, abra <b>SQL Editor → New query</b>, cole o conteúdo do arquivo <code>analytics_visitas.sql</code> e clique em <b>Run</b>. Depois volte aqui e recarregue a página.`
+      : negado ? `Este painel só aparece para quem entrou com <b>e-mail e senha</b> do painel. Saia e entre de novo.`
+      : `Não foi possível carregar as visitas agora. Tente recarregar a página. <small>(${pvEsc(msg)})</small>`}</div></section>`;
+    return;
+  }
+  if(!pvDados){
+    box.innerHTML = `<section class="pv">${cabecalho}<p class="pv-sub">Carregando as visitas…</p></section>`;
+    return;
+  }
+
+  const d = pvDados, r = d.resumo || {}, on = d.online || {};
+  const vis = r.visitas || 0;
+
+  const cartoes = `
+    <div class="pv-cards">
+      <div class="pv-online">
+        <span class="pv-rot">Online agora</span>
+        <span class="pv-big"><span class="pv-dot"></span>${pvN(on.total)}</span>
+        <small>${pvN(on.com_item)} com item no carrinho · ${pvN(on.finalizando)} finalizando</small>
+      </div>
+      <div class="stat-card"><span class="stat-label">Visitas</span><span class="stat-value">${pvN(vis)}</span><span class="stat-sub">${pvRotuloPeriodo()}</span></div>
+      <div class="stat-card"><span class="stat-label">Visitantes diferentes</span><span class="stat-value">${pvN(r.visitantes)}</span><span class="stat-sub">${pvN(r.novos)} novas visitas · ${pvN(r.recorrentes)} de quem já tinha vindo</span></div>
+      <div class="stat-card"><span class="stat-label">Pedidos enviados</span><span class="stat-value">${pvN(r.enviaram_pedido)}</span><span class="stat-sub">vindos do site ${pvRotuloPeriodo()}</span></div>
+      <div class="stat-card pv-destaque"><span class="stat-label">Visitantes que finalizam a compra</span><span class="stat-value">${pvPctTxt(r.visitantes_compraram, r.visitantes)}</span><span class="stat-sub">${pvN(r.visitantes_compraram)} de ${pvN(r.visitantes)} visitantes · ${pvPctTxt(r.enviaram_pedido, vis)} das visitas</span></div>
+    </div>`;
+
+  if(vis === 0){
+    box.innerHTML = `<section class="pv">${cabecalho}${cartoes}
+      <div class="pv-bloco"><div class="pv-aviso">Ainda não há visitas registradas ${pvRotuloPeriodo()}. Elas começam a aparecer assim que clientes abrirem o site já com a nova versão do <code>index.html</code>.</div></div></section>`;
+    return;
+  }
+
+  // funil
+  const etapas = [
+    ['Entraram no site', vis, null],
+    ['Adicionaram um item', r.adicionaram_item, vis],
+    ['Abriram a finalização', r.iniciaram_finalizacao, r.adicionaram_item],
+    ['Enviaram o pedido', r.enviaram_pedido, r.iniciaram_finalizacao],
+  ];
+  const funil = etapas.map(([nome, qtd, anterior]) => `
+    <div class="pv-fn">
+      <span>${nome}</span>
+      <div class="pv-fn-barra"><i style="width:${pvPct(qtd, vis)}%"></i></div>
+      <span class="pv-fn-num"><b>${pvN(qtd)}</b> · ${pvPctTxt(qtd, vis)} das visitas${anterior !== null ? `<br>${pvPctTxt(qtd, anterior)} da etapa anterior` : ''}</span>
+    </div>`).join('');
+
+  // histórico
+  const porDia = d.por_dia || [];
+  const mensal = d.dias > 31;
+  const serie = mensal ? pvAgruparPorMes(porDia) : porDia;
+  const rotulo = i => mensal ? `${PV_MESES[parseInt(i.dia.slice(5, 7), 10) - 1]}/${i.dia.slice(2, 4)}` : pvDiaTxt(i.dia);
+  const eixoIni = serie.length ? rotulo(serie[0]) : '';
+  const eixoFim = serie.length ? rotulo(serie[serie.length - 1]) : '';
+  const linhas = [...serie].reverse().map(i => `
+    <tr><td>${pvEsc(rotulo(i))}</td><td class="n">${pvN(i.visitas)}</td>${mensal ? '' : `<td class="n">${pvN(i.visitantes)}</td>`}<td class="n">${pvN(i.pedidos)}</td><td class="n">${pvPctTxt(i.pedidos, i.visitas)}</td></tr>`).join('');
+
+  // horários
+  const horas = (d.por_hora || []).map(h => ({ dia:String(h.hora), visitas:h.visitas, pedidos:0 }));
+
+  // aparelhos e origens
+  const totalDisp = (d.dispositivos || []).reduce((a, x) => a + x.qtd, 0);
+  const disp = (d.dispositivos || []).map(x => `<div class="pv-linha"><b>${pvEsc(x.nome)}</b><span>${pvN(x.qtd)} · ${pvPctTxt(x.qtd, totalDisp)}</span></div>`).join('') || '<p class="pv-sub">Sem dados.</p>';
+  const orig = (d.origens || []).map(x => `<div class="pv-linha"><b>${pvEsc(x.nome)}</b><span>${pvN(x.qtd)} visita(s)${x.pedidos ? ` · ${pvN(x.pedidos)} pedido(s)` : ''}</span></div>`).join('') || '<p class="pv-sub">Sem dados.</p>';
+
+  box.innerHTML = `<section class="pv">
+    ${cabecalho}
+    ${cartoes}
+
+    <div class="pv-bloco">
+      <h4>Do visitante ao pedido</h4>
+      <p class="pv-sub">Quantas visitas chegaram em cada etapa ${pvRotuloPeriodo()}. Onde a barra cai mais é onde mais gente desiste.</p>
+      <div class="pv-funil">${funil}</div>
+    </div>
+
+    <div class="pv-bloco">
+      <h4>Histórico de visitas</h4>
+      <div class="pv-legenda"><span><i style="background:var(--terracotta)"></i>visitas</span><span><i style="background:var(--ok)"></i>parte que terminou em pedido</span></div>
+      ${pvGrafico(serie, rotulo)}
+      <div class="pv-eixo"><span>${pvEsc(eixoIni)}</span><span>${pvEsc(eixoFim)}</span></div>
+      <div class="pv-rolagem"><table class="pv-tabela">
+        <thead><tr><th>${mensal ? 'Mês' : 'Dia'}</th><th class="n">Visitas</th>${mensal ? '' : '<th class="n">Visitantes</th>'}<th class="n">Pedidos</th><th class="n">Conversão</th></tr></thead>
+        <tbody>${linhas}</tbody></table></div>
+    </div>
+
+    <div class="pv-bloco pv-dupla">
+      <div><h4>Aparelhos</h4><p class="pv-sub">De onde o cliente abre o site.</p>${disp}</div>
+      <div><h4>De onde chegam</h4><p class="pv-sub">Dica: nos links que você divulga, use <code>?utm_source=instagram</code> no final do endereço para identificar a origem.</p>${orig}</div>
+    </div>
+
+    <div class="pv-bloco">
+      <h4>Horários de mais visitas</h4>
+      <p class="pv-sub">Visitas por hora do dia (horário de Fortaleza).</p>
+      ${pvGrafico(horas, i => `${i.dia}h`)}
+      <div class="pv-eixo"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>
+    </div>
+
+    <p class="pv-nota">Uma visita é uma pessoa abrindo o site (se ela ficar mais de 30 minutos parada e voltar, conta como outra visita). "Online agora" considera quem está com o site aberto no momento. Seus próprios acessos, com este painel aberto neste aparelho, não são contados.
+    Para conferência: ${pvN(d.pedidos_site)} pedido(s) do site chegaram nas Comandas ${pvRotuloPeriodo()}. Os números do funil vêm do que o cliente fez na tela, então podem diferir um pouco (por exemplo, pedido enviado só pelo WhatsApp). Não guardamos nome, telefone, endereço nem localização.</p>
+  </section>`;
 }
 
 async function renderEstatisticas(){
