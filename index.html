@@ -1258,7 +1258,7 @@ function closeModal(id){
   ov.classList.remove('open');
   document.body.style.overflow = '';
 }
-function openCheckout(passo){ wzStart(passo); openModal('checkout'); }
+function openCheckout(passo){ if(window.manelsTrack) manelsTrack('checkout'); wzStart(passo); openModal('checkout'); }
 function openPizzaCard(size){
   selectPizzaSize(size);
   openModal('pizzas');
@@ -2951,6 +2951,7 @@ function renderCart(){
 }
 
 function flashAdded(){
+  if(window.manelsTrack) manelsTrack('item');
   const floating = document.getElementById('floating-cart');
   floating.classList.remove('pulse');
   void floating.offsetWidth; // reinicia a animação mesmo em cliques seguidos
@@ -3509,6 +3510,7 @@ async function enviarPedido(){
   //    a venda não pode travar por causa disso — o pedido segue pro WhatsApp mesmo
   //    assim, mas com um aviso bem visível no topo da mensagem, pra vocês notarem
   //    na hora e lançarem esse pedido manualmente no painel.
+  if(window.manelsTrack) manelsTrack('pedido'); // o cliente concluiu o pedido (estatística de conversão)
   if(!chegouNoPainel){
     comanda = `⚠️ *ATENÇÃO: este pedido pode não ter chegado no painel — adicionar manualmente!*\n\n${comanda}`;
   }
@@ -4137,6 +4139,106 @@ function splitRevisaoHtml(){
 
 wzRender();
 
+</script>
+
+<script>
+/* ==================== ESTATÍSTICAS DE VISITAS (aparecem no painel do admin) ====================
+   Registra: a visita, quem está online agora e as etapas até o pedido (adicionou item,
+   abriu a finalização, enviou o pedido). NÃO guarda nome, telefone, endereço, IP nem
+   localização. Tudo isso é opcional: se algo falhar, o site funciona exatamente igual. */
+(function(){
+  try{
+    var SESSAO_MAX_PARADA_MS = 30 * 60 * 1000;  // 30 min sem atividade = nova visita
+    var SINAL_A_CADA_MS = 45 * 1000;            // "estou aqui" enquanto a página está aberta
+    var sid = null, ativo = false, pronto = null, enviados = {};
+
+    if(typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    if(/bot|crawl|spider|headless|lighthouse|preview|facebookexternalhit/i.test(navigator.userAgent || '') || navigator.webdriver) return;
+
+    function lerLS(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function gravarLS(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+    function lerSS(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+    function gravarSS(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} }
+    function novoId(){
+      try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+      return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    }
+    function dispositivo(){
+      var ua = navigator.userAgent || '';
+      if(/iPad|Tablet|PlayBook|Silk/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) return 'tablet';
+      if(/Mobi|Android|iPhone|iPod/i.test(ua)) return 'celular';
+      return 'computador';
+    }
+    function origem(){
+      try{
+        var q = new URLSearchParams(location.search);
+        var u = (q.get('utm_source') || q.get('origem') || '').trim();
+        if(u) return u.slice(0, 40);               // ex.: ?utm_source=instagram
+        var r = document.referrer;
+        if(!r) return 'direto';
+        var h = new URL(r).hostname.replace(/^(www|l|m)\./, '');
+        if(h === location.hostname.replace(/^www\./, '')) return 'direto';
+        if(/instagram/.test(h)) return 'instagram';
+        if(/facebook|fb\.com/.test(h)) return 'facebook';
+        if(/google/.test(h)) return 'google';
+        if(/whatsapp|wa\.me/.test(h)) return 'whatsapp';
+        if(/tiktok/.test(h)) return 'tiktok';
+        return h.slice(0, 40);
+      }catch(e){ return 'direto'; }
+    }
+    function chamar(fn, args){
+      try{
+        var r = supabaseClient.rpc(fn, args);
+        return r && r.then ? r.then(function(){}, function(){}) : null;
+      }catch(e){ return null; }
+    }
+
+    function abrirSessao(){
+      var vid = lerLS('manels_vid'), retorno = !!vid;
+      if(!vid){ vid = novoId(); gravarLS('manels_vid', vid); }
+      var agora = Date.now(), ultimo = parseInt(lerSS('manels_sid_t') || '0', 10);
+      sid = lerSS('manels_sid');
+      var nova = !sid || (agora - ultimo) > SESSAO_MAX_PARADA_MS;
+      if(nova){ sid = novoId(); gravarSS('manels_sid', sid); enviados = {}; }
+      gravarSS('manels_sid_t', String(agora));
+      pronto = chamar('registrar_visita', {
+        p_sessao: sid, p_visitante: vid, p_dispositivo: dispositivo(), p_origem: origem(), p_retorno: retorno && nova
+      });
+    }
+    function sinal(){
+      if(document.visibilityState === 'hidden') return;
+      var agora = Date.now(), ultimo = parseInt(lerSS('manels_sid_t') || '0', 10);
+      if(!sid || (agora - ultimo) > SESSAO_MAX_PARADA_MS){ abrirSessao(); return; }  // voltou depois de muito tempo
+      gravarSS('manels_sid_t', String(agora));
+      chamar('visita_sinal', { p_sessao: sid });
+    }
+
+    // Etapas do funil: item no carrinho, abriu a finalização, enviou o pedido (cada uma 1x por visita).
+    window.manelsTrack = function(evento){
+      try{
+        if(!ativo || !sid || enviados[evento]) return;
+        enviados[evento] = true;
+        var enviar = function(){ chamar('visita_evento', { p_sessao: sid, p_evento: evento }); };
+        if(pronto && pronto.then) pronto.then(enviar); else enviar();
+      }catch(e){}
+    };
+
+    function comecar(){
+      ativo = true;
+      abrirSessao();
+      setInterval(sinal, SINAL_A_CADA_MS);
+      document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') sinal(); });
+    }
+
+    // Não conta o dono: quem está com o painel (e-mail e senha) aberto neste aparelho não entra nas visitas.
+    supabaseClient.auth.getSession().then(function(r){
+      var u = r && r.data && r.data.session && r.data.session.user;
+      var provedor = u && u.app_metadata && u.app_metadata.provider;
+      if(provedor === 'email') return;
+      comecar();
+    }, function(){ comecar(); });
+  }catch(e){ /* estatística nunca pode atrapalhar o pedido */ }
+})();
 </script>
 </body>
 </html>
