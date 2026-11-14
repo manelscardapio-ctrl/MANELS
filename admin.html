@@ -300,6 +300,16 @@ details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; mar
 #config-comandas #builder-modal .btn-salvar:hover { background:var(--b-terracotta-dark); }
 #config-comandas #builder-modal .btn-salvar:disabled { opacity:.6; cursor:not-allowed; }
 
+
+/* ===== INÍCIO: atalhos para as outras telas ===== */
+.inicio-intro{ color:var(--ink-soft); font-size:.95rem; margin:0 0 18px; }
+.inicio-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; max-width:900px; }
+.inicio-card{ display:flex; flex-direction:column; gap:6px; text-decoration:none; color:var(--ink); background:var(--card); border:1.5px solid var(--line-strong); border-radius:var(--radius); padding:22px 20px; transition:transform .15s, border-color .15s, box-shadow .15s; }
+.inicio-card:hover, .inicio-card:focus-visible{ transform:translateY(-2px); border-color:var(--terracotta); box-shadow:0 8px 20px rgba(36,28,20,.08); outline:none; }
+.inicio-card .ic-emoji{ font-size:38px; line-height:1; }
+.inicio-card .ic-nome{ font-family:'Fraunces',serif; font-weight:700; font-size:1.35rem; margin-top:6px; }
+.inicio-card .ic-desc{ color:var(--ink-soft); font-size:.9rem; line-height:1.4; }
+.inicio-card .ic-abre{ margin-top:8px; font-size:.8rem; font-weight:700; color:var(--terracotta-dark); }
 </style>
 </head>
 <body>
@@ -390,6 +400,7 @@ supabaseClient.auth.getSession().then(({ data: { session } }) => {
 });
 
 const CATEGORIAS = [
+  { key:'inicio',   label:'Início',           icon:'🏠', group:'Atalhos' },
   { key:'comandas', label:'Comandas',        icon:'🧾', group:'Operação' },
   { key:'combo',    label:'Promoções',        icon:'🎉', group:'Cardápio' },
   { key:'pizza',    label:'Pizzas',           icon:'🍕', group:'Cardápio' },
@@ -406,11 +417,11 @@ const CATEGORIAS = [
   { key:'motoboy',  label:'Motoboy ao vivo',  icon:'📍', group:'Gestão' },
   { key:'config',   label:'Configurações',    icon:'⚙️', group:'Sistema' },
 ];
-const GRUPOS_ORDEM = ['Gestão', 'Sistema', 'Cardápio', 'Site'];
+const GRUPOS_ORDEM = ['Atalhos', 'Gestão', 'Sistema', 'Cardápio', 'Site'];
 
 
 let produtos = []; // todos os produtos, de todas as categorias
-let categoriaAtiva = 'combo';
+let categoriaAtiva = 'inicio'; // a tela inicial do painel é o Início (atalhos)
 let horarios = []; // linhas da tabela horario_funcionamento
 let configGeral = {
   tempo_espera_ativo:false, tempo_espera_texto:'',
@@ -443,7 +454,32 @@ async function carregarTamanhosPizza(){
   TAMANHOS_PIZZA = data || [];
 }
 
+// Tela inicial: atalhos para as outras páginas do sistema (cada uma abre em uma nova aba)
+function inicioHTML(){
+  const atalhos = [
+    { href:'comandas.html', emoji:'🧾', nome:'Comandas',          desc:'Pedidos que chegam, impressão e acompanhamento da cozinha.' },
+    { href:'index.html',    emoji:'🍕', nome:'Site (cardápio)',   desc:'O site do cliente, do jeito que ele vê e faz o pedido.' },
+    { href:'motoboy.html',  emoji:'🛵', nome:'Motoboy',           desc:'Tela do motoboy para as entregas.' },
+  ];
+  return `
+    <p class="inicio-intro">Escolha para onde ir. Cada atalho abre em uma nova aba, e o painel continua aberto aqui.</p>
+    <div class="inicio-grid">
+      ${atalhos.map(a => `
+        <a class="inicio-card" href="${a.href}" target="_blank" rel="noopener">
+          <span class="ic-emoji">${a.emoji}</span>
+          <span class="ic-nome">${a.nome}</span>
+          <span class="ic-desc">${a.desc}</span>
+          <span class="ic-abre">Abrir em nova aba ↗</span>
+        </a>`).join('')}
+    </div>`;
+}
+
 async function iniciar(){
+  // mostra o Início na hora, sem esperar o banco carregar
+  const boxInicio = document.getElementById('categorias');
+  if(boxInicio && !boxInicio.innerHTML.trim()){
+    boxInicio.innerHTML = `<div class="categoria active" data-categoria="inicio">${inicioHTML()}</div>`;
+  }
   renderTabs();
   const inicial = CATEGORIAS.find(c => c.key === categoriaAtiva);
   const titulo = document.getElementById('topbar-titulo');
@@ -526,11 +562,11 @@ function renderCategorias(){
   const box = document.getElementById('categorias');
   box.innerHTML = CATEGORIAS.map(c => `
     <div class="categoria ${c.key===categoriaAtiva?'active':''}" data-categoria="${c.key}">
-      ${c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'cupons' ? '<div id="config-cupons"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'motoboy' ? '<div id="config-motoboy"></div>' : c.key === 'comandas' ? '<div id="config-comandas"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
+      ${c.key === 'inicio' ? inicioHTML() : c.key === 'config' ? '<div id="config-config"></div>' : c.key === 'stats' ? '<div id="config-stats"></div>' : c.key === 'cupons' ? '<div id="config-cupons"></div>' : c.key === 'avaliacoes' ? '<div id="config-avaliacoes"></div>' : c.key === 'motoboy' ? '<div id="config-motoboy"></div>' : c.key === 'comandas' ? '<div id="config-comandas"></div>' : c.key === 'carrossel' ? '<div id="config-carrossel"></div>' : c.key === 'capas' ? '<div class="grade" id="grade-capas"></div>' : c.key === 'pizza' ? `<div id="tamanhos-pizza-painel"></div><div class="grade" id="grade-${c.key}"></div>` : `<div class="grade" id="grade-${c.key}"></div>`}
     </div>
   `).join('');
 
-  const CHAVES_SEM_GRADE_PRODUTO = ['config', 'stats', 'avaliacoes', 'cupons', 'motoboy', 'comandas', 'carrossel', 'capas'];
+  const CHAVES_SEM_GRADE_PRODUTO = ['inicio', 'config', 'stats', 'avaliacoes', 'cupons', 'motoboy', 'comandas', 'carrossel', 'capas'];
   CATEGORIAS.forEach(c => { if(!CHAVES_SEM_GRADE_PRODUTO.includes(c.key)) renderGrade(c.key); });
   renderConfiguracoes();
   renderTamanhosPizzaPainel();
