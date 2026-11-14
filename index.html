@@ -377,6 +377,101 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .fc-zap:active{ background:rgba(23,77,51,.08); }
 .fc-ver{ margin-top:1.1rem; background:none; border:none; color:#5B4C3D; font-size:14.5px; text-decoration:underline; cursor:pointer; padding:.4rem; font-family:inherit; }
 @media (prefers-reduced-motion:reduce){ #tela-carregando .sp-pizza, .sp-dots i{ animation:none; } .tela-manels{ transition:none; } }
+
+/* ==================== REDESIGN (Figma): home em cartões + promoção + carrinho em pílula ==================== */
+body{background:#FAF6EE;}
+.topbar{background:#FAF6EE; backdrop-filter:none; border-bottom:none;}
+.topbar-inner{padding:1.1rem 1rem .5rem; gap:.9rem;}
+.logo-badge{width:56px; height:56px; border-radius:16px; background:#F2E4D9; border:none; box-shadow:none;}
+.brand-name{font-size:26px; font-weight:700; color:#174D33; line-height:1.1;}
+.brand-tag{display:none;}
+.brand-sub{font-size:14.5px; color:#5B4C3D; margin-top:.15rem;}
+.catnav button{color:#174D33; font-weight:700; background:#fff; border:1.5px solid #E9DCCB; padding:.5rem 1rem;}
+.wrap>.grid-title, .wrap>.product-grid, .wrap>.carrinho-cta{display:none !important;}
+.rd-horario{display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:.8rem 0 1.4rem; padding:1rem 1.2rem; background:#E9EBE3; border-radius:18px;}
+.rd-horario b{display:block; color:#174D33; font-size:16px;} .rd-horario small{color:#5B4C3D; font-size:14px;}
+.rd-horario .rd-h{font-family:'Fraunces',serif; font-weight:700; font-size:28px; color:#174D33; white-space:nowrap;}
+.rd-titulo{font-family:'Fraunces',serif; font-weight:700; font-size:28px; color:#174D33; margin:0;}
+.rd-promo-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.9rem;}
+.rd-setas{display:flex; gap:.5rem;} .rd-setas button{width:44px; height:44px; border-radius:50%; border:1.5px solid #E9DCCB; background:#FAF6EE; color:#174D33; font-size:20px; cursor:pointer;}
+.rd-track{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;}
+.rd-track::-webkit-scrollbar{display:none;}
+.rd-promo{flex:0 0 100%; scroll-snap-align:start; position:relative; background:#174D33; color:#fff; border-radius:26px; padding:1.4rem; overflow:hidden;}
+.rd-promo .rd-mes{font-size:12.5px; font-weight:800; letter-spacing:.05em;}
+.rd-promo .rd-off{font-family:'Fraunces',serif; font-weight:700; font-size:clamp(38px,11.5vw,52px); color:#EFCB7A; line-height:1.05; margin-top:.9rem;}
+.rd-promo .rd-no{font-size:19px; font-weight:700; margin-top:.2rem;}
+.rd-promo .rd-foto{position:absolute; right:1.1rem; top:1.4rem; width:clamp(78px,23vw,104px); aspect-ratio:1; border-radius:50%; object-fit:cover;}
+.rd-cupom{display:flex; align-items:center; gap:.8rem; margin-top:1.2rem; padding:1rem 1.1rem; border-radius:14px; background:#F2E4D9; color:#174D33;}
+.rd-cupom small{color:#A8532B; font-weight:800; font-size:12px;} .rd-cupom b{font-size:20px; letter-spacing:.01em;}
+.rd-promo .rd-min{margin-top:1.2rem; font-size:13.5px; opacity:.9;}
+.carrossel-slide{border-radius:22px; border:1.5px solid #E9DCCB;}
+.carrossel-wrap{padding-left:0; padding-right:0;}
+.rd-dica{font-size:13.5px; color:#5B4C3D; margin:.7rem 0 1.4rem;}
+.rd-cats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:1rem 0 1.5rem;}
+.rd-cat{background:#fff; border:1.5px solid #E9DCCB; border-radius:20px; overflow:hidden; cursor:pointer; text-align:left;}
+.rd-cat .rd-foto{width:100%; aspect-ratio:4/3; background-size:cover; background-position:center; background-color:#F2E4D9;}
+.rd-cat .rd-in{padding:.8rem 1rem 1rem;}
+.rd-cat .rd-n{display:flex; justify-content:space-between; align-items:center; font-family:'Fraunces',serif; font-weight:700; font-size:20px; color:#174D33; gap:.3rem;}
+.rd-cat .rd-n i{font-style:normal; color:#A8532B; font-size:18px;}
+.rd-cat .rd-s{font-size:14px; color:#5B4C3D; margin-top:.2rem;}
+.floating-cart,.floating-cart.empty{left:12px; right:12px; bottom:12px; border-radius:20px; background:#174D33; padding:.85rem 1.1rem; box-shadow:0 8px 22px rgba(23,77,51,.3);}
+.floating-cart span.val{color:#fff;}
+.floating-cart button.fc-btn{background:#EFCB7A; color:#174D33; font-weight:800;}
+.modal-panel{border-radius:28px 28px 0 0 !important;}
+.modal-head{border-bottom:none; background:#fff;}
+.modal-head h2{font-size:34px; color:#174D33; font-weight:700;}
+.modal-head .mh-eyebrow{text-transform:none; letter-spacing:0; font-weight:500; font-size:14.5px; color:#5B4C3D;}
+
+/* ==================== REDESIGN (Figma): tela de finalização do pedido (só visual, a lógica não muda) ==================== */
+#modal-checkout{background:#FAF6EE; align-items:stretch; z-index:300;}
+#modal-checkout .modal-panel{max-width:none; width:100%; height:100%; max-height:100%; margin:0; border-radius:0; background:#FAF6EE; display:flex; flex-direction:column; overflow:hidden; animation:none;}
+#modal-checkout .modal-head{flex:none; height:68px; align-items:center; padding:8px max(18px,calc((100vw - 680px)/2)); background:#fff; border-bottom:1px solid #E9DCCB; position:static;}
+#modal-checkout .modal-head .mh-eyebrow{font-size:11px; color:#7A6A5A;}
+#modal-checkout .modal-head h2{font-size:16px; font-weight:700; color:#174D33;}
+#modal-checkout .modal-close{width:36px; height:36px; border-radius:50%; background:#F2E4D9; color:#174D33; border:0; font-size:20px;}
+#modal-checkout .modal-body{flex:1; min-height:0; display:flex; flex-direction:column; padding:0; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+#modal-checkout .modal-body>*{flex:none;}
+#modal-checkout .modal-body>section, #modal-checkout #wz-progress ~ *:not(.wz-nav-wrap){max-width:680px;}
+#modal-checkout #wz-progress{display:flex; flex-direction:column; flex:none; margin:0; width:min(644px,calc(100% - 36px)); align-self:center; padding-top:12px;}
+#modal-checkout .wz-step-count{font-size:11px; letter-spacing:0; text-transform:none; color:#7A6A5A; font-weight:500; margin:0;}
+#modal-checkout .wz-step-title{font-size:30px; line-height:1.15; color:#174D33; font-weight:700; margin:.5rem 0 .3rem;}
+#modal-checkout .wz-bar{gap:6px; order:-1; margin-bottom:.4rem;}
+#modal-checkout .wz-bar span{height:4px; border-radius:3px; background:#E9DCCB;}
+#modal-checkout .wz-bar span.done, #modal-checkout .wz-bar span.now{background:#174D33;}
+#modal-checkout .modal-body>section, #modal-checkout .modal-body>div:not(#wz-progress):not(.wz-nav-wrap){width:min(680px,100%); margin-left:auto; margin-right:auto; padding-left:18px; padding-right:18px;}
+#modal-checkout .field-label{color:#174D33; font-size:12px; text-transform:none; letter-spacing:0; font-weight:700;}
+#modal-checkout select, #modal-checkout input[type=text], #modal-checkout input[type=tel], #modal-checkout textarea{border:1px solid #E9DCCB; border-radius:11px; background:#fff; padding:14px 13px; font-size:15px;}
+#modal-checkout select:focus, #modal-checkout input:focus, #modal-checkout textarea:focus{border-color:#174D33;}
+#modal-checkout .opt-btn{min-height:52px; border:1px solid #E9DCCB; border-radius:11px; background:#fff; font-weight:700; font-size:14px; color:#2B2118;}
+#modal-checkout .opt-btn.active{background:#174D33; border-color:#174D33; color:#fff;}
+#modal-checkout .wz-rev-bloco, #modal-checkout .cart-item{background:#fff; border:1px solid #E9DCCB; border-radius:12px;}
+#modal-checkout .wz-rev-head{color:#174D33; text-transform:none; letter-spacing:0; font-size:13px; font-weight:700;}
+#modal-checkout .wz-edit{color:#A8532B;}
+#modal-checkout .total-pagar{background:#174D33; border:0; border-radius:14px; color:#fff; padding:1rem;}
+#modal-checkout .total-pagar b{color:#fff; font-size:24px;}
+#modal-checkout .summary-line{font-size:14px;}
+#modal-checkout .summary-total{font-size:19px; color:#174D33; border-top-color:#E9DCCB;}
+#modal-checkout .wz-nav-wrap{flex:none; position:sticky; bottom:0; margin:auto 0 0; background:#fff; border-top:1px solid #E9DCCB; padding:12px max(18px,calc((100vw - 644px)/2)) 16px;}
+#modal-checkout .wz-btn{border-radius:14px; min-height:54px; border:1.5px solid #E9DCCB; background:#F2E4D9; color:#174D33;}
+#modal-checkout .wz-btn.wz-next{background:#174D33; border-color:#174D33; color:#fff;}
+#modal-checkout .error-msg{color:#9A311E; background:#F8E8E3; border-radius:10px; padding:10px 12px; font-size:13px;}
+#modal-checkout .error-msg:empty{display:none;}
+
+/* ==================== ENTREGA EM PASSOS (taxas claras no início) ==================== */
+.taxa-info{margin-top:.9rem; background:#fff; border:1.5px solid #E9DCCB; border-radius:14px; padding:.35rem .9rem;}
+.taxa-info .ti-row{display:flex; justify-content:space-between; align-items:center; gap:.8rem; padding:.7rem 0; border-bottom:1px solid #F0E6D8; font-size:15px;}
+.taxa-info .ti-row:last-of-type{border-bottom:none;}
+.taxa-info .ti-row b{white-space:nowrap; color:#174D33;}
+.taxa-info .ti-row.ti-pago b{color:#A8532B;}
+.taxa-info .ti-dica{margin:.2rem 0 .7rem; padding:.7rem .8rem; background:#FFF3D6; border-left:4px solid #C99A4A; border-radius:8px; font-size:14.5px; line-height:1.45; color:#2B2118;}
+#modal-checkout .field-label[data-wstep="2"], #zona-field>.field-label, #endereco-field>.field-label{display:none;}
+#modal-checkout .fulfill-btn{min-height:56px; border-radius:12px; border:1.5px solid #E9DCCB; background:#fff; font-weight:700;}
+#modal-checkout .fulfill-btn.active{background:#174D33; border-color:#174D33; color:#fff;}
+#modal-checkout .cart-dica-taxa{display:none; margin-top:.5rem; font-size:14px; color:#5B4C3D;}
+#modal-checkout.wz-p1 .cart-dica-taxa{display:block;}
+#modal-checkout.wz-p1 #cart-fee-line, #modal-checkout.wz-p1 .summary-total{display:none !important;}
+.geo-guia{padding:.55rem .8rem !important; text-align:left !important; background:#fff !important; border:1px solid #E9DCCB !important;}
+.geo-guia-texto{font-size:14.5px !important;}
 </style>
 
 <style id="fix-fotos-sem-corte">
@@ -515,12 +610,46 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     btnVer.addEventListener('click', function(){ dispensouFechado = true; esconderFechado(); });
   }
 
+  var NOMES = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  function fmtH(t){ var m = paraMin(t); if(m === null) return ''; var mm = m % 60; return Math.floor(m/60) + 'h' + (mm ? String(mm).padStart(2,'0') : ''); }
+  function pintarHome(){
+    try{
+      if(HORARIOS){   // faixa "Dias de funcionamento" segue o que está no admin
+        var grupos = {}, ordem = [];
+        [1,2,3,4,5,6,0].forEach(function(d){
+          HORARIOS.forEach(function(h){
+            if(Number(h.dia_semana) !== d || h.fechado || !h.hora_abertura || !h.hora_fechamento) return;
+            var k = fmtH(h.hora_abertura) + '–' + fmtH(h.hora_fechamento);
+            if(!grupos[k]){ grupos[k] = []; ordem.push(k); }
+            grupos[k].push(NOMES[d]);
+          });
+        });
+        var lista = function(a){ var t = a.length > 1 ? a.slice(0,-1).join(', ') + ' e ' + a[a.length-1] : a[0]; return t.charAt(0).toUpperCase() + t.slice(1); };
+        var dEl = document.getElementById('rd-h-dias'), hEl = document.getElementById('rd-h-horas');
+        if(dEl && hEl){
+          if(!ordem.length){ dEl.textContent = 'Fechado no momento'; hEl.textContent = ''; }
+          else if(ordem.length === 1){ dEl.textContent = lista(grupos[ordem[0]]); hEl.textContent = ordem[0]; }
+          else { dEl.textContent = ordem.map(function(k){ return lista(grupos[k]) + ' ' + k; }).join(' · '); hEl.textContent = ''; }
+        }
+      }
+      // Capa do cartão "Pizzas": usa a foto de capa cadastrada no admin (pizza_<tamanho>)
+      var capa = document.getElementById('rd-foto-pizza');
+      if(capa){
+        var achou = null;
+        document.querySelectorAll('[data-categoria^="pizza_"]').forEach(function(el){ if(!achou && el.style.backgroundImage && el.classList.contains('tem-foto')) achou = el.style.backgroundImage; });
+        if(achou) capa.style.backgroundImage = achou;
+      }
+    }catch(e){ console.error(e); }
+  }
+  setInterval(pintarHome, 20000);
+
   // Chamada pelo site quando o cardápio terminou de carregar
   window.finalizarSplash = function(){
     if(finalizado || teste === 'carregando') return;
     finalizado = true;
     var espera = Math.max(0, TEMPO_MINIMO_MS - (Date.now() - t0));
     Promise.all([ buscarHorarios(), new Promise(function(r){ setTimeout(r, espera); }) ]).then(function(){
+      pintarHome();
       if(!lojaAberta()) mostrarFechado();   // a tela de fechado entra por baixo enquanto o carregamento some
       esconderSplash();
     });
@@ -542,6 +671,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
     <div>
       <div class="brand-name">Manel's Pizzaria</div>
       <div class="brand-tag">Sex, sáb e dom · 18h–21h</div>
+      <div class="brand-sub">Cardápio online</div>
     </div>
     <div class="topbar-cart" id="topbar-cart" onclick="openCheckout()">
       <svg viewBox="0 0 24 24" fill="none" stroke="#201A14" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.3 11.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/></svg>
@@ -559,16 +689,29 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 
 <div class="wrap">
   <div id="tempo-espera-aviso" style="display:none; margin:1rem 0 0; padding:.6rem 1rem; background:var(--accent); color:#fff; border-radius:10px; font-weight:bold; text-align:center;"></div>
+  <div class="rd-horario"><div><b id="rd-h-dias">Sexta, sábado e domingo</b><small>Dias de funcionamento</small></div><div class="rd-h" id="rd-h-horas">18h–21h</div></div>
+
+  <div class="carrossel-secao" id="carrossel-secao" style="display:none;">
+    <div class="rd-promo-head"><h2 class="rd-titulo">Promoções pra você</h2>
+      <div class="rd-setas"><button type="button" aria-label="Anterior" onclick="document.getElementById('carrossel-wrap').scrollBy({left:-300,behavior:'smooth'})">←</button><button type="button" aria-label="Próxima" onclick="document.getElementById('carrossel-wrap').scrollBy({left:300,behavior:'smooth'})">→</button></div></div>
+    <div class="carrossel-wrap" id="carrossel-wrap" onscroll="atualizarDotsCarrossel()"></div>
+    <div class="carrossel-dots" id="carrossel-dots"></div>
+  </div>
+  <h2 class="rd-titulo">O que vai pedir?</h2>
+  <div class="rd-cats">
+    <div class="rd-cat" onclick="openModal('pizzas')"><div class="rd-foto" id="rd-foto-pizza" role="img" aria-label="Pizzas" style="background-image:url(cat-pizzas.webp)"></div><div class="rd-in"><div class="rd-n">Pizzas <i>→</i></div><div class="rd-s">Monte a sua</div></div></div>
+    <div class="rd-cat" onclick="openModal('calzones')"><div class="rd-foto" data-categoria="calzone" role="img" aria-label="Calzones" style="background-image:url(cat-calzones.webp)"></div><div class="rd-in"><div class="rd-n">Calzones <i>→</i></div><div class="rd-s">Escolha o sabor</div></div></div>
+    <div class="rd-cat" onclick="openModal('brotinho')"><div class="rd-foto" data-categoria="brotinho" role="img" aria-label="Brotinho" style="background-image:url(cat-brotinho.webp)"></div><div class="rd-in"><div class="rd-n">Brotinho <i>→</i></div><div class="rd-s">Um doce pra fechar</div></div></div>
+    <div class="rd-cat" onclick="openModal('esfihas')"><div class="rd-foto" data-categoria="esfiha" role="img" aria-label="Esfihas" style="background-image:url(cat-esfihas.webp)"></div><div class="rd-in"><div class="rd-n">Esfihas <i>→</i></div><div class="rd-s">Monte seu combo</div></div></div>
+    <div class="rd-cat" onclick="openModal('bebidas')"><div class="rd-foto" data-categoria="bebida" role="img" aria-label="Refrigerantes" style="background-image:url(cat-refri.webp)"></div><div class="rd-in"><div class="rd-n">Refrigerantes <i>→</i></div><div class="rd-s">Para acompanhar</div></div></div>
+  </div>
+
     <div class="hero-meta" id="hero-meta" style="margin:1.1rem 0 .2rem;">
     <span class="hero-meta-item" id="hero-entrega">🛵 Entrega em 35–50 min</span>
     <span class="hero-meta-item" id="hero-local">📍 Centro</span>
   </div>
 
-  <div class="carrossel-secao" id="carrossel-secao" style="display:none;">
-    <div class="grid-title">🔥 Promoções</div>
-    <div class="carrossel-wrap" id="carrossel-wrap" onscroll="atualizarDotsCarrossel()"></div>
-    <div class="carrossel-dots" id="carrossel-dots"></div>
-  </div>
+
 
   <div class="grid-title">Pizzas — escolha o tamanho</div>
   <div class="product-grid" id="pizza-home-cards"></div>
@@ -860,7 +1003,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <h3 class="wz-step-title" id="wz-titulo">Confira seus itens</h3>
         <div class="wz-bar" id="wz-bar"></div>
       </div>
-            <section class="section" id="carrinho" data-wstep="1 2">
+            <section class="section" id="carrinho" data-wstep="1 7">
 
     <div class="section-head">
       <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.3 11.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/></svg></div>
@@ -875,7 +1018,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         </div>
       </div>
       <div id="cart-items" data-wstep="1"></div>
-      <div class="complement-toggle" data-wstep="2" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
+      <div class="complement-toggle" data-wstep="7" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
         <span>Quer <b>Ketchup</b>? <br><small>O 1º é grátis · a partir do 2º, + R$ 0,50 cada</small></span>
         <div class="stepper">
           <button class="step-btn" onclick="changeKetchupQty(-1)">-</button>
@@ -883,7 +1026,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <button class="step-btn" onclick="changeKetchupQty(1)">+</button>
         </div>
       </div>
-      <div class="complement-toggle" data-wstep="2" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
+      <div class="complement-toggle" data-wstep="7" style="cursor:default; justify-content:space-between; flex-wrap:wrap;">
         <span>Quer <b>Maionese Temperada</b>? <br><small>A 1ª é grátis · a partir da 2ª, + R$ 1,00 cada</small></span>
         <div class="stepper">
           <button class="step-btn" onclick="changeMaioneseQty(-1)">-</button>
@@ -891,7 +1034,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <button class="step-btn" onclick="changeMaioneseQty(1)">+</button>
         </div>
       </div>
-      <div id="cart-summary" data-wstep="1 2" style="display:none;">
+      <div id="cart-summary" data-wstep="1 7" style="display:none;">
         <div class="summary-line"><span>Subtotal:</span><span id="cart-subtotal">R$ 0,00</span></div>
         <div class="summary-line" id="cart-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="cart-fee">R$ 0,00</span></div>
         <div class="summary-line" id="cart-ketchup-line" style="display:none;"><span>Ketchup (adicionais):</span><span id="cart-ketchup">R$ 0,00</span></div>
@@ -899,11 +1042,12 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div class="summary-line" id="cart-cupom-line" style="display:none; color:var(--forest-dark);"><span>🏷️ Cupom:</span><span id="cart-cupom">-R$ 0,00</span></div>
         <div class="summary-line" id="cart-desconto-line" style="display:none; color:var(--forest-dark);"><span>🎁 Desconto (pontos):</span><span id="cart-desconto">-R$ 0,00</span></div>
         <div class="summary-total"><span>TOTAL:</span><span id="cart-total">R$ 0,00</span></div>
+        <div class="cart-dica-taxa">A taxa de entrega (se houver) aparece no próximo passo — retirando no balcão não há taxa.</div>
       </div>
     </div>
   
       </section>
-      <section class="section" id="finalizar" data-wstep="3 4 5 6 7" style="margin-top:1.6rem; padding-top:1.4rem; border-top:1px dashed var(--line);">
+      <section class="section" id="finalizar" data-wstep="2 3 4 5 6 7 8" style="margin-top:1.6rem; padding-top:1.4rem; border-top:1px dashed var(--line);">
 
     <div class="section-head">
       <div class="stop-badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></div>
@@ -912,7 +1056,7 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 
     <div class="panel">
       
-      <div id="login-widget" data-wstep="3" style="margin-bottom:14px;">
+      <div id="login-widget" data-wstep="5" style="margin-bottom:14px;">
         <button type="button" id="login-btn-entrar" onclick="entrarComGoogleIndex()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; color:#3c4043; border:1px solid #dadce0; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; font-family:'Roboto',Arial,sans-serif; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08);">
           <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.08-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V4.95H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
           <span>Entrar com Google <span style="font-weight:400; opacity:.8;">— salva seus dados pra próxima compra</span></span>
@@ -922,31 +1066,38 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <button type="button" onclick="sairDoLogin()" style="border:none; background:none; color:var(--rust); font-weight:bold; cursor:pointer; font-size:.8rem;">Sair</button>
         </div>
       </div>
-      <div class="field-group" data-wstep="3">
+      <div class="field-group" data-wstep="5">
         <span class="field-label">Nome completo *</span>
         <input type="text" id="chk-nome" placeholder="Seu nome" oninput="this.classList.remove('field-error')" />
       </div>
-      <div class="field-group" data-wstep="3">
+      <div class="field-group" data-wstep="5">
         <span class="field-label">Telefone *</span>
         <input type="tel" id="chk-telefone" placeholder="(88) 9 0000-0000" oninput="this.classList.remove('field-error')" />
       </div>
 
-      <span class="field-label" data-wstep="4">Como você vai receber o pedido? *</span>
-      <div class="fulfill-row" data-wstep="4">
+      <span class="field-label" data-wstep="2">Como você vai receber o pedido? *</span>
+      <div class="fulfill-row" data-wstep="2">
         <button class="fulfill-btn active" id="fulfill-entrega" onclick="selectFulfillment('entrega')">🛵 Entregar</button>
         <button class="fulfill-btn" id="fulfill-retirada" onclick="selectFulfillment('retirada')">🏠 Retirar no Balcão</button>
       </div>
+      <div class="taxa-info" id="taxa-info" data-wstep="2"></div>
+      <div id="retirada-note" class="note-box" data-wstep="2" style="display:none;">
+        <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
+      </div>
 
-      <div id="endereco-field" class="field-group" data-wstep="4">
+      <div id="zona-field" class="field-group" data-wstep="3">
         <span class="field-label">Onde será a entrega? *</span>
         <div class="fulfill-row" id="zona-row">
           <button class="fulfill-btn active" id="zona-cidade" onclick="selectDeliveryZone('cidade')">🏙️ Na cidade</button>
           <button class="fulfill-btn" id="zona-sitio" onclick="selectDeliveryZone('sitio')">🌾 No sítio</button>
         </div>
+        <div class="note-box" id="entrega-note"></div>
+      </div>
+
+      <div id="endereco-field" class="field-group" data-wstep="4">
         <span class="field-label">Endereço para entrega *</span>
         <div class="geo-guia" id="geo-guia">
-          <div class="geo-guia-titulo">📍 COMPARTILHE SUA LOCALIZAÇÃO (GPS)</div>
-          <div class="geo-guia-texto">O motoboy chega mais rápido e certinho. Toque no botão verde abaixo e escolha <b>PERMITIR</b>.</div>
+          <div class="geo-guia-texto">Toque no botão e escolha <b>PERMITIR</b>.</div>
         </div>
         <div id="geo-actions" style="margin:.3rem 0 .5rem;">
           <button type="button" class="geo-btn-main" id="geo-btn" onclick="compartilharLocalizacao()">📍 Compartilhar minha localização</button>
@@ -967,14 +1118,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <input type="text" id="chk-referencia" maxlength="120" placeholder="Ex: casa azul, em frente à praça" oninput="this.classList.remove('field-error')" />
           <input type="hidden" id="chk-endereco" value="" />
         </div>
-        <div class="note-box" id="entrega-note"><b>Atenção:</b> pedidos abaixo de R$ 15,00 têm taxa de entrega de R$ 3,00. A partir de R$ 15,00, a entrega é grátis.</div>
-      </div>
-      <div id="retirada-note" class="note-box" data-wstep="4" style="display:none;">
-        <b>Retire seu pedido em:</b> Rua Joaquim Soares da Silva, 641, Centro — sempre grátis.
       </div>
 
-      <div id="pontos-resgate" data-wstep="5" style="display:none; margin-bottom:12px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
-      <div class="field-group" id="cupom-box" data-wstep="5">
+      <div id="pontos-resgate" data-wstep="6" style="display:none; margin-bottom:12px; background:#fff8ea; border:1px solid #f0d9a0; border-radius:10px; padding:12px;"></div>
+      <div class="field-group" id="cupom-box" data-wstep="6">
         <span class="field-label">Cupom de desconto</span>
         <div style="display:flex; gap:8px;">
           <input type="text" id="cupom-input" placeholder="Digite seu cupom" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase; flex:1; min-width:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCupom();}" />
@@ -982,22 +1129,22 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         </div>
         <div id="cupom-msg" style="font-size:.82rem; margin-top:6px; min-height:1em;"></div>
       </div>
-      <div id="wz-total-pagar" class="total-pagar" data-wstep="5"><span>Total a pagar</span><b id="wz-total-pagar-valor">R$ 0,00</b></div>
-      <span class="field-label" data-wstep="5">Como você vai pagar? *</span>
-      <div class="pay-row" id="pay-mode-row" data-wstep="5">
+      <div id="wz-total-pagar" class="total-pagar" data-wstep="6"><span>Total a pagar</span><b id="wz-total-pagar-valor">R$ 0,00</b></div>
+      <span class="field-label" data-wstep="6">Como você vai pagar? *</span>
+      <div class="pay-row" id="pay-mode-row" data-wstep="6">
         <button type="button" class="opt-btn active" data-paymode="uma" onclick="selectPayMode('uma')">💳 Uma forma</button>
         <button type="button" class="opt-btn" data-paymode="dividir" onclick="selectPayMode('dividir')">✂️ Dividir em duas formas</button>
       </div>
       <div id="pay-single" style="margin-top:.9rem;">
-      <span class="field-label" data-wstep="5">Forma de pagamento *</span>
-      <div class="pay-row" id="pay-row" data-wstep="5">
+      <span class="field-label" data-wstep="6">Forma de pagamento *</span>
+      <div class="pay-row" id="pay-row" data-wstep="6">
         <button class="opt-btn" data-pay="Dinheiro" onclick="selectPayment('Dinheiro')">Dinheiro</button>
         <button class="opt-btn" data-pay="PIX" onclick="selectPayment('PIX')">PIX</button>
         <button class="opt-btn" data-pay="Débito" onclick="selectPayment('Débito')">Débito</button>
         <button class="opt-btn" data-pay="Crédito" onclick="selectPayment('Crédito')">Crédito</button>
       </div>
 
-      <div id="troco-field" class="field-group" data-wstep="5" style="display:none;">
+      <div id="troco-field" class="field-group" data-wstep="6" style="display:none;">
         <span class="field-label">Vai precisar de troco?</span>
         <div class="pay-row" id="troco-need-row">
           <button type="button" class="opt-btn" data-troco-need="sim" onclick="selectTrocoNeed(true)">Sim</button>
@@ -1009,10 +1156,10 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
           <div id="troco-calc-hint" class="note-box" style="display:none; margin-top:.4rem;"></div>
         </div>
       </div>
-      <div id="pix-note" class="note-box" data-wstep="5" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
-      <div id="card-note" class="note-box" data-wstep="5" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
+      <div id="pix-note" class="note-box" data-wstep="6" style="display:none;">A chave PIX será enviada pelo nosso WhatsApp assim que recebermos seu pedido.</div>
+      <div id="card-note" class="note-box" data-wstep="6" style="display:none;">Pagamento na entrega/retirada. Levamos a maquininha.</div>
       </div>
-      <div id="split-box" class="split-box pm-hide" data-wstep="5">
+      <div id="split-box" class="split-box pm-hide" data-wstep="6">
         <span class="field-label">1ª forma de pagamento *</span>
         <div class="pay-row" id="split-a-row">
           <button type="button" class="opt-btn" data-split-a="PIX" onclick="splitSelect('A','PIX')">PIX</button>
@@ -1046,16 +1193,16 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
         <div id="split-resumo" class="note-box" style="display:none;"></div>
       </div>
 
-      <div class="field-group" data-wstep="6">
+      <div class="field-group" data-wstep="7">
         <span class="field-label">Observações gerais (opcional)</span>
         <textarea id="chk-obs" rows="2" placeholder="Ex: sem cebola, tocar a campainha, etc."></textarea>
       </div>
 
-      <div id="wz-revisao" data-wstep="7"></div>
+      <div id="wz-revisao" data-wstep="8"></div>
       
       
 
-      <div id="wz-totais" data-wstep="7">
+      <div id="wz-totais" data-wstep="8">
       <div class="summary-line"><span>Subtotal:</span><span id="chk-subtotal">R$ 0,00</span></div>
       <div class="summary-line" id="chk-fee-line" style="display:none;"><span>Taxa de Entrega:</span><span id="chk-fee">R$ 0,00</span></div>
       <div class="summary-line" id="chk-ketchup-line" style="display:none;"><span>Ketchup (adicionais):</span><span id="chk-ketchup">R$ 0,00</span></div>
@@ -1065,8 +1212,8 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
       <div class="summary-total"><span>TOTAL:</span><span id="chk-total">R$ 0,00</span></div>
       </div>
 
-      <button class="wa-btn" id="enviar-pedido-btn" data-wstep="7" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
-      <div id="wa-fallback" data-wstep="7" style="display:none; margin-top:.6rem; text-align:center;">
+      <button class="wa-btn" id="enviar-pedido-btn" data-wstep="8" onclick="enviarPedido()">📲 Enviar Pedido pelo WhatsApp</button>
+      <div id="wa-fallback" data-wstep="8" style="display:none; margin-top:.6rem; text-align:center;">
         <a id="wa-fallback-link" href="#" target="_blank" rel="noopener" style="display:inline-block; font-size:12.5px; font-weight:700; color:var(--forest-dark); text-decoration:underline; padding:.4rem;">
           O WhatsApp não abriu? Toque aqui para enviar o pedido
         </a>
@@ -1794,7 +1941,7 @@ function restaurarCarrinhoAposLogin(){
       if(paymentMethod) selectPayment(paymentMethod);
       renderCart();
       // A pessoa estava no checkout quando saiu pra logar — volta direto pro passo "Seus dados".
-      setTimeout(() => openCheckout(3), 300);
+      setTimeout(() => openCheckout(5), 300);
     }
   } catch(e){
     console.error('Não foi possível restaurar o carrinho após o login:', e);
@@ -2841,11 +2988,38 @@ function mostrarToastAdicionado(){
 }
 
 /* ==================== CHECKOUT ==================== */
+function atualizarTaxaInfo(){
+  const el = document.getElementById('taxa-info'); if(!el) return;
+  const sub = getSubtotal();
+  if(sub <= 0){ el.innerHTML = ''; return; }
+  const abaixo = sub < FREE_DELIVERY_THRESHOLD;
+  let h = `<div class="ti-row"><span>🏠 Retirar no balcão</span><b>Sem taxa</b></div>`;
+  h += `<div class="ti-row${abaixo ? ' ti-pago' : ''}"><span>🛵 Entregar na cidade</span><b>${abaixo ? brl(DELIVERY_FEE) : 'Grátis'}</b></div>`;
+  h += `<div class="ti-row ti-pago"><span>🌾 Entregar no sítio</span><b>${brl(SITIO_DELIVERY_FEE)} fixo</b></div>`;
+  if(abaixo){
+    h += `<div class="ti-dica">Seu pedido está em <b>${brl(sub)}</b>. Entrega na cidade abaixo de ${brl(FREE_DELIVERY_THRESHOLD)} tem taxa de ${brl(DELIVERY_FEE)}. <b>Retirando no balcão você não paga taxa.</b></div>`;
+  }
+  el.innerHTML = h;
+}
+function atualizarNotaZona(){
+  const el = document.getElementById('entrega-note'); if(!el) return;
+  const sub = getSubtotal();
+  if(deliveryZone === 'sitio'){
+    el.innerHTML = `<b>No sítio a taxa é fixa: ${brl(SITIO_DELIVERY_FEE)}</b>, qualquer que seja o valor do pedido.<br>Itens ${brl(sub)} + entrega ${brl(SITIO_DELIVERY_FEE)} = <b>${brl(sub + SITIO_DELIVERY_FEE)}</b>`;
+  } else if(sub < FREE_DELIVERY_THRESHOLD){
+    el.innerHTML = `<b>Taxa de entrega na cidade: ${brl(DELIVERY_FEE)}</b> (pedido abaixo de ${brl(FREE_DELIVERY_THRESHOLD)}).<br>Itens ${brl(sub)} + entrega ${brl(DELIVERY_FEE)} = <b>${brl(sub + DELIVERY_FEE)}</b><br>Quer evitar a taxa? Volte e escolha <b>Retirar no balcão</b>.`;
+  } else {
+    el.innerHTML = `<b>Entrega grátis na cidade</b> — seu pedido é de ${brl(sub)}.`;
+  }
+}
+
 function selectFulfillment(type){
   fulfillment = type;
   document.getElementById('fulfill-entrega').classList.toggle('active', type==='entrega');
   document.getElementById('fulfill-retirada').classList.toggle('active', type==='retirada');
   document.getElementById('endereco-field').style.display = type==='entrega' ? 'block' : 'none';
+  const zf = document.getElementById('zona-field'); if(zf) zf.style.display = type==='entrega' ? 'block' : 'none';
+  atualizarTaxaInfo();
   document.getElementById('retirada-note').style.display = type==='retirada' ? 'block' : 'none';
   renderCart();
 }
@@ -2854,9 +3028,7 @@ function selectDeliveryZone(zona){
   deliveryZone = (zona === 'sitio') ? 'sitio' : 'cidade';
   document.getElementById('zona-cidade').classList.toggle('active', deliveryZone === 'cidade');
   document.getElementById('zona-sitio').classList.toggle('active', deliveryZone === 'sitio');
-  document.getElementById('entrega-note').innerHTML = deliveryZone === 'sitio'
-    ? `<b>Atenção:</b> entregas no sítio têm taxa fixa de ${brl(SITIO_DELIVERY_FEE)}.`
-    : `<b>Atenção:</b> pedidos abaixo de ${brl(FREE_DELIVERY_THRESHOLD)} têm taxa de entrega de ${brl(DELIVERY_FEE)}. A partir de ${brl(FREE_DELIVERY_THRESHOLD)}, a entrega é grátis.`;
+  atualizarNotaZona();
   renderCart();
 }
 
@@ -3352,7 +3524,10 @@ async function enviarPedido(){
 /* ==================== PASSO A PASSO DO PEDIDO ==================== */
 // O fechamento do pedido é dividido em telas. Os campos, os ids e o envio do pedido
 // continuam os mesmos de antes — aqui controlamos QUAL tela aparece e validamos cada uma.
-const WZ_TITULOS = ['Confira seus itens', 'Complementos', 'Seus dados', 'Entrega', 'Pagamento', 'Observações', 'Confira e envie'];
+// Ordem: 1 Itens · 2 Como receber · 3 Onde (só entrega) · 4 Endereço (só entrega) · 5 Seus dados · 6 Pagamento · 7 Ketchup/maionese + observações · 8 Conferir
+const WZ_TITULOS = ['Confira seus itens', 'Como você vai receber?', 'Onde será a entrega?', 'Endereço para entrega', 'Seus dados', 'Pagamento', 'Quer acrescentar algo?', 'Confira e envie'];
+function wzPulados(){ return fulfillment === 'retirada' ? [3, 4] : []; }   // retirada não precisa de zona nem endereço
+function wzLista(){ const p = wzPulados(); return WZ_TITULOS.map((_, i) => i + 1).filter(n => !p.includes(n)); }
 const WZ_TOTAL = WZ_TITULOS.length;
 let wzStep = 1;
 let wzEditando = false;   // true quando o cliente veio da conferência só para corrigir uma informação
@@ -3374,14 +3549,15 @@ function wzRender(){
   });
   const editando = wzEditando && wzStep < WZ_TOTAL;
   const cont = document.getElementById('wz-contador');
-  if(cont) cont.textContent = editando ? 'Corrigindo uma informação' : `Passo ${wzStep} de ${WZ_TOTAL}`;
+  const lista = wzLista();
+  if(cont) cont.textContent = editando ? 'Corrigindo uma informação' : `Passo ${Math.max(1, lista.indexOf(wzStep) + 1)} de ${lista.length}`;
   const tit = document.getElementById('wz-titulo');
   if(tit) tit.textContent = WZ_TITULOS[wzStep - 1];
   const bar = document.getElementById('wz-bar');
   if(bar){
     bar.style.display = editando ? 'none' : '';
-    bar.innerHTML = WZ_TITULOS.map((_, i) =>
-      `<span class="${i + 1 < wzStep ? 'done' : (i + 1 === wzStep ? 'now' : '')}"></span>`).join('');
+    bar.innerHTML = lista.map(n =>
+      `<span class="${n < wzStep ? 'done' : (n === wzStep ? 'now' : '')}"></span>`).join('');
   }
   const vb = document.getElementById('wz-voltar');
   const cb = document.getElementById('wz-continuar');
@@ -3392,8 +3568,13 @@ function wzRender(){
   }
   if(cb){
     cb.style.display = wzStep < WZ_TOTAL ? '' : 'none';
-    cb.textContent = editando ? 'Salvar e voltar à conferência ✓' : (wzStep === WZ_TOTAL - 1 ? 'Revisar pedido →' : 'Continuar →');
+    const segue = editando && wzStep >= 2 && wzStep <= 3 && (lista[lista.indexOf(wzStep) + 1] || 99) <= 4;
+    cb.textContent = segue ? 'Continuar →' : (editando ? 'Salvar e voltar à conferência ✓' : (wzStep === WZ_TOTAL - 1 ? 'Revisar pedido →' : 'Continuar →'));
   }
+  const modalChk = document.getElementById('modal-checkout');
+  if(modalChk) modalChk.classList.toggle('wz-p1', wzStep === 1);
+  if(wzStep === 2) atualizarTaxaInfo();
+  if(wzStep === 3) atualizarNotaZona();
   if(wzStep === 4) geoAtualizarUI();
   if(wzStep === WZ_TOTAL) wzMontarRevisao();
 }
@@ -3423,14 +3604,20 @@ function wzEditar(n){
 function wzBack(){
   clearError();
   if(wzEditando){ wzGo(WZ_TOTAL); return; }
-  if(wzStep > 1) wzGo(wzStep - 1);
+  const l = wzLista(), i = l.indexOf(wzStep);
+  if(i > 0) wzGo(l[i - 1]);
 }
 function wzNext(){
   clearError();
   const erro = wzValidar(wzStep);
   if(erro){ showError(erro.msg, erro.el); return; }
-  if(wzEditando){ wzGo(WZ_TOTAL); return; }
-  if(wzStep < WZ_TOTAL) wzGo(wzStep + 1);
+  const l = wzLista(), prox = l[l.indexOf(wzStep) + 1];
+  if(wzEditando){
+    // corrigindo a entrega: segue pelos passos da entrega (2 → 3 → 4) antes de voltar à conferência
+    if(wzStep >= 2 && wzStep <= 3 && prox && prox <= 4){ wzStep = prox; wzRender(); wzTopo(); return; }
+    wzGo(WZ_TOTAL); return;
+  }
+  if(wzStep < WZ_TOTAL) wzGo(prox || WZ_TOTAL);
 }
 
 // Se um erro aponta pra um campo que está em outra tela, vai pra tela dele.
@@ -3533,7 +3720,7 @@ function wzValidar(n){
   if(n === 1){
     if(cart.length === 0) return { msg: 'Seu carrinho está vazio. Feche esta tela e adicione pelo menos um item.', el: null };
   }
-  if(n === 3){
+  if(n === 5){
     const nome = $('chk-nome').value.trim();
     const tel = $('chk-telefone').value.trim();
     if(nome.length < 2) return { msg: 'Preencha seu nome.', el: $('chk-nome') };
@@ -3543,7 +3730,7 @@ function wzValidar(n){
     const e = wzEntregaErro();
     if(e) return e;
   }
-  if(n === 5){
+  if(n === 6){
     const pErr = pagamentoErro();
     if(pErr) return pErr;
   }
@@ -3568,9 +3755,9 @@ function wzMontarRevisao(){
   const comp = [];
   if(ketchupQty > 0) comp.push(`Ketchup: ${ketchupQty}x` + (ketchupQty > 1 ? ` (+ ${brl(getExtrasKetchup())})` : ' (grátis)'));
   if(maioneseQty > 0) comp.push(`Maionese temperada: ${maioneseQty}x` + (maioneseQty > 1 ? ` (+ ${brl(getExtrasMaionese())})` : ' (grátis)'));
-  partes.push(bloco('Complementos', 2, comp.length ? comp.join('<br>') : '<i>Nenhum</i>'));
+  partes.push(bloco('Complementos', 7, comp.length ? comp.join('<br>') : '<i>Nenhum</i>'));
 
-  partes.push(bloco('Seus dados', 3, `${wzEsc(v('chk-nome'))}<small>${wzEsc(v('chk-telefone'))}</small>`));
+  partes.push(bloco('Seus dados', 5, `${wzEsc(v('chk-nome'))}<small>${wzEsc(v('chk-telefone'))}</small>`));
 
   let ent;
   if(fulfillment === 'entrega'){
@@ -3578,7 +3765,7 @@ function wzMontarRevisao(){
   } else {
     ent = `🏠 <b>Retirar no balcão</b><small>Rua Joaquim Soares da Silva, 641, Centro</small>`;
   }
-  partes.push(bloco('Entrega', 4, ent));
+  partes.push(bloco('Entrega', 2, ent));
 
   let pag;
   if(payMode === 'dividir'){
@@ -3593,9 +3780,9 @@ function wzMontarRevisao(){
     }
   }
   }
-  partes.push(bloco('Pagamento', 5, pag));
+  partes.push(bloco('Pagamento', 6, pag));
 
-  partes.push(bloco('Observações', 6, v('chk-obs') ? wzEsc(v('chk-obs')).replace(/\n/g, '<br>') : '<i>Nenhuma</i>'));
+  partes.push(bloco('Observações', 7, v('chk-obs') ? wzEsc(v('chk-obs')).replace(/\n/g, '<br>') : '<i>Nenhuma</i>'));
 
   box.innerHTML = partes.join('');
 }
