@@ -355,6 +355,7 @@ details.promo .conteudo-promo{ display:flex; flex-direction:column; gap:6px; mar
 .inicio-card .ic-desc{ color:var(--ink-soft); font-size:.9rem; line-height:1.4; }
 .inicio-card .ic-abre{ margin-top:8px; font-size:.8rem; font-weight:700; color:var(--terracotta-dark); }
 </style>
+<script>try{localStorage.setItem("manels_equipe","1")}catch(e){}</script><!-- equipe: este aparelho não entra nas estatísticas de visitas -->
 </head>
 <body>
 
@@ -2545,7 +2546,7 @@ function iniciarPainelVisitas(){
       if(document.hidden || categoriaAtiva !== 'inicio' || !document.getElementById('painel-visitas')) return;
       if(cont && cont.style.display === 'none') return; // saiu do painel
       pvCarregar();
-    }, 30000);
+    }, 8000);
   }
 }
 
@@ -2680,7 +2681,7 @@ function pvRender(){
       <div class="pv-eixo"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>
     </div>
 
-    <p class="pv-nota">Uma visita é uma pessoa abrindo o site (se ela ficar mais de 30 minutos parada e voltar, conta como outra visita). "Online agora" considera quem está com o site aberto no momento. Seus próprios acessos, com este painel aberto neste aparelho, não são contados.
+    <p class="pv-nota">Uma visita é uma pessoa abrindo o site (se ela ficar mais de 30 minutos parada e voltar, conta como outra visita). "Online agora" considera quem está com o site aberto neste instante. Seus próprios acessos, com este painel aberto neste aparelho, não são contados.
     Para conferência: ${pvN(d.pedidos_site)} pedido(s) do site chegaram nas Comandas ${pvRotuloPeriodo()}. Os números do funil vêm do que o cliente fez na tela, então podem diferir um pouco (por exemplo, pedido enviado só pelo WhatsApp). Não guardamos nome, telefone, endereço nem localização.</p>
   </section>`;
 }
