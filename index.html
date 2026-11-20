@@ -4149,9 +4149,13 @@ wzRender();
 (function(){
   try{
     var SESSAO_MAX_PARADA_MS = 30 * 60 * 1000;  // 30 min sem atividade = nova visita
-    var SINAL_A_CADA_MS = 45 * 1000;            // "estou aqui" enquanto a página está aberta
+    var SINAL_A_CADA_MS = 15 * 1000;            // "estou aqui" enquanto a página está aberta
     var sid = null, ativo = false, pronto = null, enviados = {};
 
+    function lerEquipe(){ try{ return localStorage.getItem('manels_equipe') === '1' || /\/(comandas|motoboy|admin|estoque|financeiro)(\.html)?(\/|$|\?|#)/.test(document.referrer || ''); }catch(e){ return false; } }
+    // Equipe (admin, comandas, motoboy...) não conta: aparelho marcado por essas telas, ou aberto com ?equipe=1
+    try{ if(/[?&]equipe=1/.test(location.search)) localStorage.setItem('manels_equipe','1'); }catch(e){}
+    if(lerEquipe()) return;
     if(typeof supabaseClient === 'undefined' || !supabaseClient) return;
     if(/bot|crawl|spider|headless|lighthouse|preview|facebookexternalhit/i.test(navigator.userAgent || '') || navigator.webdriver) return;
 
