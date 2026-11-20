@@ -176,7 +176,9 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .flavor-card.compact .fmedia{width:64px; height:64px; flex:0 0 auto;}
 .flavor-card.compact .fbody{padding:.4rem .65rem; flex:1; min-width:0;}
 .flavor-card.compact .fname{font-size:14.5px;}
-.flavor-card.compact .fdesc{font-size:12px; margin-top:2px; line-height:1.3; white-space:normal; overflow:visible; text-overflow:clip; display:block; overflow-wrap:anywhere;}
+.flavor-card.compact .fdesc{font-size:12px; margin-top:2px; line-height:1.3; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; overflow-wrap:anywhere;}
+.flavor-card.compact .fdesc.expanded{display:block; -webkit-line-clamp:unset; line-clamp:unset; overflow:visible;}
+.fdesc-mais{display:inline-block; margin-top:2px; font-size:12px; font-weight:700; color:var(--accent-dark); text-decoration:underline; cursor:pointer;}
 .flavor-card.compact .fprice-row{margin-top:2px;}
 .flavor-card.compact .fprice, .flavor-card.compact .fprice-promo{font-size:14px;}
 .flavor-card.compact .fprice-old{font-size:9.5px;}
@@ -342,41 +344,54 @@ select:focus, input:focus, textarea:focus{outline:none; border-color:var(--ink);
 .tela-rodape{ margin-top:auto; padding:1.4rem 0 1.6rem; width:100%; font-size:14px; color:#5B4C3D; }
 .tela-rodape::before{ content:""; display:block; width:52px; height:1px; background:rgba(43,33,24,.16); margin:0 auto 1rem; }
 
-/* --- carregamento --- */
-#tela-carregando{ z-index:100001; justify-content:flex-start; }
-#tela-carregando .sp-logo{ width:min(80vw,330px); height:auto; margin-top:clamp(1.2rem,6vh,3.2rem); display:block; }
-#tela-carregando .sp-pizza{ width:clamp(88px,26vw,116px); height:auto; margin:clamp(1.4rem,6vh,3rem) 0 clamp(1.4rem,5vh,2.6rem); animation:sp-gira 3.2s cubic-bezier(.55,.1,.35,.9) infinite; }
-#tela-carregando h1{ font-size:clamp(34px,10vw,46px); }
-#tela-carregando .sp-sub{ margin-top:1rem; font-size:clamp(16px,4.4vw,19px); line-height:1.5; }
-#tela-carregando .sp-espera{ margin-top:1.8rem; font-size:17px; font-weight:500; color:#174D33; }
-.sp-dots{ display:flex; gap:9px; justify-content:center; margin-top:.9rem; }
+/* --- carregamento (cabe em uma tela, sem rolar) --- */
+.tela-manels{ height:100vh; height:100dvh; overflow:hidden; padding:0 1.2rem; }
+#tela-carregando{ z-index:100001; justify-content:space-evenly; }
+#tela-carregando .sp-logo{ height:min(17dvh,170px); width:auto; max-width:70vw; display:block; margin-top:1dvh; }
+.sp-pizza{ position:relative; width:min(20dvh,150px); aspect-ratio:1; flex:0 0 auto; }
+.sp-pizza i{ position:absolute; inset:0; background:url(splash-pizza.webp) center/100% 100% no-repeat; opacity:0; transform:scale(.92); transform-origin:50% 50%;
+  --a:calc(var(--n) * 45deg - 22.5deg);
+  -webkit-mask-image:conic-gradient(from var(--a), #000 0 45deg, transparent 45deg 360deg);
+          mask-image:conic-gradient(from var(--a), #000 0 45deg, transparent 45deg 360deg);
+  animation:sp-fatia 3.2s ease-in-out infinite; animation-delay:calc(var(--n) * .16s); }
+#tela-carregando h1{ font-size:clamp(30px,8.6vw,42px); }
+#tela-carregando .sp-sub{ font-size:clamp(16px,4.2vw,18px); line-height:1.4; }
+#tela-carregando .sp-espera{ font-size:17px; font-weight:500; color:#174D33; }
+.sp-dots{ display:flex; gap:9px; justify-content:center; margin-top:.5rem; }
 .sp-dots i{ width:9px; height:9px; border-radius:50%; background:#A8532B; animation:sp-pulsa 1.2s ease-in-out infinite; }
 .sp-dots i:nth-child(2){ background:#EFCB7A; animation-delay:.2s; }
 .sp-dots i:nth-child(3){ background:#D9CBBE; animation-delay:.4s; }
-@keyframes sp-gira{ 0%{ transform:rotate(0); } 70%,100%{ transform:rotate(360deg); } }
+/* fatias surgem em sentido horário e depois somem em sentido horário */
+@keyframes sp-fatia{ 0%{ opacity:0; transform:scale(.92); } 6%,46%{ opacity:1; transform:scale(1); } 54%,100%{ opacity:0; transform:scale(.92); } }
 @keyframes sp-pulsa{ 0%,100%{ transform:scale(.7); opacity:.45; } 50%{ transform:scale(1.25); opacity:1; } }
+.tela-rodape{ margin-top:0; padding:.3rem 0 .8rem; font-size:14px; }
+.tela-rodape::before{ margin-bottom:.6rem; }
+@media (max-height:600px){ #tela-carregando .sp-espera{ display:none; } }
 
-/* --- estamos fechados --- */
+/* --- estamos fechados (cabe em uma tela, sem rolar) --- */
 #tela-fechado{ z-index:100000; }
-#tela-fechado .fc-in{ width:100%; max-width:440px; display:flex; flex-direction:column; align-items:center; padding-top:1.6rem; }
-#tela-fechado .fc-logo{ width:min(52vw,190px); height:auto; display:block; }
-#tela-fechado .fc-selo{ margin-top:1.4rem; background:#EBD5C8; color:#EE3333; font-weight:800; font-size:clamp(20px,6vw,26px); letter-spacing:.04em; padding:.7rem 1.6rem; border-radius:18px; }
-#tela-fechado h1{ margin-top:1.8rem; font-size:clamp(42px,13vw,56px); }
-#tela-fechado .fc-ilus{ width:100%; max-width:380px; height:auto; margin-top:1.6rem; display:block; border-radius:50%; }
-#tela-fechado .fc-texto{ margin-top:1.6rem; font-size:clamp(16px,4.4vw,18px); line-height:1.55; }
-.fc-ticket{ position:relative; width:100%; margin-top:1.8rem; background:#174D33; border-radius:28px; padding:1.3rem 1rem 1.7rem; color:#fff; }
+#tela-fechado .fc-in{ width:100%; max-width:440px; flex:1 1 0; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:space-evenly; padding-top:.5rem; }
+#tela-fechado .fc-logo{ height:min(9dvh,84px); width:auto; display:block; flex:0 0 auto; }
+#tela-fechado .fc-selo{ background:#EBD5C8; color:#EE3333; font-weight:800; font-size:clamp(17px,5vw,22px); letter-spacing:.04em; padding:.4rem 1.2rem; border-radius:14px; }
+#tela-fechado h1{ font-size:clamp(30px,9vw,40px); }
+#tela-fechado h1 br{ display:none; }
+#tela-fechado .fc-ilus{ flex:1 1 0; min-height:60px; max-height:230px; width:100%; max-width:340px; object-fit:contain; display:block; }
+#tela-fechado .fc-texto{ font-size:clamp(15px,4vw,17px); line-height:1.4; }
+#tela-fechado .fc-texto br{ display:none; }
+.fc-ticket{ position:relative; width:100%; background:#174D33; border-radius:22px; padding:.7rem 1rem .8rem; color:#fff; }
 .fc-ticket .fc-esp{ font-size:15px; color:#F2E4D9; letter-spacing:.02em; }
-.fc-ticket .fc-linha{ margin:1rem 0 1.1rem; border-top:2px dashed rgba(242,228,217,.35); position:relative; }
-.fc-ticket .fc-linha::before, .fc-ticket .fc-linha::after{ content:""; position:absolute; top:-12px; width:24px; height:24px; border-radius:50%; background:#F2E4D9; }
-.fc-ticket .fc-linha::before{ left:-1rem; margin-left:-12px; }
-.fc-ticket .fc-linha::after{ right:-1rem; margin-right:-12px; }
-.fc-ticket .fc-dias{ font-weight:800; font-size:clamp(20px,5.6vw,24px); }
-.fc-ticket .fc-hora{ font-family:'Fraunces',serif; font-weight:800; font-size:clamp(44px,13vw,58px); color:#EFCB7A; line-height:1.1; margin-top:.2rem; }
-#tela-fechado .fc-duvida{ margin-top:1.4rem; font-size:16px; }
-.fc-zap{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:.9rem; padding:1.05rem; border:2px solid #174D33; border-radius:18px; background:transparent; color:#174D33; font-weight:800; font-size:17px; text-decoration:none; }
+.fc-ticket .fc-linha{ margin:.5rem 0 .55rem; border-top:2px dashed rgba(242,228,217,.35); position:relative; }
+.fc-ticket .fc-linha::before, .fc-ticket .fc-linha::after{ content:""; position:absolute; top:-10px; width:20px; height:20px; border-radius:50%; background:#F2E4D9; }
+.fc-ticket .fc-linha::before{ left:-1rem; margin-left:-10px; }
+.fc-ticket .fc-linha::after{ right:-1rem; margin-right:-10px; }
+.fc-ticket .fc-dias{ font-weight:800; font-size:clamp(17px,5vw,21px); }
+.fc-ticket .fc-hora{ font-family:'Fraunces',serif; font-weight:800; font-size:clamp(34px,10vw,44px); color:#EFCB7A; line-height:1.1; }
+#tela-fechado .fc-duvida{ font-size:15px; }
+.fc-zap{ display:flex; align-items:center; justify-content:center; width:100%; padding:.8rem; border:2px solid #174D33; border-radius:16px; background:transparent; color:#174D33; font-weight:800; font-size:17px; text-decoration:none; }
 .fc-zap:active{ background:rgba(23,77,51,.08); }
-.fc-ver{ margin-top:1.1rem; background:none; border:none; color:#5B4C3D; font-size:14.5px; text-decoration:underline; cursor:pointer; padding:.4rem; font-family:inherit; }
-@media (prefers-reduced-motion:reduce){ #tela-carregando .sp-pizza, .sp-dots i{ animation:none; } .tela-manels{ transition:none; } }
+.fc-ver{ background:none; border:none; color:#5B4C3D; font-size:15px; text-decoration:underline; cursor:pointer; padding:.2rem; font-family:inherit; }
+#tela-fechado .tela-rodape{ display:none; }
+@media (prefers-reduced-motion:reduce){ .sp-pizza i{ animation:none; opacity:1; transform:none; } .sp-dots i{ animation:none; } .tela-manels{ transition:none; } }
 
 /* ==================== REDESIGN (Figma): home em cartões + promoção + carrinho em pílula ==================== */
 body{background:#FAF6EE;}
@@ -499,7 +514,7 @@ body{background:#FAF6EE;}
 <!-- ===== TELA DE CARREGAMENTO ===== -->
 <div id="tela-carregando" class="tela-manels" role="status" aria-live="polite" aria-label="Carregando o cardápio">
   <img class="sp-logo" src="splash-logo.webp" alt="Manel's Pizzaria" width="351" height="280">
-  <img class="sp-pizza" src="splash-pizza.webp" alt="" width="280" height="280">
+  <div class="sp-pizza" aria-hidden="true"><i style="--n:0"></i><i style="--n:1"></i><i style="--n:2"></i><i style="--n:3"></i><i style="--n:4"></i><i style="--n:5"></i><i style="--n:6"></i><i style="--n:7"></i></div>
   <h1>Chegue mais.<br>A casa é sua.</h1>
   <p class="sp-sub">Estamos preparando o cardápio<br>para o seu próximo momento gostoso.</p>
   <div class="sp-espera">Só um instante…</div>
@@ -512,9 +527,9 @@ body{background:#FAF6EE;}
   <div class="fc-in">
     <img class="fc-logo" src="splash-logo.webp" alt="Manel's Pizzaria" width="351" height="280">
     <div class="fc-selo">ESTAMOS FECHADOS</div>
-    <h1>Ué, cadê<br>a pizza?</h1>
+    <h1>Ué, cadê <br>a pizza?</h1>
     <img class="fc-ilus" src="splash-entregador.webp" alt="Entregador da Manel's com a bolsa térmica vazia" width="760" height="614">
-    <p class="fc-texto">O forno está descansando por aqui.<br>Voltamos no próximo horário para<br>matar a sua fome com carinho.</p>
+    <p class="fc-texto">O forno está descansando por aqui. <br>Voltamos no próximo horário para <br>matar a sua fome com carinho.</p>
     <div class="fc-ticket">
       <div class="fc-esp">Esperamos você</div>
       <div class="fc-linha"></div>
@@ -4223,6 +4238,42 @@ wzRender();
       comecar();
     }, function(){ comecar(); });
   }catch(e){ /* estatística nunca pode atrapalhar o pedido */ }
+})();
+
+/* ==================== DESCRIÇÃO EM 2 LINHAS + "VER MAIS" ==================== */
+(function(){
+  var agendado = false, obs;
+  function processar(){
+    agendado = false;
+    if(obs) obs.disconnect();
+    document.querySelectorAll('.flavor-card.compact .fdesc').forEach(function(d){
+      var mais = d.nextElementSibling && d.nextElementSibling.classList.contains('fdesc-mais') ? d.nextElementSibling : null;
+      if(d.classList.contains('expanded')) return;
+      var cortada = d.clientHeight > 0 && d.scrollHeight > d.clientHeight + 1;
+      if(cortada && !mais){
+        mais = document.createElement('span'); mais.className = 'fdesc-mais'; mais.textContent = 'ver mais';
+        d.after(mais);
+      } else if(!cortada && mais && d.clientHeight > 0){ mais.remove(); }
+    });
+    if(obs) obs.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['style','class']});
+  }
+  function agendar(){ if(!agendado){ agendado = true; requestAnimationFrame(processar); } }
+  document.addEventListener('DOMContentLoaded', function(){
+    obs = new MutationObserver(agendar); agendar();
+    window.addEventListener('resize', agendar);
+  });
+  // toque em "ver mais" / na descrição cortada abre o texto inteiro sem selecionar o sabor
+  document.addEventListener('click', function(e){
+    var t = e.target.closest && e.target.closest('.fdesc-mais, .fdesc');
+    if(!t) return;
+    var d = t.classList.contains('fdesc-mais') ? t.previousElementSibling : t;
+    if(!d || !d.classList.contains('fdesc') || !d.closest('.flavor-card.compact')) return;
+    var mais = d.nextElementSibling && d.nextElementSibling.classList.contains('fdesc-mais') ? d.nextElementSibling : null;
+    if(!mais) return;   // não está cortada: clique normal (seleciona o sabor)
+    e.stopPropagation(); e.preventDefault();
+    var abriu = d.classList.toggle('expanded');
+    mais.textContent = abriu ? 'ver menos' : 'ver mais';
+  }, true);
 })();
 </script>
 </body>
