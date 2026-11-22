@@ -175,7 +175,7 @@ async function iniciar(){
     return;
   }
   if(new Date(link.expira_em) < new Date()){
-    document.getElementById('msg-invalido').textContent = 'Esse link expirou (ele vale por 3 horas). Peça um novo link no WhatsApp da pizzaria.';
+    document.getElementById('msg-invalido').textContent = 'Esse link expirou (ele vale por 24 horas). Peça um novo link no WhatsApp da pizzaria.';
     mostrarEstado('estado-invalido');
     return;
   }
