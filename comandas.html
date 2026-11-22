@@ -2312,25 +2312,54 @@ function gerarTokenAvaliacao(){
   return Array.from({length:32}, () => Math.floor(Math.random()*16).toString(16)).join('');
 }
 
+// Converte o telefone digitado na comanda (ex: "(88) 99999-9999") para o formato do wa.me (55 + DDD + número).
+// Retorna null se não parecer um telefone brasileiro válido.
+function telefoneParaWhatsApp(bruto){
+  let d = String(bruto || '').replace(/\D/g, '');
+  d = d.replace(/^0+/, '');
+  if(d.length === 10 || d.length === 11) d = '55' + d;
+  if(!/^55\d{10,11}$/.test(d)) return null;
+  return d;
+}
+
 async function gerarLinkAvaliacao(pedidoId){
+  // Abre a aba do WhatsApp já no clique (antes do await), senão o navegador bloqueia como pop-up.
+  const janela = window.open('', '_blank');
+
   const token = gerarTokenAvaliacao();
   const expiraEm = new Date(Date.now() + 3*60*60*1000); // 3 horas de validade
   const { error } = await supabaseClient.from('links_avaliacao').insert({
     pedido_id: pedidoId, token, expira_em: expiraEm.toISOString(), usado: false
   });
   if(error){
+    if(janela) janela.close();
     alert('Não foi possível gerar o link de avaliação.\n\nErro: ' + (error.message || JSON.stringify(error)) +
       '\n\nVerifique se a tabela "links_avaliacao" existe no Supabase — veja as instruções que te passei.');
     console.error(error);
     return;
   }
   const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
-  const mensagem = `⭐ *Avalie e ganhe pontos!*\nClique e avalie nosso atendimento: ${url}`;
+
+  const pedido = encontrarPedido(pedidoId);
+  const meta = pedido ? extrairMetaPedidoComandas(pedido) : { cliente:'', telefone:'' };
+  const primeiroNome = (meta.cliente || '').trim().split(/\s+/)[0];
+  const saudacao = primeiroNome ? `Olá, ${primeiroNome}! ` : 'Olá! ';
+  const mensagem = `${saudacao}Obrigado pelo seu pedido na Manel's Pizzaria 🍕\n⭐ *Avalie e ganhe pontos!*\nClique e avalie nosso atendimento: ${url}`;
+
+  const fone = telefoneParaWhatsApp(meta.telefone);
+  if(fone && janela){
+    // Abre a conversa com o cliente, mensagem pronta — é só tocar em enviar.
+    janela.location.href = `https://wa.me/${fone}?text=${encodeURIComponent(mensagem)}`;
+    return;
+  }
+
+  // Sem telefone válido na comanda (ou pop-up bloqueado): cai no jeito antigo, copiando a mensagem.
+  if(janela) janela.close();
   try{
     await navigator.clipboard.writeText(mensagem);
-    alert('✅ Mensagem copiada!\n\nJá vem pronta pra colar no WhatsApp do cliente. Vale por 3 horas:\n\n' + mensagem);
+    alert('⚠️ Não encontrei um telefone válido nessa comanda, então copiei a mensagem.\n\nCole no WhatsApp do cliente (vale por 3 horas):\n\n' + mensagem);
   } catch(e){
-    prompt('Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 3 horas):', mensagem);
+    prompt('Sem telefone válido na comanda. Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 3 horas):', mensagem);
   }
 }
 </script>
