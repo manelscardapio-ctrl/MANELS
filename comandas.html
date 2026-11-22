@@ -2327,7 +2327,7 @@ async function gerarLinkAvaliacao(pedidoId){
   const janela = window.open('', '_blank');
 
   const token = gerarTokenAvaliacao();
-  const expiraEm = new Date(Date.now() + 3*60*60*1000); // 3 horas de validade
+  const expiraEm = new Date(Date.now() + 24*60*60*1000); // 24 horas de validade
   const { error } = await supabaseClient.from('links_avaliacao').insert({
     pedido_id: pedidoId, token, expira_em: expiraEm.toISOString(), usado: false
   });
@@ -2344,7 +2344,7 @@ async function gerarLinkAvaliacao(pedidoId){
   const meta = pedido ? extrairMetaPedidoComandas(pedido) : { cliente:'', telefone:'' };
   const primeiroNome = (meta.cliente || '').trim().split(/\s+/)[0];
   const saudacao = primeiroNome ? `Olá, ${primeiroNome}! ` : 'Olá! ';
-  const mensagem = `${saudacao}Obrigado pelo seu pedido na Manel's Pizzaria 🍕\n⭐ *Avalie e ganhe pontos!*\nClique e avalie nosso atendimento: ${url}`;
+  const mensagem = `${saudacao}Aqui é da Manel's Pizzaria. Obrigado pelo seu pedido! 🍕\n\nÉ por clientes como você que a gente acende o forno com tanto carinho.\n\nSua opinião ajuda a gente a melhorar, e ainda vale 1 ponto no nosso programa de fidelidade. Leva menos de 1 minuto:\n${url}`;
 
   const fone = telefoneParaWhatsApp(meta.telefone);
   if(fone && janela){
@@ -2357,9 +2357,9 @@ async function gerarLinkAvaliacao(pedidoId){
   if(janela) janela.close();
   try{
     await navigator.clipboard.writeText(mensagem);
-    alert('⚠️ Não encontrei um telefone válido nessa comanda, então copiei a mensagem.\n\nCole no WhatsApp do cliente (vale por 3 horas):\n\n' + mensagem);
+    alert('⚠️ Não encontrei um telefone válido nessa comanda, então copiei a mensagem.\n\nCole no WhatsApp do cliente (vale por 24 horas):\n\n' + mensagem);
   } catch(e){
-    prompt('Sem telefone válido na comanda. Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 3 horas):', mensagem);
+    prompt('Sem telefone válido na comanda. Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 24 horas):', mensagem);
   }
 }
 </script>
