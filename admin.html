@@ -4622,7 +4622,7 @@ function gerarTokenAvaliacao(){
 
 async function gerarLinkAvaliacao(pedidoId){
   const token = gerarTokenAvaliacao();
-  const expiraEm = new Date(Date.now() + 3*60*60*1000); // 3 horas de validade
+  const expiraEm = new Date(Date.now() + 24*60*60*1000); // 24 horas de validade
   const { error } = await supabaseClient.from('links_avaliacao').insert({
     pedido_id: pedidoId, token, expira_em: expiraEm.toISOString(), usado: false
   });
@@ -4633,12 +4633,13 @@ async function gerarLinkAvaliacao(pedidoId){
     return;
   }
   const url = `https://manelspizzaria.com.br/avaliar.html?token=${token}`;
-  const mensagem = `⭐ *Avalie e ganhe pontos!*\nClique e avalie nosso atendimento: ${url}`;
+  const saudacao = 'Olá! ';
+  const mensagem = `${saudacao}Aqui é da Manel's Pizzaria. Obrigado pelo seu pedido! 🍕\n\nÉ por clientes como você que a gente acende o forno com tanto carinho.\n\nSua opinião ajuda a gente a melhorar, e ainda vale 1 ponto no nosso programa de fidelidade. Leva menos de 1 minuto:\n${url}`;
   try{
     await navigator.clipboard.writeText(mensagem);
-    alert('✅ Mensagem copiada!\n\nJá vem pronta pra colar no WhatsApp do cliente. Vale por 3 horas:\n\n' + mensagem);
+    alert('✅ Mensagem copiada!\n\nJá vem pronta pra colar no WhatsApp do cliente. Vale por 24 horas:\n\n' + mensagem);
   } catch(e){
-    prompt('Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 3 horas):', mensagem);
+    prompt('Copie a mensagem abaixo e cole no WhatsApp do cliente (vale por 24 horas):', mensagem);
   }
 }
 
